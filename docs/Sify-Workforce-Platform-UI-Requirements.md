@@ -12,7 +12,7 @@
 The Sify Workforce Platform is an internal system to manage:
 
 - Employees and teams within an organization
-- Customers and their projects
+- Projects
 - Project tasks and configurable activities
 - Employee time entries against assigned work
 - Weekly timesheets with manager approval
@@ -60,7 +60,7 @@ Main sidebar or top-level navigation areas:
 | Dashboard | All roles | Role-specific content |
 | Employees | Admin | List, add, edit, activate/deactivate |
 | Teams | Admin | Create, edit, assign members |
-| Customers | Admin, Manager | List, add, edit |
+
 | Projects | Manager, Admin | List, create, manage |
 | Tasks | Manager | Within project context |
 | Activities | Manager | Within project context |
@@ -175,35 +175,7 @@ Fields:
 
 Within a team, show the list of assigned employees with the ability to add or remove members.
 
----
 
-## 7. Customer Management
-
-### Customer List
-
-Columns:
-
-- Customer name
-- Customer code
-- Number of projects
-
-Actions: Add Customer, View, Edit
-
-### Add / Edit Customer
-
-Fields:
-
-- Customer name
-- Customer code
-
-### Customer Details
-
-Shows:
-
-- Customer information
-- List of associated projects
-
----
 
 ## 8. Project Management
 
@@ -213,7 +185,7 @@ Columns:
 
 - Project name
 - Project code
-- Customer name
+
 - Status
 
 Actions: Create Project, View, Edit
@@ -224,7 +196,7 @@ Fields:
 
 - Project name
 - Project code
-- Customer (select)
+- Organization (select)
 - Status
 
 ### Project Details
@@ -392,7 +364,7 @@ Currently identified report areas:
 | Employee Time Summary | Hours logged per employee for a period |
 | Project Hours | Total hours logged per project |
 | Team Utilization | Hours per team member vs. available hours |
-| Customer / Project Analysis | Time distribution across customers and projects |
+| Project Analysis | Time distribution across projects |
 
 The Figma design can propose a reasonable report layout based on these metrics.
 
@@ -400,7 +372,7 @@ The Figma design can propose a reasonable report layout based on these metrics.
 
 ## 15. Common UI Behaviour
 
-- **Search:** Employee list, project list, customer list
+- **Search:** Employee list, project list
 - **Filters:** Status filters on lists (e.g., active/inactive employees, project status)
 - **Validation messages:** Show inline field errors on forms. Show server-returned errors (e.g., duplicate code) clearly
 - **Success / error feedback:** Toast or banner after create, update, delete
@@ -425,10 +397,7 @@ The Figma design can propose a reasonable report layout based on these metrics.
 | Team List | `GET /api/v1/teams` | Planned |
 | Create Team | `POST /api/v1/teams` | Planned |
 | Edit Team | `PATCH /api/v1/teams/:id` | Planned |
-| Customer List | `GET /api/v1/customers` | Planned |
-| Add Customer | `POST /api/v1/customers` | Planned |
-| Customer Details | `GET /api/v1/customers/:id` | Planned |
-| Edit Customer | `PATCH /api/v1/customers/:id` | Planned |
+
 | Project List | `GET /api/v1/projects` | Planned |
 | Create Project | `POST /api/v1/projects` | Planned |
 | Project Details | `GET /api/v1/projects/:id` | Planned |
@@ -477,9 +446,7 @@ Screens to design, in priority order:
 | 9 | Team List | Confirmed |
 | 10 | Create / Edit Team | Confirmed |
 | 11 | Team Members | Confirmed |
-| 12 | Customer List | Confirmed |
-| 13 | Add / Edit Customer | Confirmed |
-| 14 | Customer Details | Confirmed |
+
 | 15 | Project List | Confirmed |
 | 16 | Create / Edit Project | Confirmed |
 | 17 | Project Details (with tabs for tasks, activities) | Confirmed |
@@ -498,7 +465,7 @@ Screens to design, in priority order:
 ### Confirmed
 
 - Organization → Team → Employee structure
-- Customer → Project → Task → Activity work structure
+- Organization → Project → Task → Activity work structure
 - Employee time entry: project, task, activity, date, hours, remarks
 - Weekly timesheet with Draft → Submitted → Pending Review → Approved flow
 - Rejection with comment → Correction → Resubmit
@@ -521,7 +488,7 @@ Screens to design, in priority order:
 
 ### Planned
 
-- Full CRUD for teams, customers, projects, tasks, activities
+- Full CRUD for teams, projects, tasks, activities
 - Time entry and timesheet APIs
 - Approval workflow APIs
 - Report endpoints

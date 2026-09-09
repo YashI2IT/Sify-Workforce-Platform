@@ -99,7 +99,7 @@ flowchart TD
     AQ --> AS["42. Employee Time Summary"]
     AQ --> AT["43. Project Hours Report"]
     AQ --> AU["44. Team Utilization Report"]
-    AQ --> AV["45. Customer / Project Analysis"]
+    AQ --> AV["45. Project Analysis"]
 
     %% =========================================================
     %% AUDIT & STATUS HISTORY
@@ -162,7 +162,7 @@ The platform supports:
 The confirmed project workflow structure is:
 
 ```text
-Customer
+Organization
     ↓
 Project
     ↓
@@ -172,7 +172,7 @@ Activity
 ```
 
 A manager or authorized user can:
-1. Create a project and link it to a customer
+1. Create a project under the organization
 2. Enter project details
 3. Create project tasks
 4. Configure project-specific activities
@@ -284,7 +284,7 @@ Approved time data is available for reporting:
 - Employee Time Summary
 - Project Hours Report
 - Team Utilization Report
-- Customer / Project Analysis
+- Project Analysis
 
 ---
 
@@ -308,7 +308,7 @@ Employee
 
 ### Work Structure
 ```text
-Customer
+Organization
     ↓
 Project
     ↓

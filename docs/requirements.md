@@ -6,7 +6,7 @@
 
 ## 1. Purpose and Scope
 
-The Sify Workforce Platform is an internal system for managing employees, teams, customers, projects, tasks, activities, time entries, and timesheets.
+The Sify Workforce Platform is an internal system for managing employees, teams, projects, tasks, activities, time entries, and timesheets.
 
 The system provides one place to manage project work and employee time tracking. A key requirement is that project activities are configurable dynamically without changing the database structure whenever a new activity is added.
 
@@ -31,15 +31,11 @@ The system must allow authorized users to:
 
 *(Note: Department and Group entities are not part of the initial requirements.)*
 
-### Customer Management
-The system must allow authorized users to:
-- Create, view, and update customers.
-- Link customers to projects.
+
 
 ### Project Management
 The system must allow authorized users to:
-- Create, view, and update projects.
-- Link projects to customers.
+- Create, view, and update projects under an Organization.
 - Deactivate (soft delete) projects.
 - Assign employees to projects directly (Employee ↔ Project many-to-many relationship).
 
@@ -83,7 +79,7 @@ Approved time must be available for reporting. Core report areas:
 - Employee Time Summary
 - Project Hours
 - Team Utilization
-- Customer/Project time summary
+- Project time summary
 
 ### Audit and History Requirements
 - Important timesheet workflow changes (submission, approval, rejection) must be logged.

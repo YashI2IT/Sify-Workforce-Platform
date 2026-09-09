@@ -30,7 +30,6 @@ The following resource boundaries reflect the complete platform workflow.
 - `/organizations`
 - `/teams`
 - `/employees`
-- `/customers`
 - `/projects`
 - `/projects/:id/assignments` (For mapping Employees to Projects)
 - `/tasks`

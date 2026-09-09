@@ -48,21 +48,11 @@ createdAt
 updatedAt
 ```
 
-#### Customer
-Stores customer details.
-```text
-id
-name
-code
-createdAt
-updatedAt
-```
-
 #### Project
-Stores projects for customers.
+Stores projects under an organization.
 ```text
 id
-customerId
+organizationId
 name
 code
 status
@@ -163,7 +153,7 @@ Employee
 
 **Project Structure**
 ```text
-Customer
+Organization
     ↓ (1:N)
 Project
     ↓ (1:N)

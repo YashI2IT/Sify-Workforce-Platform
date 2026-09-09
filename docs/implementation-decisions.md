@@ -100,6 +100,12 @@ This document outlines the practical, first-release implementation decisions for
 **Reason:** Maintains consistency, readability, and predictability.
 **Impact:** All modules will use Plural nouns, `GET`/`POST`/`PATCH`/`DELETE` methods, Zod for validation, and standard HTTP status codes (e.g., 409 for conflicts, 404 for not found).
 
+### 16. Customer Entity
+
+**Initial decision:** Customer is not a separate entity in V1. Project belongs directly to Organization.
+**Reason:** Technical Lead confirmed that Customer should be removed from V1 architecture.
+**Impact:** No Customer table or API. Project requires an `organizationId`.
+
 ---
 
 ## Implementation Principles
