@@ -60,8 +60,25 @@ model Project {
   updatedAt      DateTime     @default(now())
 
   organization   Organization @relation(fields:[organizationId], references:[id])
+  tasks          Task[]
 
   @@unique([organizationId, name])
   @@unique([organizationId, code])
   @@map("project")
+}
+
+model Task {
+  id             String       @id @default(uuid())
+  projectId      String
+  name           String
+  description    String?
+  status         String
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now())
+
+  project        Project      @relation(fields:[projectId], references:[id])
+
+  @@unique([projectId, name])
+  @@map("task")
 }
