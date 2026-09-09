@@ -2,286 +2,121 @@
 
 ## Requirements
 
-**Status:** In Progress
+**Status:** Confirmed & Implementation Ready
 
-## 1. Purpose
+## 1. Purpose and Scope
 
-The Sify Workforce Platform is an internal system for managing employees, teams, customers, projects, tasks, activities, time entries and timesheets.
+The Sify Workforce Platform is an internal system for managing employees, teams, customers, projects, tasks, activities, time entries, and timesheets.
 
-The system should provide one place to manage project work and employee time tracking.
+The system provides one place to manage project work and employee time tracking. A key requirement is that project activities are configurable dynamically without changing the database structure whenever a new activity is added.
 
-A key requirement is that project activities should be configurable without changing the database structure whenever a new activity is added.
-
----
-
-## 2. Main Flow
-
-### Organization
-
-```text
-Organization
-    ↓
-Team
-    ↓
-Employee
-```
-
-### Project Work
-
-```text
-Customer
-    ↓
-Project
-    ↓
-Task
-    ↓
-Activity
-```
-
-### Time Tracking
-
-```text
-Employee
-    ↓
-Time Entry
-    ↓
-Timesheet
-    ↓
-Manager Review
-    ↓
-Approve / Reject
-```
+*Initial Scope Exclusions:* Notifications, payroll integration, billing, advanced analytics, complex approval chains, mobile applications, and SSO integrations (other than basic Keycloak mapping) are excluded from the initial version.
 
 ---
 
-## 3. Main Users
-
-### Admin
-
-- Manage organization details
-- Manage employees and teams
-- Manage user roles
-- Configure organizational structure
-
-### Manager / Team Lead
-
-- Manage assigned projects
-- Create tasks
-- Configure project activities
-- Assign employees or teams
-- Review timesheets
-- Approve or reject timesheets
-- View reports
-
-### Employee
-
-- View assigned work
-- View tasks and activities
-- Add time entries
-- Review timesheet
-- Submit timesheet
-- Correct rejected entries
-- Resubmit timesheet
-
----
-
-## 4. Functional Requirements
+## 2. Functional Requirements
 
 ### Employee Management
-
-The system should allow authorized users to:
-
-- Add employees
-- View employees
-- Update employee details
-- Activate or deactivate employees
-- Assign employees to teams
+The system must allow authorized users to:
+- Add, view, and update employees.
+- Deactivate (soft delete) employees.
+- Validate duplicate employee code and email addresses during creation/update operations.
+- Assign an employee to exactly one Team.
 
 ### Team Management
+The system must allow authorized users to:
+- Create, view, and update teams.
+- Assign employees to a team.
+- Assign a single manager / Team Lead per team.
 
-The system should allow authorized users to:
-
-- Create teams
-- Update teams
-- Assign employees
-- Assign a manager or Team Lead
-
-The exact Department, Group and Team structure is still to be confirmed.
+*(Note: Department and Group entities are not part of the initial requirements.)*
 
 ### Customer Management
-
-The system should allow authorized users to:
-
-- Create customers
-- View customers
-- Update customer details
-- Link customers with projects
+The system must allow authorized users to:
+- Create, view, and update customers.
+- Link customers to projects.
 
 ### Project Management
-
-The system should allow authorized users to:
-
-- Create projects
-- Update project details
-- Link projects to customers
-- Create tasks
-- Configure activities
-- Assign employees or teams
+The system must allow authorized users to:
+- Create, view, and update projects.
+- Link projects to customers.
+- Deactivate (soft delete) projects.
+- Assign employees to projects directly (Employee ↔ Project many-to-many relationship).
 
 ### Task Management
+The system must allow authorized users to:
+- Create and update tasks under a specific project.
+- Deactivate (soft delete) tasks.
+- Track task status.
 
-The system should allow users to:
-
-- Create tasks under projects
-- Update tasks
-- Assign employees to tasks
-- Track task status
+*(Note: There is no direct assignment of tasks to specific employees. Any employee assigned to the project can log time to active tasks.)*
 
 ### Activity Management
-
-Activities should be configurable for each project.
-
-Example:
-
-```text
-Project A
-- Development
-- Testing
-- Deployment
-
-Project B
-- Client Meeting
-- Documentation
-- Review
-```
-
-Adding a new activity should not require a database schema change or new hard-coded field.
+Activities must be configurable for each project and owned by the project.
+Adding a new activity must not require a database schema change.
+- The system must allow creating activities specific to a project.
+- The system must allow deactivating (soft deleting) activities.
 
 ### Time Entry
+Employees must be able to enter time with the following fields:
+- Project (mandatory)
+- Task (mandatory)
+- Activity (mandatory)
+- Date (mandatory)
+- Hours (mandatory)
+- Remarks (optional)
 
-Employees should be able to enter:
+### Timesheet Requirements
+- **Period:** Timesheets are based on a fixed weekly period (Monday to Sunday).
+- **Generation:** Lazy generation. A "Draft" timesheet is automatically created upon an employee's first time entry for that week if it doesn't already exist.
+- **Statuses:** `Draft` → `Submitted` → `Pending Review` → `Approved` or `Rejected`.
 
-```text
-Project
-Task
-Activity
-Date
-Hours
-Remarks
-```
+### Approval and Rejection Requirements
+- **Submission:** Timesheets must be submitted by the employee before manager review.
+- **Hierarchy:** Single-level manager approval based on the employee's assigned Team's manager.
+- **Approval:** Approved timesheets become strictly read-only and cannot be edited.
+- **Rejection:** Rejection occurs at the entire Timesheet level and requires a mandatory rejection comment. The timesheet reverts to a rejected state (draft equivalent) for correction and resubmission.
 
-The system should validate that the employee is allowed to use the selected project, task and activity.
+### Reporting Requirements
+Approved time must be available for reporting. Core report areas:
+- Manager Dashboard
+- Employee Time Summary
+- Project Hours
+- Team Utilization
+- Customer/Project time summary
 
-### Timesheet
-
-The current workflow is:
-
-```text
-Draft
-  ↓
-Submitted
-  ↓
-Pending Review
-  ↓
-Approved
-```
-
-If rejected:
-
-```text
-Pending Review
-  ↓
-Rejected
-  ↓
-Correction
-  ↓
-Resubmit
-```
-
-The current assumption is a weekly timesheet.
-
-### Reporting
-
-The system should provide reports such as:
-
-- Employee time summary
-- Project hours
-- Team utilization
-- Customer/project time summary
-
-Detailed report requirements are still to be confirmed.
+### Audit and History Requirements
+- Important timesheet workflow changes (submission, approval, rejection) must be logged.
+- Historical records must be preserved. Projects, tasks, activities, and employees must use soft-deactivation to protect past timesheet data integrity.
 
 ---
 
-## 5. Business Rules
+## 3. Business Rules and Validations
 
-- Employees can record time only against work they are assigned or allowed to access.
-- Project activities are configurable.
-- New activities should not require database changes.
-- Timesheets must be submitted before manager review.
-- Managers can approve or reject submitted timesheets.
-- Rejection should include a comment.
-- Rejected timesheets can be corrected and resubmitted.
-- Approved time should be available for reporting.
-- Access to protected operations must be controlled by the backend.
+- **Access Control:** Employees can record time only against active projects to which they are assigned.
+- **Time Entry Strictness:** Both `Task` and `Activity` are strictly mandatory for all time entries.
+- **Backend Validation:** Validation for duplicates (e.g. employee code) is handled natively within the entity's CREATE/UPDATE operation. No separate duplicate-check APIs are created.
+- **Integrity:** Hard deletion of business entities that carry historical associations is prohibited.
 
 ---
 
-## 6. Authentication
+## 4. Users and Roles
 
-Keycloak will be used for user authentication and identity.
+The application uses static role-based access control (RBAC):
 
-The application should use role-based access for:
-
-```text
-Admin
-Manager / Team Lead
-Employee
-```
-
-The final role and permission mapping is still to be confirmed.
-
----
-
-## 7. Validation
-
-The backend should validate:
-
-- Required fields
-- Employee and organization relationships
-- Project and customer relationships
-- Task and project relationships
-- Activity and project relationships
-- Employee access to project work
-- Valid time entry data
-- Valid timesheet status changes
+1. **ADMIN**
+   - Manage organization details, teams, employees, and roles.
+2. **MANAGER**
+   - Manage assigned projects, tasks, activities, and project assignments.
+   - Review, approve, or reject team timesheets.
+3. **EMPLOYEE**
+   - View assigned projects, tasks, and activities.
+   - Record time entries.
+   - Submit and correct weekly timesheets.
 
 ---
 
-## 8. Open Questions
+## 5. Current Status
 
-The following points still need confirmation:
-
-- Employee and Team relationship
-- Employee and Project assignment
-- Team and Project assignment
-- Task assignment
-- Department / Group / Team structure
-- Activity ownership
-- Whether Task is mandatory for time entry
-- Whether Activity is mandatory for time entry
-- Timesheet period
-- Timesheet generation
-- Approval hierarchy
-- Editing after approval
-- Final reporting requirements
-
----
-
-## 9. Current Status
-
-The main requirements and workflow have been identified.
-
-Some business rules and relationships are still open and will be updated after discussion with the Team Lead.
-
-**Next:** Confirm the open requirements and finalize the database and API design.
+**Status:** Confirmed & Implementation Ready
+All functional boundaries, rules, and relationships are aligned with the technical implementation decisions and ready for development.

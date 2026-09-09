@@ -2,18 +2,18 @@
 
 ## Database Design
 
-**Status:** In Progress
+**Status:** Confirmed & Implementation Ready
 
 ### Purpose
 
-This document contains the initial database structure for the Sify Workforce Platform. The structure may change after discussion with the Team Lead.
+This document contains the finalized conceptual database structure for the Sify Workforce Platform, supporting the confirmed workflow and implementation decisions.
+
+---
 
 ### Main Entities
 
 #### Organization
-
-Stores the organization details.
-
+Stores the top-level organization details.
 ```text
 id
 name
@@ -23,9 +23,7 @@ updatedAt
 ```
 
 #### Team
-
 Stores teams under an organization.
-
 ```text
 id
 organizationId
@@ -36,24 +34,22 @@ updatedAt
 ```
 
 #### Employee
-
 Stores employee details.
-
 ```text
 id
 organizationId
+teamId
 employeeCode
 name
 email
+role
 isActive
 createdAt
 updatedAt
 ```
 
 #### Customer
-
 Stores customer details.
-
 ```text
 id
 name
@@ -63,37 +59,43 @@ updatedAt
 ```
 
 #### Project
-
 Stores projects for customers.
-
 ```text
 id
 customerId
 name
 code
 status
+isActive
 createdAt
 updatedAt
 ```
 
+#### Project Assignment
+Maps the many-to-many relationship between Employees and Projects.
+```text
+id
+employeeId
+projectId
+assignedAt
+isActive
+```
+
 #### Task
-
 Stores tasks under a project.
-
 ```text
 id
 projectId
 name
 description
 status
+isActive
 createdAt
 updatedAt
 ```
 
 #### Activity
-
-Stores activities that can be selected for a project.
-
+Stores activities configured specifically for a project.
 ```text
 id
 projectId
@@ -105,9 +107,7 @@ updatedAt
 ```
 
 #### Time Entry
-
 Stores the time logged by an employee.
-
 ```text
 id
 timesheetId
@@ -123,15 +123,14 @@ updatedAt
 ```
 
 #### Timesheet
-
-Stores the timesheet for an employee.
-
+Stores the weekly timesheet for an employee.
 ```text
 id
 employeeId
 periodStart
 periodEnd
 status
+rejectionComment
 submittedAt
 approvedAt
 createdAt
@@ -139,9 +138,7 @@ updatedAt
 ```
 
 #### Timesheet Audit
-
-Stores important timesheet actions.
-
+Stores important timesheet actions for history.
 ```text
 id
 timesheetId
@@ -151,115 +148,104 @@ comments
 timestamp
 ```
 
-### Main Relationships
+---
 
+### Conceptual Relationships
+
+**Organization Hierarchy**
 ```text
 Organization
-    ↓
+    ↓ (1:N)
 Team
-    ↓
+    ↓ (1:N)
 Employee
+```
 
+**Project Structure**
+```text
 Customer
-    ↓
+    ↓ (1:N)
 Project
-    ↓
+    ↓ (1:N)
 Task
-    ↓
+
+Project
+    ↓ (1:N)
 Activity
+```
+
+**Assignment & Time Tracking**
+```text
+Employee ↔ Project Assignment ↔ Project
 
 Employee
-    ↓
+    ↓ (1:N)
 Timesheet
-    ↓
+    ↓ (1:N)
 Time Entry
 ```
 
-Current relationships:
+**Important Cardinality & Integrity Rules:**
+- One Employee belongs to exactly one Team.
+- `Employee ↔ Project` is a direct many-to-many assignment. (Team-level project assignment is excluded).
+- Tasks and Activities belong directly to Projects. Tasks are NOT assigned to individual employees.
+- Time Entries have mandatory foreign keys to `Employee`, `Project`, `Task`, and `Activity`.
+- Hard deletions are avoided. Deactivation flags (`isActive`) must be used for Employees, Projects, Tasks, and Activities to preserve the integrity of historical Timesheets and Time Entries.
 
-- One organization can have multiple teams.
-- One organization can have multiple employees.
-- One customer can have multiple projects.
-- One project can have multiple tasks.
-- One project can have multiple activities.
-- One employee can have multiple timesheets.
-- One timesheet can have multiple time entries.
+---
 
 ### Dynamic Activities
 
-Activities are stored as records so that a project can have different activities.
+Activities are stored as records linked to a specific project. 
 
 Example:
-
 ```text
 Project A
 - Development
 - Testing
-- Deployment
 
 Project B
 - Client Meeting
 - Documentation
-- Requirement Analysis
 ```
+Adding a new activity requires inserting a row into the `Activity` table with the respective `projectId`, eliminating the need for database schema changes.
 
-Adding a new activity should not require a new database column.
+---
 
-### Time Entry
+### Timesheet State Machine
 
-A time entry will contain the employee, project, task, activity, date, hours and remarks.
+Timesheets follow a strict weekly period (Monday to Sunday) and a defined state machine:
 
-The backend should check that the selected project, task and activity are valid.
-
-Whether task and activity should always be required is still to be confirmed.
-
-### Timesheet
-
-Current workflow:
-
+**Approval Flow:**
 ```text
 Draft
-  ↓
+  ↓ (Submit)
 Submitted
-  ↓
+  ↓ (System/Review)
 Pending Review
-  ↓
+  ↓ (Manager Decision)
 Approved
 ```
 
-If rejected:
-
+**Rejection Flow:**
 ```text
 Pending Review
-  ↓
+  ↓ (Manager Decision + Comment)
 Rejected
-  ↓
-Correction
-  ↓
+  ↓ (Employee Correction)
+Draft/Correction
+  ↓ (Resubmit)
 Submitted
 ```
 
-The exact timesheet period and approval process are still to be confirmed.
+---
 
-### Pending Decisions
+### Current Implementation Status
 
-The following points need Team Lead confirmation:
+While this document describes the complete conceptual data model required for the platform, the backend is being implemented incrementally.
 
-- Employee and Team relationship
-- Employee and Project assignment
-- Team and Project assignment
-- Task assignment
-- Department and Group structure
-- Activity ownership
-- Task/Activity requirement for time entry
-- Timesheet period
-- Timesheet generation
-- Approval process
+**Currently Implemented in Database:**
+- Core Prisma ORM Setup (Prisma 8)
+- Employee Model (partial/incremental implementation schema)
 
-### Current Status
-
-The main entities and basic relationships have been identified.
-
-The database design will be updated based on the final requirements and Team Lead discussion.
-
-**Next:** Finalize the pending relationships and then update the Prisma contract.
+*(Note: The actual Prisma `contract.prisma` may currently reflect only the incrementally completed subset of this conceptual design. The conceptual design remains the target for the final implementation.)*

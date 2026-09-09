@@ -2,8 +2,9 @@
 
 ## UI / Product Requirements
 
-**Status:** In Progress
+**Status:** Confirmed & Implementation Ready
 **Purpose:** Figma design reference
+
 ---
 
 ## 1. Purpose
@@ -29,14 +30,13 @@ This is a workforce time-tracking application. Employees log hours against proje
 - Manage employees (add, edit, activate/deactivate)
 - Manage teams and team structure
 - Assign roles to users
-- Configure organizational structure
 
 ### Manager / Team Lead
 
 - Manage assigned projects
 - Create and manage tasks under projects
 - Configure project activities
-- Assign employees or teams to projects (TBC — assignment model not finalized)
+- Assign employees to projects
 - Review submitted timesheets
 - Approve or reject timesheets
 - View project and team reports
@@ -107,7 +107,7 @@ Columns:
 - Name
 - Email
 - Organization
-- Team (where applicable — TBC)
+- Team
 - Status (Active / Inactive)
 
 Actions: Add Employee, View, Edit, Activate/Deactivate
@@ -117,6 +117,7 @@ Actions: Add Employee, View, Edit, Activate/Deactivate
 Form fields:
 
 - Organization (select — currently only one org exists)
+- Team (select)
 - Employee code
 - Name
 - Email
@@ -132,13 +133,13 @@ Shows the employee record:
 - Name
 - Email
 - Organization
-- Team (TBC)
+- Team
 - Active status
 - Created date
 
 ### Edit Employee
 
-Same fields as Add Employee. Employee code may or may not be editable — TBC.
+Same fields as Add Employee.
 
 ---
 
@@ -173,10 +174,6 @@ Fields:
 ### Team Members
 
 Within a team, show the list of assigned employees with the ability to add or remove members.
-
-### Department / Group
-
-The workflow mentions a Department / Group layer between Organization and Team. This structure is **TBC**. The Figma design should be aware that a department/group level may be added later, but should not design it as a confirmed feature right now.
 
 ---
 
@@ -236,7 +233,7 @@ Shows project information and provides access to:
 
 - Tasks (list, create, edit)
 - Activities (list, create, edit, activate/deactivate)
-- Assigned employees or teams (TBC — assignment model not finalized)
+- Assigned employees
 
 ---
 
@@ -251,7 +248,6 @@ Columns:
 - Task name
 - Description
 - Status
-- Assigned employee (TBC)
 
 Actions: Create Task, Edit Task
 
@@ -262,7 +258,6 @@ Fields:
 - Task name
 - Description
 - Status
-- Assigned employee (TBC — whether tasks are assigned to individual employees is not finalized)
 
 ---
 
@@ -290,8 +285,6 @@ Fields:
 
 A new activity is added as a data record. No new database column or new screen type is needed.
 
-Activity ownership scope (project-level vs. organization-level) is **TBC**.
-
 ---
 
 ## 11. Time Entry
@@ -317,7 +310,7 @@ The dropdowns should be filtered:
 - Task: only tasks under the selected project
 - Activity: only active activities under the selected project
 
-Whether Task and Activity are always mandatory is **TBC**.
+Task and Activity are mandatory fields for every Time Entry.
 
 ---
 
@@ -325,7 +318,7 @@ Whether Task and Activity are always mandatory is **TBC**.
 
 ### Timesheet View
 
-The current assumption is a weekly timesheet (Mon–Sun or as configured).
+The current assumption is a weekly timesheet (Mon–Sun).
 
 Show:
 
@@ -386,7 +379,7 @@ Actions:
 - Approve
 - Reject (with mandatory rejection comment)
 
-Approval hierarchy (single manager vs. multi-level) is **TBC**.
+Timesheets undergo a single-level approval by the employee's Team Manager.
 
 ---
 
@@ -401,7 +394,7 @@ Currently identified report areas:
 | Team Utilization | Hours per team member vs. available hours |
 | Customer / Project Analysis | Time distribution across customers and projects |
 
-Filters, date ranges, chart types and export options are **TBC**. The Figma design can propose a reasonable report layout, but detailed report specifications are not finalized.
+The Figma design can propose a reasonable report layout based on these metrics.
 
 ---
 
@@ -426,9 +419,9 @@ Filters, date ranges, chart types and export options are **TBC**. The Figma desi
 |---|---|---|
 | Employee List | `GET /api/v1/employees` | **Implemented** |
 | Add Employee | `POST /api/v1/employees` | **Implemented** |
-| Employee Details | `GET /api/v1/employees/:id` | Planned |
-| Edit Employee | `PATCH /api/v1/employees/:id` | Planned |
-| Activate/Deactivate Employee | `PATCH /api/v1/employees/:id` | Planned (same endpoint) |
+| Employee Details | `GET /api/v1/employees/:id` | **Implemented** |
+| Edit Employee | `PATCH /api/v1/employees/:id` | **Implemented** |
+| Activate/Deactivate Employee | `PATCH /api/v1/employees/:id` | **Implemented** |
 | Team List | `GET /api/v1/teams` | Planned |
 | Create Team | `POST /api/v1/teams` | Planned |
 | Edit Team | `PATCH /api/v1/teams/:id` | Planned |
@@ -455,51 +448,28 @@ Filters, date ranges, chart types and export options are **TBC**. The Figma desi
 | Manager Review List | `GET /api/v1/timesheets?status=pending` | Planned |
 | Approve Timesheet | `POST /api/v1/timesheets/:id/approve` | Planned |
 | Reject Timesheet | `POST /api/v1/timesheets/:id/reject` | Planned |
-| Reports | `GET /api/v1/reports/*` | TBC |
-| Dashboard | Multiple endpoints | TBC |
-| Login | Keycloak integration | TBC |
+| Reports | `GET /api/v1/reports/*` | Planned |
+| Dashboard | Multiple endpoints | Planned |
+| Login | Keycloak integration | Planned |
 
 **Notes:**
 
-- Duplicate employee code/email check is part of `POST /api/v1/employees`. No separate API.
+- Duplicate employee code/email check is part of `POST /api/v1/employees` and `PATCH /api/v1/employees/:id`. No separate API.
 - Organization data is currently seeded. No create-organization API is planned for the initial version.
 - Task and Activity APIs are nested under projects because they belong to a specific project.
-- Report endpoints are TBC pending final report requirements.
 
 ---
 
-## 17. Design Dependencies / TBC Items
-
-These unresolved decisions could change the Figma design:
-
-| # | Decision | Impact on UI |
-|---|---|---|
-| 1 | Department / Group / Team structure | May add a navigation level or grouping in team management |
-| 2 | Employee–Team relationship (1:1 or 1:N) | Affects employee form (single team select vs. multi-select) |
-| 3 | Employee–Project assignment model | Affects project detail screen and employee detail screen |
-| 4 | Team–Project assignment | May add a team assignment section to project details |
-| 5 | Task assignment to employees | Affects task form (assignee field) |
-| 6 | Activity ownership (project-level or org-level) | Affects where activity management lives in the UI |
-| 7 | Task requirement for time entry | Affects whether task dropdown is required or optional |
-| 8 | Activity requirement for time entry | Affects whether activity dropdown is required or optional |
-| 9 | Timesheet period configuration | Affects timesheet date range display |
-| 10 | Timesheet generation (auto vs. manual) | Affects whether employee creates a timesheet or it exists automatically |
-| 11 | Approval hierarchy (single vs. multi-level) | Affects review screen flow |
-| 12 | Editing approved timesheets | Affects whether approved timesheets have an edit option |
-| 13 | Final reporting requirements | Affects report screen layout, filters and charts |
-
----
-
-## 18. Figma Screens
+## 17. Figma Screens
 
 Screens to design, in priority order:
 
 | # | Screen | Status |
 |---|---|---|
-| 1 | Login | TBC (Keycloak) |
-| 2 | Dashboard (Admin) | Confirmed — layout TBC |
-| 3 | Dashboard (Manager) | Confirmed — layout TBC |
-| 4 | Dashboard (Employee) | Confirmed — layout TBC |
+| 1 | Login | Confirmed (Keycloak) |
+| 2 | Dashboard (Admin) | Confirmed |
+| 3 | Dashboard (Manager) | Confirmed |
+| 4 | Dashboard (Employee) | Confirmed |
 | 5 | Employee List | Confirmed |
 | 6 | Add Employee | Confirmed |
 | 7 | Employee Details | Confirmed |
@@ -519,22 +489,15 @@ Screens to design, in priority order:
 | 21 | Weekly Timesheet | Confirmed |
 | 22 | Manager Timesheet Review List | Confirmed |
 | 23 | Manager Timesheet Review Detail | Confirmed |
-| 24 | Reports | TBC — layout depends on final report specs |
-
-Screens or sections that depend on TBC decisions:
-
-- Department / Group management (depends on #1 above)
-- Employee–Team assignment UI (depends on #2)
-- Project assignment section (depends on #3, #4)
-- Task assignee field (depends on #5)
+| 24 | Reports | Confirmed |
 
 ---
 
-## 19. Current Status
+## 18. Current Status
 
 ### Confirmed
 
-- Organization → Team → Employee structure (Department/Group layer TBC)
+- Organization → Team → Employee structure
 - Customer → Project → Task → Activity work structure
 - Employee time entry: project, task, activity, date, hours, remarks
 - Weekly timesheet with Draft → Submitted → Pending Review → Approved flow
@@ -542,11 +505,15 @@ Screens or sections that depend on TBC decisions:
 - Dynamic project activities (data records, not schema changes)
 - Zod-based validation on the backend
 - Role-based access: Admin, Manager/Team Lead, Employee
+- Tasks and Activities are mandatory fields for every Time Entry.
+- Timesheets undergo a single-level approval by the employee's Team Manager.
 
 ### Implemented
 
 - `GET /api/v1/employees` — returns all employees
 - `POST /api/v1/employees` — creates employee with validation (required fields, org check, duplicate code/email check)
+- `GET /api/v1/employees/:id` — returns employee by ID
+- `PATCH /api/v1/employees/:id` — updates employee details and active status
 - PostgreSQL database with `organization` and `employee` tables
 - Prisma 8 contract with Organization and Employee models
 - NestJS backend with global `/api/v1` prefix
@@ -554,25 +521,9 @@ Screens or sections that depend on TBC decisions:
 
 ### Planned
 
-- `GET /api/v1/employees/:id`
-- `PATCH /api/v1/employees/:id`
 - Full CRUD for teams, customers, projects, tasks, activities
 - Time entry and timesheet APIs
 - Approval workflow APIs
 - Report endpoints
 - Frontend React application
 - Keycloak authentication integration
-
-### TBC
-
-- Department / Group / Team hierarchy
-- Employee–Team relationship (one team or multiple)
-- Employee–Project assignment model
-- Team–Project assignment
-- Task assignment to employees
-- Activity ownership scope
-- Task and Activity mandatory requirement for time entry
-- Timesheet period and generation
-- Approval hierarchy
-- Editing after approval
-- Detailed report requirements

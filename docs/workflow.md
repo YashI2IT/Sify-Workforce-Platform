@@ -5,39 +5,56 @@
 ```mermaid
 flowchart TD
 
-    A["1. User Opens Application"] --> B{"2. Authentication"}
+    %% =========================================================
+    %% APPLICATION ACCESS & ORGANIZATION
+    %% =========================================================
+
+    A["1. User Opens Application"]
+    --> B{"2. Authentication"}
 
     B -->|Existing User| C["3. Login"]
-    B -->|New User| D["3. Registration / Onboarding"]
+    B -->|New User| D["3. Register"]
 
-    D --> E["4. User Account Provisioning"]
+    D --> E["4. Create User Account"]
     C --> F{"5. Organization Available?"}
     E --> F
 
-    F -->|No Organization| G["6. Create Organization"]
-    F -->|Organization Exists| H["6. Select / Join Organization"]
+    F -->|No| G["6. Create Organization"]
+    F -->|Yes| H["6. Select / Join Organization"]
 
     G --> I["7. Organization Dashboard"]
     H --> I
 
+    %% =========================================================
+    %% ORGANIZATION SETUP
+    %% =========================================================
+
     I --> J["8. Organization Setup"]
 
     J --> K["9. Add / Invite Employees"]
-    K --> L["10. Configure Departments / Groups / Teams"]
+    K --> L["10. Create Departments / Groups / Teams"]
     L --> M["11. Assign Roles"]
     M --> N["12. Assign Managers / Team Leads"]
 
     N --> O["13. Manager Dashboard"]
+
+    %% =========================================================
+    %% PROJECT MANAGEMENT
+    %% =========================================================
 
     O --> P["14. Create Project"]
     P --> Q["15. Enter Project Details"]
     Q --> R["16. Define Project Requirements"]
     R --> S["17. Create Project Tasks"]
     S --> T["18. Configure Project Activities / Fields"]
-    T --> U["19. Assign Teams / Employees"]
+    T --> U["19. Assign Teams / Employees to Project"]
     U --> V["20. Assign Employees to Tasks"]
 
     V --> W["21. Employee Dashboard"]
+
+    %% =========================================================
+    %% EMPLOYEE WORK & TIME ENTRY
+    %% =========================================================
 
     W --> X["22. View Assigned Projects"]
     X --> Y["23. View Assigned Tasks"]
@@ -55,6 +72,10 @@ flowchart TD
     AG -->|Yes| AA
     AG -->|No| AH["32. Review Weekly Timesheet"]
 
+    %% =========================================================
+    %% TIMESHEET SUBMISSION & APPROVAL
+    %% =========================================================
+
     AH --> AI["33. Submit Timesheet"]
     AI --> AJ["34. Manager Receives Pending Timesheet"]
     AJ --> AK["35. Manager Reviews Time Entries"]
@@ -64,9 +85,13 @@ flowchart TD
     AL -->|Approve| AM["37. Timesheet Approved"]
 
     AL -->|Reject| AN["37. Add Rejection Comment"]
-    AN --> AO["38. Return to Employee"]
+    AN --> AO["38. Return Timesheet to Employee"]
     AO --> AP["39. Employee Corrects Time Entries"]
     AP --> AH
+
+    %% =========================================================
+    %% REPORTING
+    %% =========================================================
 
     AM --> AQ["40. Approved Data Available for Reporting"]
 
@@ -76,60 +101,65 @@ flowchart TD
     AQ --> AU["44. Team Utilization Report"]
     AQ --> AV["45. Customer / Project Analysis"]
 
+    %% =========================================================
+    %% AUDIT & STATUS HISTORY
+    %% =========================================================
+
     AH --> AW["Audit / Status History"]
     AI --> AW
     AM --> AW
     AN --> AW
 ```
 
+### Initial Implementation Note
+
+The diagram above represents the intended end-to-end business flow. However, to keep the initial V1 release practical, the following implementation decisions have been made:
+
+- **Create Departments / Groups / Teams:** 
+  *Initial implementation:* Only `Team` is implemented. The hierarchy is simply Organization → Team → Employee. No Department or Group entities will be created initially.
+- **Assign Teams / Employees to Project:**
+  *Initial implementation:* We use direct Employee ↔ Project assignment. Team ↔ Project assignment is not implemented initially to avoid complex overlapping access rules.
+- **Assign Employees to Tasks:**
+  *Initial implementation:* No direct Task ↔ Employee assignment. Any employee assigned to the project can work on its active project tasks.
+
 ---
 
 ## 2. Application Access and Organization
 
-The user starts by opening the application and authenticating through the configured identity and access management solution.
+The user starts by opening the application and authenticating. After authentication, the system determines whether the user is associated with an organization.
 
-After authentication, the system determines whether the user is associated with an organization.
-
-The current workflow supports:
-
+The workflow supports:
 - Existing user login
 - New user registration / onboarding
 - Organization creation when required
 - Selecting or joining an existing organization
 
-The exact user provisioning and organization membership process is **TBC**.
-
 ---
 
 ## 3. Organization Structure
 
-The current organizational structure is:
+The confirmed organizational structure for the initial implementation is flattened:
 
 ```text
 Organization
-    ↓
-Department / Group
     ↓
 Team
     ↓
 Employee
 ```
 
-The platform should support:
-
+The platform supports:
 - Adding or inviting employees
-- Creating organizational groups
-- Assigning roles
-- Assigning managers / Team Leads
-- Maintaining team membership
-
-The exact distinction between Department, Group and Team is **TBC**.
+- Creating teams
+- Assigning employees to exactly one team
+- Assigning roles (ADMIN, MANAGER, EMPLOYEE)
+- Assigning a single manager / Team Lead per team
 
 ---
 
 ## 4. Project Management
 
-The project workflow is:
+The confirmed project workflow structure is:
 
 ```text
 Customer
@@ -142,25 +172,21 @@ Activity
 ```
 
 A manager or authorized user can:
-
-1. Create a project
+1. Create a project and link it to a customer
 2. Enter project details
-3. Define project requirements
-4. Create project tasks
-5. Configure project activities / fields
-6. Assign teams and/or employees
-7. Assign employees to tasks
+3. Create project tasks
+4. Configure project-specific activities
+5. Assign employees directly to projects (`ProjectAssignment`)
 
-The exact assignment relationships are **TBC**.
+*Note: Tasks and Teams are not assigned to employees in the initial version.*
 
 ---
 
 ## 5. Dynamic Project Activities
 
-Project activities are intended to be configurable rather than fixed in the database schema.
+Project activities are configurable per project, meaning they are owned by the Project. 
 
 Example:
-
 ```text
 Project A
     - Development
@@ -173,24 +199,21 @@ Project B
     - Client Meeting
 ```
 
-A new activity should be added as configuration/data rather than by creating a new database column or changing the database schema.
-
-The exact ownership level of activities is **TBC**.
+A new activity is added as a data record linked to the project, preventing the need for database schema changes or new hard-coded fields.
 
 ---
 
 ## 6. Employee Work and Time Entry
 
-Employees can view their assigned work and record time against valid work items.
+Employees view their assigned projects and record time against valid work items.
 
-The current time-entry flow is:
-
+The time-entry flow is:
 ```text
 Project
     ↓
 Task
     ↓
-Activity / Field
+Activity
     ↓
 Date
     ↓
@@ -201,18 +224,17 @@ Remarks
 Save Time Entry
 ```
 
-Employees can create multiple time entries during the applicable timesheet period.
-
-The system should prevent employees from recording time against work they are not permitted to access.
+**Implementation Rules:**
+- Both `Task` and `Activity` are mandatory for all time entries.
+- The system prevents employees from recording time against projects they are not assigned to.
 
 ---
 
 ## 7. Timesheet Submission
 
-The current workflow uses a weekly timesheet.
+The workflow uses a fixed weekly timesheet (Monday to Sunday).
 
 The flow is:
-
 ```text
 Time Entries
     ↓
@@ -221,28 +243,15 @@ Review Weekly Timesheet
 Submit Timesheet
 ```
 
-After submission, the timesheet becomes available to the appropriate manager or approver.
-
-The exact timesheet period and generation mechanism are **TBC**.
+**Timesheet Generation:** When an employee creates the first time entry for a week, a "Draft" timesheet is created automatically if one does not already exist.
 
 ---
 
 ## 8. Timesheet Approval
 
-The current approval workflow is:
-
-```text
-Employee
-    ↓
-Submit Timesheet
-    ↓
-Manager Review
-    ↓
-Approve / Reject
-```
+The approval hierarchy uses a single-level manager approval based on the employee's assigned Team's manager.
 
 ### Approval
-
 ```text
 Manager Approves
     ↓
@@ -250,66 +259,47 @@ Timesheet Approved
     ↓
 Approved Data Available for Reporting
 ```
+*Note: Approved timesheets become read-only and cannot be edited by anyone.*
 
 ### Rejection
-
 ```text
 Manager Rejects
     ↓
-Rejection Comment
+Rejection Comment Required
     ↓
-Return to Employee
+Return Timesheet to Employee (Status: Rejected)
     ↓
 Employee Corrects Time Entries
     ↓
-Review Timesheet
-    ↓
-Resubmit
+Resubmit Timesheet
 ```
-
-The exact approval hierarchy and rejection scope are **TBC**.
+*Note: Rejection occurs at the entire Timesheet level, not individual time entries.*
 
 ---
 
 ## 9. Reporting
 
-Approved time data can be used for reporting.
-
-The current report areas are:
-
+Approved time data is available for reporting:
 - Manager Dashboard
 - Employee Time Summary
 - Project Hours Report
 - Team Utilization Report
 - Customer / Project Analysis
 
-Detailed formulas, filters and report definitions are **TBC**.
-
 ---
 
 ## 10. Audit and Status History
 
-Important timesheet workflow changes should be traceable.
-
-Current events include:
-
-- Submission
-- Approval
-- Rejection
-- Resubmission
-
-The detailed audit scope and retention requirements are **TBC**.
+Important timesheet workflow changes are traceable to preserve historical context. 
+Business entities (Employees, Projects, Tasks, Activities) use soft-deactivation (`isActive: false`) rather than hard deletion to ensure historical time entries and timesheets remain valid for audits.
 
 ---
 
 ## 11. Core Business Structures
 
 ### Organization Structure
-
 ```text
 Organization
-    ↓
-Department / Group
     ↓
 Team
     ↓
@@ -317,7 +307,6 @@ Employee
 ```
 
 ### Work Structure
-
 ```text
 Customer
     ↓
@@ -329,9 +318,10 @@ Activity
 ```
 
 ### Time Tracking Structure
-
 ```text
 Employee
+    ↓
+Project Assignment
     ↓
 Time Entry
     ↓
@@ -344,25 +334,8 @@ Approval / Rejection
 
 ---
 
-## 12. Key Workflow Decisions Pending Confirmation
+## 12. Current Status
 
-| ID | Topic | Current Understanding | Status |
-|---|---|---|---|
-| WF-01 | Employee-Team relationship | One or multiple teams | TBC |
-| WF-02 | Employee-Project relationship | Assignment required | TBC |
-| WF-03 | Activity ownership | Configurable activity; ownership level not finalized | TBC |
-| WF-04 | Task requirement | Task is part of current time-entry flow | TBC |
-| WF-05 | Activity requirement | Activity is part of current time-entry flow | TBC |
-| WF-06 | Timesheet period | Weekly in current workflow | TBC |
-| WF-07 | Approval hierarchy | Manager approval shown | TBC |
-| WF-08 | Rejection scope | Timesheet-level rejection shown | TBC |
+**Status:** Confirmed & Implementation Ready
 
----
-
-## 13. Current Status
-
-**Status:** Initial Design
-
-This workflow represents the current understanding of the platform and is intended for review with the Manager / Team Lead.
-
-**Next Step:** Confirm the open business decisions before finalizing the database model and API contracts.
+This workflow aligns with the agreed implementation decisions and acts as the source of truth for V1 development.
