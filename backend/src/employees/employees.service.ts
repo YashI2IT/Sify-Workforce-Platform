@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { db } from '../prisma/db.js';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/create-employee.dto.js';
 
@@ -17,12 +17,23 @@ export class EmployeesService {
   }
 
   async create(createEmployeeDto: CreateEmployeeDto) {
-    const { organizationId, employeeCode, email } = createEmployeeDto;
+    const { organizationId, employeeCode, email, teamId } = createEmployeeDto;
 
     // Verify organization exists
     const organization = await db.orm.public.Organization.where({ id: organizationId }).first();
     if (!organization) {
       throw new NotFoundException('Organization not found');
+    }
+
+    // Verify team
+    if (teamId) {
+      const team = await db.orm.public.Team.where({ id: teamId }).first();
+      if (!team) {
+        throw new NotFoundException('Team not found');
+      }
+      if (team.organizationId !== organizationId) {
+        throw new BadRequestException('Team must belong to the same organization as the employee');
+      }
     }
 
     // Respect the unique organization + employeeCode constraint
@@ -49,7 +60,18 @@ export class EmployeesService {
       throw new NotFoundException('Employee not found');
     }
 
-    const { employeeCode, email } = updateEmployeeDto;
+    const { employeeCode, email, teamId } = updateEmployeeDto;
+
+    // Verify team
+    if (teamId !== undefined && teamId !== null) {
+      const team = await db.orm.public.Team.where({ id: teamId }).first();
+      if (!team) {
+        throw new NotFoundException('Team not found');
+      }
+      if (team.organizationId !== employee.organizationId) {
+        throw new BadRequestException('Team must belong to the same organization as the employee');
+      }
+    }
 
     // Check duplicate employeeCode (if being changed)
     if (employeeCode && employeeCode !== employee.employeeCode) {
@@ -78,3 +100,4 @@ export class EmployeesService {
     return updated;
   }
 }
+

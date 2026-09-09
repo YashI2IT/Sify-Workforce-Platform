@@ -32,6 +32,7 @@ export class EmployeesController {
       required: ['organizationId', 'employeeCode', 'name', 'email'],
       properties: {
         organizationId: { type: 'string', description: 'Organization UUID' },
+        teamId: { type: 'string', nullable: true, description: 'Team UUID' },
         employeeCode: { type: 'string', example: 'EMP001' },
         name: { type: 'string', example: 'John Doe' },
         email: { type: 'string', format: 'email', example: 'john@example.com' },
@@ -65,6 +66,7 @@ export class EmployeesController {
     schema: {
       type: 'object',
       properties: {
+        teamId: { type: 'string', nullable: true, description: 'Team UUID' },
         employeeCode: { type: 'string', example: 'EMP002' },
         name: { type: 'string', example: 'Jane Doe' },
         email: { type: 'string', format: 'email', example: 'jane@example.com' },
