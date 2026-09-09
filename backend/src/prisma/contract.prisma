@@ -4,16 +4,34 @@ model Organization {
   name      String
   code      String     @unique
   createdAt DateTime   @default(now())
-  updatedAt      DateTime     @default(now())
+  updatedAt DateTime   @default(now())
 
   employees Employee[]
+  teams     Team[]
 
   @@map("organization")
+}
+
+model Team {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  managerId      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields:[organizationId], references:[id])
+  manager        Employee?    @relation("TeamManager", fields:[managerId], references:[id])
+  employees      Employee[]   @relation("TeamMembers")
+
+  @@unique([organizationId, name])
+  @@map("team")
 }
 
 model Employee {
   id             String       @id @default(uuid())
   organizationId String
+  teamId         String?
   employeeCode   String
   name           String
   email          String
@@ -22,6 +40,8 @@ model Employee {
   updatedAt      DateTime     @default(now())
 
   organization   Organization @relation(fields:[organizationId], references:[id])
+  team           Team?        @relation("TeamMembers", fields:[teamId], references:[id])
+  managedTeams   Team[]       @relation("TeamManager")
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, email])

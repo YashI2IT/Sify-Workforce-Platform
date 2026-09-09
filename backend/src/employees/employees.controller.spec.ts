@@ -1,5 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EmployeesController } from './employees.controller.js';
+import { EmployeesService } from './employees.service.js';
+import { vi } from 'vitest';
+
+const mockEmployeesService = {
+  findAll: vi.fn(),
+  findOne: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+};
 
 describe('EmployeesController', () => {
   let controller: EmployeesController;
@@ -7,6 +16,12 @@ describe('EmployeesController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EmployeesController],
+      providers: [
+        {
+          provide: EmployeesService,
+          useValue: mockEmployeesService,
+        },
+      ],
     }).compile();
 
     controller = module.get<EmployeesController>(EmployeesController);
@@ -16,3 +31,4 @@ describe('EmployeesController', () => {
     expect(controller).toBeDefined();
   });
 });
+

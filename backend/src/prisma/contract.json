@@ -11,6 +11,10 @@
     "organization": {
       "model": "Organization",
       "namespace": "public"
+    },
+    "team": {
+      "model": "Team",
+      "namespace": "public"
     }
   },
   "domain": {
@@ -68,6 +72,13 @@
                   "kind": "scalar"
                 }
               },
+              "teamId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "updatedAt": {
                 "nullable": false,
                 "type": {
@@ -77,6 +88,21 @@
               }
             },
             "relations": {
+              "managedTeams": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "managerId"
+                  ]
+                },
+                "to": {
+                  "model": "Team",
+                  "namespace": "public"
+                }
+              },
               "organization": {
                 "cardinality": "N:1",
                 "on": {
@@ -89,6 +115,21 @@
                 },
                 "to": {
                   "model": "Organization",
+                  "namespace": "public"
+                }
+              },
+              "team": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "teamId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Team",
                   "namespace": "public"
                 }
               }
@@ -115,6 +156,9 @@
                 },
                 "organizationId": {
                   "column": "organizationId"
+                },
+                "teamId": {
+                  "column": "teamId"
                 },
                 "updatedAt": {
                   "column": "updatedAt"
@@ -177,6 +221,21 @@
                   "model": "Employee",
                   "namespace": "public"
                 }
+              },
+              "teams": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "organizationId"
+                  ]
+                },
+                "to": {
+                  "model": "Team",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -199,6 +258,123 @@
               },
               "namespaceId": "public",
               "table": "organization"
+            }
+          },
+          "Team": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "managerId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "organizationId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "employees": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "teamId"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "manager": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "managerId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "organization": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "organizationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Organization",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "managerId": {
+                  "column": "managerId"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "organizationId": {
+                  "column": "organizationId"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "team"
             }
           }
         }
@@ -255,6 +431,11 @@
                   "nativeType": "text",
                   "nullable": false
                 },
+                "teamId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "updatedAt": {
                   "codecId": "pg/timestamptz-temporal@1",
                   "default": {
@@ -281,6 +462,22 @@
                     "namespaceId": "public",
                     "tableName": "organization"
                   }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "teamId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "employee"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "team"
+                  }
                 }
               ],
               "indexes": [
@@ -290,6 +487,14 @@
                   ],
                   "name": "employee_organizationId_idx_2e17ef41",
                   "prefix": "employee_organizationId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "teamId"
+                  ],
+                  "name": "employee_teamId_idx_f2b72ab3",
+                  "prefix": "employee_teamId_idx",
                   "unique": false
                 }
               ],
@@ -363,6 +568,113 @@
                   ]
                 }
               ]
+            },
+            "team": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "managerId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "organizationId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "organizationId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "team"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "organization"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "managerId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "team"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "employee"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "managerId"
+                  ],
+                  "name": "team_managerId_idx_f8369ba6",
+                  "prefix": "team_managerId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId"
+                  ],
+                  "name": "team_organizationId_idx_2e17ef41",
+                  "prefix": "team_organizationId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "organizationId",
+                    "name"
+                  ]
+                }
+              ]
             }
           }
         },
@@ -370,10 +682,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "22c3f21b66347adc2bf250a34b5a06d3751f1b84133feeb51f1f52ebbf9bd8cc"
+    "storageHash": "dcb418fb936d0c31c2dac6af49716333ce1faa1b748ed6c4601855d977a82c3e"
   },
   "execution": {
-    "executionHash": "668c1a1bdf8c91d08236b1895d7bc42373ba595b0894af080dab34cfde09f0f8",
+    "executionHash": "8d8ecc1eb4b372826bc3fcab0118e645dca15339e5a7a0fd0ffaba9aa17e4f9e",
     "mutations": {
       "defaults": [
         {
@@ -396,6 +708,17 @@
             "column": "id",
             "namespace": "public",
             "table": "organization"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "team"
           }
         }
       ]
