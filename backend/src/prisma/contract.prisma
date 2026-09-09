@@ -1,0 +1,29 @@
+// use prisma-next
+model Organization {
+  id        String     @id @default(uuid())
+  name      String
+  code      String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt      DateTime     @default(now())
+
+  employees Employee[]
+
+  @@map("organization")
+}
+
+model Employee {
+  id             String       @id @default(uuid())
+  organizationId String
+  employeeCode   String
+  name           String
+  email          String
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields:[organizationId], references:[id])
+
+  @@unique([organizationId, employeeCode])
+  @@unique([organizationId, email])
+  @@map("employee")
+}
