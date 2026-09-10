@@ -12,6 +12,10 @@
       "model": "Employee",
       "namespace": "public"
     },
+    "employee_project": {
+      "model": "EmployeeProject",
+      "namespace": "public"
+    },
     "organization": {
       "model": "Organization",
       "namespace": "public"
@@ -227,6 +231,21 @@
                   "namespace": "public"
                 }
               },
+              "projectAssignments": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "employeeId"
+                  ]
+                },
+                "to": {
+                  "model": "EmployeeProject",
+                  "namespace": "public"
+                }
+              },
               "team": {
                 "cardinality": "N:1",
                 "on": {
@@ -275,6 +294,68 @@
               },
               "namespaceId": "public",
               "table": "employee"
+            }
+          },
+          "EmployeeProject": {
+            "fields": {
+              "employeeId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "projectId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "employee": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "employeeId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "project": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "projectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Project",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "employeeId": {
+                  "column": "employeeId"
+                },
+                "projectId": {
+                  "column": "projectId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "employee_project"
             }
           },
           "Organization": {
@@ -456,6 +537,21 @@
                 },
                 "to": {
                   "model": "Activity",
+                  "namespace": "public"
+                }
+              },
+              "employeeAssignments": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "projectId"
+                  ]
+                },
+                "to": {
+                  "model": "EmployeeProject",
                   "namespace": "public"
                 }
               },
@@ -978,6 +1074,80 @@
                 }
               ]
             },
+            "employee_project": {
+              "columns": {
+                "employeeId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "projectId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "employeeId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "employee_project"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "employee"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "projectId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "employee_project"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "project"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "employeeId"
+                  ],
+                  "name": "employee_project_employeeId_idx_087dd4a6",
+                  "prefix": "employee_project_employeeId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "projectId"
+                  ],
+                  "name": "employee_project_projectId_idx_a96e4d92",
+                  "prefix": "employee_project_projectId_idx",
+                  "unique": false
+                }
+              ],
+              "uniques": [
+                {
+                  "columns": [
+                    "employeeId",
+                    "projectId"
+                  ]
+                }
+              ]
+            },
             "organization": {
               "columns": {
                 "code": {
@@ -1342,7 +1512,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "e21ed790386870d388784218a822c567fd3303e284a98804884805f6cd582671"
+    "storageHash": "2476b0a1e04daf3bed5ae26a1654955191f1d02157d9c8486e1ba550fb990b93"
   },
   "execution": {
     "executionHash": "00c4f032d5d105625c9c038f2eb678c0062248509ff867bd73a4119950941233",

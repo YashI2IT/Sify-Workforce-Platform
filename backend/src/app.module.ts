@@ -7,6 +7,7 @@ import { TeamsModule } from './teams/teams.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
 import { ActivitiesModule } from './activities/activities.module.js';
+import { AssignmentsModule } from './assignments/assignments.module.js';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ActivitiesModule } from './activities/activities.module.js';
     ProjectsModule,
     TasksModule,
     ActivitiesModule,
+    AssignmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
