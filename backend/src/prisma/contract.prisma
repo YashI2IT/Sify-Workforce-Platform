@@ -61,6 +61,7 @@ model Project {
 
   organization   Organization @relation(fields:[organizationId], references:[id])
   tasks          Task[]
+  activities     Activity[]
 
   @@unique([organizationId, name])
   @@unique([organizationId, code])
@@ -81,4 +82,19 @@ model Task {
 
   @@unique([projectId, name])
   @@map("task")
+}
+
+model Activity {
+  id             String       @id @default(uuid())
+  projectId      String
+  name           String
+  description    String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now())
+
+  project        Project      @relation(fields:[projectId], references:[id])
+
+  @@unique([projectId, name])
+  @@map("activity")
 }

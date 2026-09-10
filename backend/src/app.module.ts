@@ -6,6 +6,7 @@ import { EmployeesModule } from './employees/employees.module.js';
 import { TeamsModule } from './teams/teams.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
+import { ActivitiesModule } from './activities/activities.module.js';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { TasksModule } from './tasks/tasks.module.js';
     TeamsModule,
     ProjectsModule,
     TasksModule,
+    ActivitiesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
