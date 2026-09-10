@@ -31,6 +31,10 @@
     "team": {
       "model": "Team",
       "namespace": "public"
+    },
+    "time_entry": {
+      "model": "TimeEntry",
+      "namespace": "public"
     }
   },
   "domain": {
@@ -102,6 +106,21 @@
                 },
                 "to": {
                   "model": "Project",
+                  "namespace": "public"
+                }
+              },
+              "timeEntries": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "activityId"
+                  ]
+                },
+                "to": {
+                  "model": "TimeEntry",
                   "namespace": "public"
                 }
               }
@@ -258,6 +277,21 @@
                 },
                 "to": {
                   "model": "Team",
+                  "namespace": "public"
+                }
+              },
+              "timeEntries": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "employeeId"
+                  ]
+                },
+                "to": {
+                  "model": "TimeEntry",
                   "namespace": "public"
                 }
               }
@@ -584,6 +618,21 @@
                   "model": "Task",
                   "namespace": "public"
                 }
+              },
+              "timeEntries": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "projectId"
+                  ]
+                },
+                "to": {
+                  "model": "TimeEntry",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -689,6 +738,21 @@
                 },
                 "to": {
                   "model": "Project",
+                  "namespace": "public"
+                }
+              },
+              "timeEntries": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "taskId"
+                  ]
+                },
+                "to": {
+                  "model": "TimeEntry",
                   "namespace": "public"
                 }
               }
@@ -839,6 +903,178 @@
               },
               "namespaceId": "public",
               "table": "team"
+            }
+          },
+          "TimeEntry": {
+            "fields": {
+              "activityId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              },
+              "date": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "employeeId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "hours": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "projectId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "remarks": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "taskId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "activity": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "activityId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Activity",
+                  "namespace": "public"
+                }
+              },
+              "employee": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "employeeId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "project": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "projectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Project",
+                  "namespace": "public"
+                }
+              },
+              "task": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "taskId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Task",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "activityId": {
+                  "column": "activityId"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "date": {
+                  "column": "date"
+                },
+                "employeeId": {
+                  "column": "employeeId"
+                },
+                "hours": {
+                  "column": "hours"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "projectId": {
+                  "column": "projectId"
+                },
+                "remarks": {
+                  "column": "remarks"
+                },
+                "taskId": {
+                  "column": "taskId"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "time_entry"
             }
           }
         }
@@ -1505,6 +1741,174 @@
                   ]
                 }
               ]
+            },
+            "time_entry": {
+              "columns": {
+                "activityId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "date": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "employeeId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "hours": {
+                  "codecId": "pg/float8@1",
+                  "nativeType": "float8",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "projectId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "remarks": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "taskId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "employeeId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "time_entry"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "employee"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "projectId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "time_entry"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "project"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "taskId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "time_entry"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "task"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "activityId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "time_entry"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "activity"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "activityId"
+                  ],
+                  "name": "time_entry_activityId_idx_bf2a659e",
+                  "prefix": "time_entry_activityId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "employeeId"
+                  ],
+                  "name": "time_entry_employeeId_idx_087dd4a6",
+                  "prefix": "time_entry_employeeId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "projectId"
+                  ],
+                  "name": "time_entry_projectId_idx_a96e4d92",
+                  "prefix": "time_entry_projectId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "taskId"
+                  ],
+                  "name": "time_entry_taskId_idx_4965c936",
+                  "prefix": "time_entry_taskId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
             }
           }
         },
@@ -1512,10 +1916,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "2476b0a1e04daf3bed5ae26a1654955191f1d02157d9c8486e1ba550fb990b93"
+    "storageHash": "edaf24441a388fb02f60329b051ec032943b989ed4893fd5329babde25d13ec7"
   },
   "execution": {
-    "executionHash": "00c4f032d5d105625c9c038f2eb678c0062248509ff867bd73a4119950941233",
+    "executionHash": "019c31b52d36cecbc1f2bf267b01f2e4f1d87d2b4b8c4d426c365c0ab49be3fb",
     "mutations": {
       "defaults": [
         {
@@ -1582,6 +1986,17 @@
             "column": "id",
             "namespace": "public",
             "table": "team"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "time_entry"
           }
         }
       ]

@@ -8,6 +8,7 @@ import { ProjectsModule } from './projects/projects.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
 import { ActivitiesModule } from './activities/activities.module.js';
 import { AssignmentsModule } from './assignments/assignments.module.js';
+import { TimeEntriesModule } from './time-entries/time-entries.module.js';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AssignmentsModule } from './assignments/assignments.module.js';
     TasksModule,
     ActivitiesModule,
     AssignmentsModule,
+    TimeEntriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

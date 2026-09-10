@@ -1,0 +1,83 @@
+import { Controller, Post, Get, Patch, Param, Body, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiResponse } from '@nestjs/swagger';
+import { TimeEntriesService } from './time-entries.service.js';
+import { createTimeEntrySchema } from './dto/create-time-entry.dto.js';
+import { updateTimeEntrySchema } from './dto/update-time-entry.dto.js';
+
+@ApiTags('Time Entries')
+@Controller()
+export class TimeEntriesController {
+  constructor(private readonly timeEntriesService: TimeEntriesService) {}
+
+  @Post('time-entries')
+  @ApiOperation({ summary: 'Create a new time entry' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        employeeId: { type: 'string', format: 'uuid' },
+        projectId: { type: 'string', format: 'uuid' },
+        taskId: { type: 'string', format: 'uuid' },
+        activityId: { type: 'string', format: 'uuid' },
+        date: { type: 'string', example: '2026-09-10' },
+        hours: { type: 'number', example: 8 },
+        remarks: { type: 'string', nullable: true },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Time entry created successfully' })
+  @ApiResponse({ status: 400, description: 'Validation failed or invalid relationship' })
+  @ApiResponse({ status: 404, description: 'Referenced entity not found' })
+  async create(@Body() body: any) {
+    const result = createTimeEntrySchema.safeParse(body);
+    if (!result.success) {
+      throw new BadRequestException({ message: 'Validation failed', errors: result.error.issues });
+    }
+    return this.timeEntriesService.create(result.data);
+  }
+
+  @Get('employees/:employeeId/time-entries')
+  @ApiOperation({ summary: 'List an employee\'s time entries' })
+  @ApiParam({ name: 'employeeId', description: 'Employee UUID' })
+  @ApiResponse({ status: 200, description: 'Array of time entries' })
+  @ApiResponse({ status: 404, description: 'Employee not found' })
+  async findAllByEmployee(@Param('employeeId') employeeId: string) {
+    return this.timeEntriesService.findAllByEmployee(employeeId);
+  }
+
+  @Get('time-entries/:id')
+  @ApiOperation({ summary: 'Get a time entry by ID' })
+  @ApiParam({ name: 'id', description: 'Time entry UUID' })
+  @ApiResponse({ status: 200, description: 'Time entry record' })
+  @ApiResponse({ status: 404, description: 'Time entry not found' })
+  async findOne(@Param('id') id: string) {
+    return this.timeEntriesService.findOne(id);
+  }
+
+  @Patch('time-entries/:id')
+  @ApiOperation({ summary: 'Update a time entry' })
+  @ApiParam({ name: 'id', description: 'Time entry UUID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', format: 'uuid' },
+        taskId: { type: 'string', format: 'uuid' },
+        activityId: { type: 'string', format: 'uuid' },
+        date: { type: 'string', example: '2026-09-10' },
+        hours: { type: 'number', example: 8 },
+        remarks: { type: 'string', nullable: true },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Time entry updated successfully' })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiResponse({ status: 404, description: 'Time entry not found' })
+  async update(@Param('id') id: string, @Body() body: any) {
+    const result = updateTimeEntrySchema.safeParse(body);
+    if (!result.success) {
+      throw new BadRequestException({ message: 'Validation failed', errors: result.error.issues });
+    }
+    return this.timeEntriesService.update(id, result.data);
+  }
+}
