@@ -1,7 +1,10 @@
-import { Controller, Get, Post, Patch, Param, Body, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Param, Body, Query, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { EmployeesService } from './employees.service.js';
 import { createEmployeeSchema, updateEmployeeSchema } from './dto/create-employee.dto.js';
+import { GetAuthContext } from '../auth/auth-context.decorator.js';
+import type { AuthenticatedContext } from '../auth/authenticated-context.js';
+import { parsePagination } from '../common/pagination.dto.js';
 
 @ApiTags('Employees')
 @Controller('employees')
@@ -9,19 +12,22 @@ export class EmployeesController {
   constructor(private readonly employeesService: EmployeesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List all employees' })
-  @ApiResponse({ status: 200, description: 'Array of employee records' })
-  async findAll() {
-    return this.employeesService.findAll();
+  @ApiOperation({ summary: 'List employees in organization' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Paginated active employee records' })
+  async findAll(@GetAuthContext() auth: AuthenticatedContext, @Query() query: any) {
+    const { page, limit } = parsePagination(query);
+    return this.employeesService.findAll(auth.organizationId, page, limit);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get employee by ID' })
+  @ApiOperation({ summary: 'Get employee by ID within organization' })
   @ApiParam({ name: 'id', description: 'Employee UUID' })
   @ApiResponse({ status: 200, description: 'Employee record' })
   @ApiResponse({ status: 404, description: 'Employee not found' })
-  async findOne(@Param('id') id: string) {
-    return this.employeesService.findOne(id);
+  async findOne(@Param('id') id: string, @GetAuthContext() auth: AuthenticatedContext) {
+    return this.employeesService.findOne(id, auth.organizationId);
   }
 
   @Post()
@@ -44,10 +50,10 @@ export class EmployeesController {
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 404, description: 'Organization not found' })
   @ApiResponse({ status: 409, description: 'Duplicate employee code or email' })
-  async create(@Body() body: any) {
+  async create(@Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {
     try {
       const validatedData = createEmployeeSchema.parse(body);
-      return await this.employeesService.create(validatedData);
+      return await this.employeesService.create(validatedData, auth.organizationId);
     } catch (error) {
       if (error && (error as any).name === 'ZodError') {
         throw new BadRequestException({
@@ -78,10 +84,10 @@ export class EmployeesController {
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 404, description: 'Employee not found' })
   @ApiResponse({ status: 409, description: 'Duplicate employee code or email' })
-  async update(@Param('id') id: string, @Body() body: any) {
+  async update(@Param('id') id: string, @Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {
     try {
       const validatedData = updateEmployeeSchema.parse(body);
-      return await this.employeesService.update(id, validatedData);
+      return await this.employeesService.update(id, validatedData, auth.organizationId);
     } catch (error) {
       if (error && (error as any).name === 'ZodError') {
         throw new BadRequestException({

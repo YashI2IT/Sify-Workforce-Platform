@@ -2,6 +2,8 @@ import { Controller, Get, Post, Patch, Param, Body, BadRequestException } from '
 import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { ActivitiesService } from './activities.service.js';
 import { createActivitySchema, updateActivitySchema } from './dto/create-activity.dto.js';
+import { GetAuthContext } from '../auth/auth-context.decorator.js';
+import type { AuthenticatedContext } from '../auth/authenticated-context.js';
 
 @ApiTags('Activities')
 @Controller()
@@ -13,8 +15,8 @@ export class ActivitiesController {
   @ApiParam({ name: 'projectId', description: 'Project UUID' })
   @ApiResponse({ status: 200, description: 'Array of active activity records' })
   @ApiResponse({ status: 404, description: 'Project not found' })
-  async findAllByProject(@Param('projectId') projectId: string) {
-    return this.activitiesService.findAllByProject(projectId);
+  async findAllByProject(@Param('projectId') projectId: string, @GetAuthContext() auth: AuthenticatedContext) {
+    return this.activitiesService.findAllByProject(projectId, auth);
   }
 
   @Post('projects/:projectId/activities')
@@ -35,10 +37,10 @@ export class ActivitiesController {
   @ApiResponse({ status: 400, description: 'Validation failed or project inactive' })
   @ApiResponse({ status: 404, description: 'Project not found' })
   @ApiResponse({ status: 409, description: 'Duplicate activity name in project' })
-  async create(@Param('projectId') projectId: string, @Body() body: any) {
+  async create(@Param('projectId') projectId: string, @Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {
     try {
       const validatedData = createActivitySchema.parse(body);
-      return await this.activitiesService.create(projectId, validatedData);
+      return await this.activitiesService.create(projectId, validatedData, auth);
     } catch (error: any) {
       if (error && error.name === 'ZodError') {
         throw new BadRequestException({
@@ -55,8 +57,8 @@ export class ActivitiesController {
   @ApiParam({ name: 'id', description: 'Activity UUID' })
   @ApiResponse({ status: 200, description: 'Activity record' })
   @ApiResponse({ status: 404, description: 'Activity not found' })
-  async findOne(@Param('id') id: string) {
-    return this.activitiesService.findOne(id);
+  async findOne(@Param('id') id: string, @GetAuthContext() auth: AuthenticatedContext) {
+    return this.activitiesService.findOne(id, auth);
   }
 
   @Patch('activities/:id')
@@ -76,10 +78,10 @@ export class ActivitiesController {
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 404, description: 'Activity not found' })
   @ApiResponse({ status: 409, description: 'Duplicate activity name in project' })
-  async update(@Param('id') id: string, @Body() body: any) {
+  async update(@Param('id') id: string, @Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {
     try {
       const validatedData = updateActivitySchema.parse(body);
-      return await this.activitiesService.update(id, validatedData);
+      return await this.activitiesService.update(id, validatedData, auth);
     } catch (error: any) {
       if (error && error.name === 'ZodError') {
         throw new BadRequestException({

@@ -1,61 +1,77 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { db } from '../prisma/db.js';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/create-employee.dto.js';
+import { PaginatedResponse } from '../common/pagination.dto.js';
 
 @Injectable()
 export class EmployeesService {
-  async findAll() {
-    return db.orm.public.Employee.all();
+  async findAll(organizationId: string, page: number = 1, limit: number = 50): Promise<PaginatedResponse<any>> {
+    const offset = (page - 1) * limit;
+
+    const employees = await db.orm.public.Employee.where({ organizationId, isActive: true })
+      .orderBy(m => m.createdAt.desc())
+      .limit(limit)
+      .offset(offset)
+      .all();
+      
+    const allCount = await db.orm.public.Employee.where({ organizationId, isActive: true }).all();
+    const total = allCount.length;
+
+    return {
+      data: employees,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+    };
   }
 
-  async findOne(id: string) {
-    const employee = await db.orm.public.Employee.where({ id }).first();
+  async findOne(id: string, organizationId: string) {
+    const employee = await db.orm.public.Employee.where({ id, organizationId }).first();
     if (!employee) {
       throw new NotFoundException('Employee not found');
     }
     return employee;
   }
 
-  async create(createEmployeeDto: CreateEmployeeDto) {
-    const { organizationId, employeeCode, email, teamId } = createEmployeeDto;
+  async create(createEmployeeDto: CreateEmployeeDto, reqOrganizationId: string) {
+    const { teamId, email, employeeCode } = createEmployeeDto;
+
+    const scopedOrgId = reqOrganizationId;
 
     // Verify organization exists
-    const organization = await db.orm.public.Organization.where({ id: organizationId }).first();
+    const organization = await db.orm.public.Organization.where({ id: scopedOrgId }).first();
     if (!organization) {
       throw new NotFoundException('Organization not found');
     }
 
     // Verify team
     if (teamId) {
-      const team = await db.orm.public.Team.where({ id: teamId }).first();
+      const team = await db.orm.public.Team.where({ id: teamId, organizationId: scopedOrgId }).first();
       if (!team) {
-        throw new NotFoundException('Team not found');
-      }
-      if (team.organizationId !== organizationId) {
-        throw new BadRequestException('Team must belong to the same organization as the employee');
+        throw new NotFoundException('Team not found in this organization');
       }
     }
 
-    // Respect the unique organization + employeeCode constraint
-    const existingCode = await db.orm.public.Employee.where({ organizationId, employeeCode }).first();
-    if (existingCode) {
-      throw new ConflictException('Employee with this code already exists in the organization');
-    }
-
-    // Respect the unique organization + email constraint
-    const existingEmail = await db.orm.public.Employee.where({ organizationId, email }).first();
+    // Check unique email within the organization
+    const existingEmail = await db.orm.public.Employee.where({ organizationId: scopedOrgId, email }).first();
     if (existingEmail) {
       throw new ConflictException('Employee with this email already exists in the organization');
     }
 
+    // Check unique employee code within the organization
+    if (employeeCode) {
+      const existingCode = await db.orm.public.Employee.where({ organizationId: scopedOrgId, employeeCode }).first();
+      if (existingCode) {
+        throw new ConflictException('Employee with this code already exists in the organization');
+      }
+    }
+
     // Create the employee
-    const newEmployee = await db.orm.public.Employee.create(createEmployeeDto);
+    const newEmployee = await db.orm.public.Employee.create({ ...createEmployeeDto, organizationId: scopedOrgId });
     return newEmployee;
   }
 
-  async update(id: string, updateEmployeeDto: UpdateEmployeeDto) {
+  async update(id: string, updateEmployeeDto: UpdateEmployeeDto, reqOrganizationId: string) {
     // Check employee exists
-    const employee = await db.orm.public.Employee.where({ id }).first();
+    const employee = await db.orm.public.Employee.where({ id, organizationId: reqOrganizationId }).first();
     if (!employee) {
       throw new NotFoundException('Employee not found');
     }

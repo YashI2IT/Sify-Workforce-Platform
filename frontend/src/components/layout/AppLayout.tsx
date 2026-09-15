@@ -1,13 +1,22 @@
+import { useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
 import { authService } from '../../services/authService';
-import { LogOut, Briefcase, Clock, LayoutDashboard } from 'lucide-react';
+import { DevUserSelector } from '../dev/DevUserSelector';
+import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
+import { env } from '../../config/env';
+import {
+  LogOut, Briefcase, Clock, LayoutDashboard, CalendarDays,
+  CheckSquare, Users, UsersRound, Menu, X, ChevronRight, UserCircle2
+} from 'lucide-react';
 
 export const AppLayout = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const { employee } = useCurrentEmployee();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -27,48 +36,151 @@ export const AppLayout = () => {
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'My Projects', path: '/projects', icon: Briefcase },
     { name: 'Time Entries', path: '/time-entries', icon: Clock },
+    { name: 'My Timesheets', path: '/timesheets', icon: CalendarDays },
+    { name: 'Approvals', path: '/approvals', icon: CheckSquare },
+    { name: 'Employees', path: '/employees', icon: Users },
+    { name: 'Teams', path: '/teams', icon: UsersRound },
+    { name: 'All Projects', path: '/admin/projects', icon: Briefcase },
   ];
 
+  const currentNav = navItems.find(item => 
+    location.pathname === item.path || (item.path !== '/dashboard' && location.pathname.startsWith(item.path))
+  );
+
+  const closeMobileNav = () => setMobileNavOpen(false);
+
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Mobile backdrop */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 bg-gray-900/50 z-40 md:hidden"
+          onClick={closeMobileNav}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r flex flex-col">
-        <div className="h-16 flex items-center px-6 border-b">
-          <h1 className="text-lg font-bold text-gray-800">Sify Workforce</h1>
+      <aside
+        className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-white border-r flex flex-col transition-transform duration-200 ease-in-out ${
+          mobileNavOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between px-6 border-b flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+              SW
+            </div>
+            <span className="text-base font-bold text-gray-900 tracking-tight">Sify Workforce</span>
+          </div>
+          <button
+            onClick={closeMobileNav}
+            className="md:hidden text-gray-400 hover:text-gray-600 p-1"
+            aria-label="Close sidebar"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        <nav className="flex-1 p-4 space-y-1">
-          {navItems.map((item) => {
+
+        {/* Dev Mode Selector */}
+        {env.VITE_DEV_AUTH_BYPASS && <DevUserSelector />}
+
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {/* Employee features */}
+          <p className="px-3 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Employee</p>
+          {navItems.slice(0, 5).map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname.startsWith(item.path);
+            const isActive = location.pathname === item.path || (item.path !== '/dashboard' && location.pathname.startsWith(item.path + '/'));
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+                onClick={closeMobileNav}
+                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                 }`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                {item.name}
+              </Link>
+            );
+          })}
+
+          {/* Admin/Manager features */}
+          <p className="px-3 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Management</p>
+          {navItems.slice(5).map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={closeMobileNav}
+                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
                 {item.name}
               </Link>
             );
           })}
         </nav>
-        <div className="p-4 border-t">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2 w-full text-left rounded-md text-sm font-medium text-red-600 hover:bg-red-50"
-          >
-            <LogOut className="w-5 h-5" />
-            Sign Out
-          </button>
+
+        <div className="p-4 border-t flex-shrink-0">
+          {!env.VITE_DEV_AUTH_BYPASS && (
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-3 py-2 w-full text-left rounded-md text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </button>
+          )}
+          {env.VITE_DEV_AUTH_BYPASS && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50/60 rounded border border-amber-100 text-xs text-amber-700">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+              <span className="truncate">Active Context: {employee?.name || 'Dev User'}</span>
+            </div>
+          )}
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <Outlet />
-      </main>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Top bar */}
+        <header className="h-16 bg-white border-b px-4 sm:px-6 flex items-center justify-between flex-shrink-0 z-10 shadow-xs">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="md:hidden text-gray-500 hover:text-gray-700 p-1.5 -ml-1 rounded-md hover:bg-gray-100"
+              aria-label="Open sidebar"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-1.5 text-sm text-gray-500">
+              <span className="text-gray-400 font-medium">Workforce</span>
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+              <span className="font-semibold text-gray-800">{currentNav?.name || 'Platform'}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {employee && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border rounded-full text-xs text-gray-700">
+                <UserCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                <span className="font-medium hidden sm:inline">{employee.name}</span>
+                <span className="text-gray-400 hidden md:inline">({employee.employeeCode})</span>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {/* Scrollable Page Outlet */}
+        <main className="flex-1 overflow-auto bg-gray-50/50">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };
+

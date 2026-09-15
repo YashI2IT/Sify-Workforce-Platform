@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 export const createProjectSchema = z.object({
-  organizationId: z.string().min(1, 'Organization ID is required'),
   name: z.string().min(1, 'Name is required'),
   code: z.string().min(1, 'Code is required'),
   status: z.string().min(1, 'Status is required'),

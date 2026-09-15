@@ -1,32 +1,37 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { db } from '../prisma/db.js';
 import { CreateActivityDto, UpdateActivityDto } from './dto/create-activity.dto.js';
+import { AuthenticatedContext } from '../auth/authenticated-context.js';
 
 @Injectable()
 export class ActivitiesService {
-  async findAllByProject(projectId: string) {
+  async findAllByProject(projectId: string, auth: AuthenticatedContext) {
     const project = await db.orm.public.Project.where({ id: projectId }).first();
-    if (!project) {
+    if (!project || project.organizationId !== auth.organizationId) {
       throw new NotFoundException('Project not found');
     }
 
     return db.orm.public.Activity.where({ projectId, isActive: true }).all();
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, auth: AuthenticatedContext) {
     const activity = await db.orm.public.Activity.where({ id }).first();
     if (!activity) {
+      throw new NotFoundException('Activity not found');
+    }
+    const project = await db.orm.public.Project.where({ id: activity.projectId }).first();
+    if (!project || project.organizationId !== auth.organizationId) {
       throw new NotFoundException('Activity not found');
     }
     return activity;
   }
 
-  async create(projectId: string, createActivityDto: CreateActivityDto) {
+  async create(projectId: string, createActivityDto: CreateActivityDto, auth: AuthenticatedContext) {
     const { name, description, isActive } = createActivityDto;
 
     // Verify project exists
     const project = await db.orm.public.Project.where({ id: projectId }).first();
-    if (!project) {
+    if (!project || project.organizationId !== auth.organizationId) {
       throw new NotFoundException('Project not found');
     }
 
@@ -52,9 +57,13 @@ export class ActivitiesService {
     return activity;
   }
 
-  async update(id: string, updateActivityDto: UpdateActivityDto) {
+  async update(id: string, updateActivityDto: UpdateActivityDto, auth: AuthenticatedContext) {
     const activity = await db.orm.public.Activity.where({ id }).first();
     if (!activity) {
+      throw new NotFoundException('Activity not found');
+    }
+    const project = await db.orm.public.Project.where({ id: activity.projectId }).first();
+    if (!project || project.organizationId !== auth.organizationId) {
       throw new NotFoundException('Activity not found');
     }
 

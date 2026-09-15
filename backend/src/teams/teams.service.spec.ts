@@ -86,70 +86,93 @@ describe('TeamsService', () => {
       vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce(null);
       vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'm1', isActive: true, organizationId: 'org2' } as any);
 
-      await expect(service.create({ ...dto, managerId: 'm1' })).rejects.toThrow(BadRequestException);
+      await expect(service.create({ ...dto, managerId: 'm1' }, 'org1')).rejects.toThrow(BadRequestException);
     });
 
     it('should create team successfully with valid manager', async () => {
       vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org1' } as any);
       vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce(null);
       vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'm1', isActive: true, organizationId: 'org1' } as any);
-      vi.mocked(db.orm.public.Team.create).mockResolvedValueOnce({ id: 't1', ...dto, managerId: 'm1' } as any);
+      vi.mocked(db.orm.public.Team.create).mockResolvedValueOnce({ id: 't1', ...dto, managerId: 'm1', organizationId: 'org1' } as any);
 
-      const result = await service.create({ ...dto, managerId: 'm1' });
-      expect(result).toEqual({ id: 't1', ...dto, managerId: 'm1' });
+      const result = await service.create({ ...dto, managerId: 'm1' }, 'org1');
+      expect(result.id).toBe('t1');
     });
   });
 
   describe('update', () => {
     it('should throw NotFoundException if team not found', async () => {
       vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce(null);
-      await expect(service.update('t1', {})).rejects.toThrow(NotFoundException);
+      await expect(service.update('t1', { name: 'A' }, 'org1')).rejects.toThrow(NotFoundException);
     });
 
     it('should throw ConflictException if updating to duplicate name', async () => {
-      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', organizationId: 'org1', name: 'Old' } as any);
-      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't2' } as any); // existing duplicate
-      await expect(service.update('t1', { name: 'New' })).rejects.toThrow(ConflictException);
+      vi.mocked(db.orm.public.Team.first)
+        .mockResolvedValueOnce({ id: 't1', name: 'Old', organizationId: 'org1' } as any) // find team
+        .mockResolvedValueOnce({ id: 't2', name: 'New' } as any); // duplicate check
+
+      await expect(service.update('t1', { name: 'New' }, 'org1')).rejects.toThrow(ConflictException);
     });
 
     it('should allow clearing manager with null', async () => {
       vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', organizationId: 'org1' } as any);
       vi.mocked(db.orm.public.Team.update).mockResolvedValueOnce({ id: 't1', managerId: null } as any);
-      const result = await service.update('t1', { managerId: null });
-      expect(result).toEqual({ id: 't1', managerId: null });
+
+      const result = await service.update('t1', { managerId: null }, 'org1');
+      expect(result.managerId).toBeNull();
     });
 
     it('should validate manager properly', async () => {
       vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', organizationId: 'org1' } as any);
       vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'm1', isActive: true, organizationId: 'org2' } as any);
-      await expect(service.update('t1', { managerId: 'm1' })).rejects.toThrow(BadRequestException);
+      await expect(service.update('t1', { managerId: 'm1' }, 'org1')).rejects.toThrow(BadRequestException);
     });
 
     it('should update successfully', async () => {
       vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', organizationId: 'org1' } as any);
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'm1', isActive: true, organizationId: 'org1' } as any);
-      vi.mocked(db.orm.public.Team.update).mockResolvedValueOnce({ id: 't1', managerId: 'm1' } as any);
-      const result = await service.update('t1', { managerId: 'm1' });
-      expect(result).toEqual({ id: 't1', managerId: 'm1' });
+      vi.mocked(db.orm.public.Team.update).mockResolvedValueOnce({ id: 't1', name: 'Team A' } as any);
+      const result = await service.update('t1', { name: 'Team A' }, 'org1');
+      expect(result.name).toBe('Team A');
     });
   });
 
   describe('read', () => {
     it('should list teams', async () => {
-      vi.mocked(db.orm.public.Team.all).mockResolvedValueOnce([{ id: 't1' }] as any);
-      const result = await service.findAll();
-      expect(result).toEqual([{ id: 't1' }]);
+      const teams = [{ id: 't1', name: 'Team A' }];
+      vi.mocked(db.orm.public.Team.where).mockReturnValueOnce({
+        orderBy: vi.fn(() => ({
+          limit: vi.fn(() => ({
+            offset: vi.fn(() => ({
+              all: vi.fn().mockResolvedValue(teams)
+            }))
+          }))
+        }))
+      } as any);
+      vi.mocked(db.orm.public.Team.all).mockResolvedValueOnce(teams as any);
+
+      const result = await service.findAll('org1', 1, 50);
+
+      expect(db.orm.public.Team.where).toHaveBeenCalledWith({ organizationId: 'org1' });
+      expect(result.data).toEqual(teams);
+      expect(result.meta.total).toBe(1);
     });
 
     it('should get team by id', async () => {
-      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1' } as any);
-      const result = await service.findOne('t1');
-      expect(result).toEqual({ id: 't1' });
+      const team = { id: 't1', name: 'Team A' };
+      vi.mocked(db.orm.public.Team.where).mockReturnValueOnce({
+        first: vi.fn().mockResolvedValue(team)
+      } as any);
+
+      const result = await service.findOne('t1', 'org1');
+      expect(db.orm.public.Team.where).toHaveBeenCalledWith({ id: 't1', organizationId: 'org1' });
+      expect(result).toEqual(team);
     });
 
     it('should throw 404 for non-existing team', async () => {
-      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce(null);
-      await expect(service.findOne('t1')).rejects.toThrow(NotFoundException);
+      vi.mocked(db.orm.public.Team.where).mockReturnValueOnce({
+        first: vi.fn().mockResolvedValue(null)
+      } as any);
+      await expect(service.findOne('t1', 'org1')).rejects.toThrow(NotFoundException);
     });
   });
 });

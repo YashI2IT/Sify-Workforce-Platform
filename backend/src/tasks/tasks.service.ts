@@ -1,32 +1,37 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { db } from '../prisma/db.js';
 import { CreateTaskDto, UpdateTaskDto } from './dto/create-task.dto.js';
+import { AuthenticatedContext } from '../auth/authenticated-context.js';
 
 @Injectable()
 export class TasksService {
-  async findAllByProject(projectId: string) {
+  async findAllByProject(projectId: string, auth: AuthenticatedContext) {
     const project = await db.orm.public.Project.where({ id: projectId }).first();
-    if (!project) {
+    if (!project || project.organizationId !== auth.organizationId) {
       throw new NotFoundException('Project not found');
     }
 
     return db.orm.public.Task.where({ projectId, isActive: true }).all();
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, auth: AuthenticatedContext) {
     const task = await db.orm.public.Task.where({ id }).first();
     if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+    const project = await db.orm.public.Project.where({ id: task.projectId }).first();
+    if (!project || project.organizationId !== auth.organizationId) {
       throw new NotFoundException('Task not found');
     }
     return task;
   }
 
-  async create(projectId: string, createTaskDto: CreateTaskDto) {
+  async create(projectId: string, createTaskDto: CreateTaskDto, auth: AuthenticatedContext) {
     const { name, description, status, isActive } = createTaskDto;
 
-    // Verify project exists
+    // Verify project exists and belongs to organization
     const project = await db.orm.public.Project.where({ id: projectId }).first();
-    if (!project) {
+    if (!project || project.organizationId !== auth.organizationId) {
       throw new NotFoundException('Project not found');
     }
 
@@ -53,9 +58,13 @@ export class TasksService {
     return task;
   }
 
-  async update(id: string, updateTaskDto: UpdateTaskDto) {
+  async update(id: string, updateTaskDto: UpdateTaskDto, auth: AuthenticatedContext) {
     const task = await db.orm.public.Task.where({ id }).first();
     if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+    const project = await db.orm.public.Project.where({ id: task.projectId }).first();
+    if (!project || project.organizationId !== auth.organizationId) {
       throw new NotFoundException('Task not found');
     }
 

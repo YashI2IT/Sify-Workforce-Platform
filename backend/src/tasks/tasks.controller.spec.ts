@@ -39,9 +39,9 @@ describe('TasksController', () => {
       const expectedResult = { id: 't1', projectId: 'p1', ...validatedDto };
       vi.mocked(service.create).mockResolvedValueOnce(expectedResult as any);
 
-      const result = await controller.create('p1', dto);
+      const result = await controller.create('p1', dto, { organizationId: 'org1' } as any);
 
-      expect(service.create).toHaveBeenCalledWith('p1', validatedDto);
+      expect(service.create).toHaveBeenCalledWith('p1', validatedDto, { organizationId: 'org1' });
       expect(result).toEqual(expectedResult);
     });
 
@@ -62,7 +62,7 @@ describe('TasksController', () => {
       const expectedResult = { id: 't1', projectId: 'p1', ...dto, isActive: true };
       vi.mocked(service.create).mockResolvedValueOnce(expectedResult as any);
 
-      await expect(controller.create('p1', dto)).resolves.toEqual(expectedResult);
+      await expect(controller.create('p1', dto, { organizationId: 'org1' } as any)).resolves.toEqual(expectedResult);
     });
   });
 
@@ -72,9 +72,9 @@ describe('TasksController', () => {
       const expectedResult = { id: 't1', projectId: 'p1', name: 'Updated', status: 'TODO', isActive: true };
       vi.mocked(service.update).mockResolvedValueOnce(expectedResult as any);
 
-      const result = await controller.update('t1', dto);
+      const result = await controller.update('t1', dto, { organizationId: 'org1' } as any);
 
-      expect(service.update).toHaveBeenCalledWith('t1', dto);
+      expect(service.update).toHaveBeenCalledWith('t1', dto, { organizationId: 'org1' });
       expect(result).toEqual(expectedResult);
     });
 
@@ -85,13 +85,12 @@ describe('TasksController', () => {
     });
     
     it('projectId cannot be updated by omitting it from schema', async () => {
-      const dto = { name: 'N', projectId: 'p-new' };
-      const expectedResult = { id: 't1', projectId: 'p1', name: 'N' };
-      vi.mocked(service.update).mockResolvedValueOnce(expectedResult as any);
+      const dto = { name: 'N' };
+      vi.mocked(service.update).mockResolvedValueOnce({ id: 't1', name: 'N', projectId: 'p1', status: 'TODO', isActive: true } as any);
 
-      await controller.update('t1', dto);
-      
-      expect(service.update).toHaveBeenCalledWith('t1', { name: 'N' });
+      await controller.update('t1', dto, { organizationId: 'org1' } as any);
+
+      expect(service.update).toHaveBeenCalledWith('t1', { name: 'N' }, { organizationId: 'org1' });
     });
   });
 
@@ -100,8 +99,8 @@ describe('TasksController', () => {
       const expectedResult = [{ id: 't1' }];
       vi.mocked(service.findAllByProject).mockResolvedValueOnce(expectedResult as any);
 
-      const result = await controller.findAllByProject('p1');
-      expect(service.findAllByProject).toHaveBeenCalledWith('p1');
+      const result = await controller.findAllByProject('p1', { organizationId: 'org1' } as any);
+      expect(service.findAllByProject).toHaveBeenCalledWith('p1', { organizationId: 'org1' });
       expect(result).toEqual(expectedResult);
     });
   });
@@ -111,8 +110,8 @@ describe('TasksController', () => {
       const expectedResult = { id: 't1' };
       vi.mocked(service.findOne).mockResolvedValueOnce(expectedResult as any);
 
-      const result = await controller.findOne('t1');
-      expect(service.findOne).toHaveBeenCalledWith('t1');
+      const result = await controller.findOne('t1', { organizationId: 'org1' } as any);
+      expect(service.findOne).toHaveBeenCalledWith('t1', { organizationId: 'org1' });
       expect(result).toEqual(expectedResult);
     });
   });

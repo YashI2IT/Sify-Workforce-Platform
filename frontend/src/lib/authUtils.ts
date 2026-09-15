@@ -1,14 +1,30 @@
-import { env } from '../config/env';
+export const authStorage = {
+  getAccessToken: () => localStorage.getItem('access_token'),
+  getRefreshToken: () => localStorage.getItem('refresh_token'),
+  getOrgId: () => localStorage.getItem('org_id'),
+  setTokens: (accessToken: string, refreshToken: string) => {
+    localStorage.setItem('access_token', accessToken);
+    localStorage.setItem('refresh_token', refreshToken);
+  },
+  setOrgId: (orgId: string) => {
+    localStorage.setItem('org_id', orgId);
+  },
+  clear: () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('org_id');
+  }
+};
 
 /**
  * IMPORTANT IDENTITY PLACEHOLDER
  * 
- * Because the actual User Management Service identity mapping is not yet confirmed,
- * this function isolates the current employee identity.
- * 
- * Replace this once the company auth contract is confirmed and backend mapping is available.
+ * Returns the currently authenticated employee ID.
+ * Since the User -> Employee mapping contract is currently unknown,
+ * this safely blocks execution until the contract is defined.
  */
 export function getCurrentEmployeeId(): string {
-  // TODO: Replace with actual mapping from authenticated JWT/backend once confirmed
-  return env.VITE_DEV_EMPLOYEE_ID; // Placeholder driven by config
+  // We cannot resolve the employee ID from the JWT or company response yet.
+  // The system must block here instead of guessing.
+  throw new Error('employee identity mapping unavailable');
 }

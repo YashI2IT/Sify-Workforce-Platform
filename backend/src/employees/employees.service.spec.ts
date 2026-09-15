@@ -55,115 +55,144 @@ describe('EmployeesService', () => {
     const dto = { organizationId: 'org1', employeeCode: 'E1', name: 'John', email: 'j@example.com', isActive: true };
 
     it('should create employee without teamId', async () => {
-      vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org1' } as any);
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce(null); // code
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce(null); // email
-      vi.mocked(db.orm.public.Employee.create).mockResolvedValueOnce({ id: 'emp1', ...dto } as any);
+      vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org-1' } as any);
+      vi.mocked(db.orm.public.Employee.create).mockResolvedValueOnce({ id: 'e1', organizationId: 'org-1', ...dto } as any);
 
-      const result = await service.create(dto);
-      expect(result).toEqual({ id: 'emp1', ...dto });
+      const result = await service.create(dto, 'org-1');
+      expect(result.id).toBe('e1');
     });
 
     it('should create employee with null teamId', async () => {
-      vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org1' } as any);
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce(null); // code
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce(null); // email
-      vi.mocked(db.orm.public.Employee.create).mockResolvedValueOnce({ id: 'emp1', ...dto, teamId: null } as any);
+      vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org-1' } as any);
+      vi.mocked(db.orm.public.Employee.create).mockResolvedValueOnce({ id: 'e1', organizationId: 'org-1', ...dto, teamId: null } as any);
 
-      const result = await service.create({ ...dto, teamId: null });
-      expect(result).toEqual({ id: 'emp1', ...dto, teamId: null });
+      const result = await service.create({ ...dto, teamId: null }, 'org-1');
+      expect(result.id).toBe('e1');
     });
 
     it('should create employee with valid teamId', async () => {
-      vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org1' } as any);
-      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', organizationId: 'org1' } as any);
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce(null); // code
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce(null); // email
-      vi.mocked(db.orm.public.Employee.create).mockResolvedValueOnce({ id: 'emp1', ...dto, teamId: 't1' } as any);
+      vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org-1' } as any);
+      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', organizationId: 'org-1' } as any);
+      vi.mocked(db.orm.public.Employee.create).mockResolvedValueOnce({ id: 'e1', organizationId: 'org-1', ...dto, teamId: 't1' } as any);
 
-      const result = await service.create({ ...dto, teamId: 't1' });
-      expect(result).toEqual({ id: 'emp1', ...dto, teamId: 't1' });
+      const result = await service.create({ ...dto, teamId: 't1' }, 'org-1');
+      expect(result.id).toBe('e1');
     });
 
     it('should throw NotFoundException if team points to missing Team', async () => {
-      vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org1' } as any);
+      vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org-1' } as any);
       vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce(null);
 
-      await expect(service.create({ ...dto, teamId: 't1' })).rejects.toThrow(NotFoundException);
+      await expect(service.create({ ...dto, teamId: 't1' }, 'org-1')).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException if team belongs to another organization', async () => {
-      vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org1' } as any);
-      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', organizationId: 'org2' } as any);
+      vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org-1' } as any);
+      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce(null); // Because we check { id: 't1', organizationId: 'org-1' }
 
-      await expect(service.create({ ...dto, teamId: 't1' })).rejects.toThrow(BadRequestException);
+      await expect(service.create({ ...dto, teamId: 't1' }, 'org-1')).rejects.toThrow(NotFoundException);
     });
 
     it('existing duplicate employeeCode behavior still works', async () => {
-      vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org1' } as any);
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'emp2' } as any); // existing code
+      vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org-1' } as any);
+      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', organizationId: 'org-1' } as any);
+      
+      vi.mocked(db.orm.public.Employee.first)
+        .mockResolvedValueOnce(null) // email check
+        .mockResolvedValueOnce({ id: 'e-dup' } as any); // code check
 
-      await expect(service.create(dto)).rejects.toThrow(ConflictException);
+      await expect(service.create({ ...dto, teamId: 't1', employeeCode: 'DUP' }, 'org-1')).rejects.toThrow(ConflictException);
     });
 
     it('existing duplicate email behavior still works', async () => {
-      vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org1' } as any);
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce(null); // code pass
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'emp2' } as any); // existing email
+      vi.mocked(db.orm.public.Organization.first).mockResolvedValueOnce({ id: 'org-1' } as any);
+      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', organizationId: 'org-1' } as any);
+      
+      vi.mocked(db.orm.public.Employee.first)
+        .mockResolvedValueOnce({ id: 'e-dup' } as any) // email check
+        .mockResolvedValueOnce(null); // code check
 
-      await expect(service.create(dto)).rejects.toThrow(ConflictException);
+      await expect(service.create({ ...dto, teamId: 't1', email: 'dup@example.com' }, 'org-1')).rejects.toThrow(ConflictException);
     });
   });
 
   describe('update', () => {
-    it('update employee without teamId should leave existing team unchanged', async () => {
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'emp1', organizationId: 'org1', teamId: 'oldT' } as any);
-      vi.mocked(db.orm.public.Employee.update).mockResolvedValueOnce({ id: 'emp1', teamId: 'oldT', name: 'NewName' } as any);
+    const updateDto = { firstName: 'Jane' };
 
-      const result = await service.update('emp1', { name: 'NewName' });
-      expect(result).toEqual({ id: 'emp1', teamId: 'oldT', name: 'NewName' });
+    it('update employee without teamId should leave existing team unchanged', async () => {
+      const mockUpdate = vi.fn().mockResolvedValue({ id: 'e1', ...updateDto, teamId: 't-old' });
+      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 'e1', organizationId: 'org-1', teamId: 't-old' }),
+        update: mockUpdate
+      } as any);
+
+      const result = await service.update('e1', updateDto, 'org-1');
+      expect(result.teamId).toBe('t-old');
     });
 
     it('set teamId to valid Team', async () => {
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'emp1', organizationId: 'org1' } as any);
-      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', organizationId: 'org1' } as any);
-      vi.mocked(db.orm.public.Employee.update).mockResolvedValueOnce({ id: 'emp1', teamId: 't1' } as any);
+      const mockUpdate = vi.fn().mockResolvedValue({ id: 'e1', ...updateDto, teamId: 't1' });
+      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 'e1', organizationId: 'org-1' }),
+        update: mockUpdate
+      } as any);
+      vi.mocked(db.orm.public.Team.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 't1', organizationId: 'org-1' })
+      } as any);
 
-      const result = await service.update('emp1', { teamId: 't1' });
-      expect(result).toEqual({ id: 'emp1', teamId: 't1' });
+      const result = await service.update('e1', { ...updateDto, teamId: 't1' }, 'org-1');
+      expect(result.teamId).toBe('t1');
     });
 
     it('set teamId to null', async () => {
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'emp1', organizationId: 'org1', teamId: 't1' } as any);
-      vi.mocked(db.orm.public.Employee.update).mockResolvedValueOnce({ id: 'emp1', teamId: null } as any);
+      const mockUpdate = vi.fn().mockResolvedValue({ id: 'e1', ...updateDto, teamId: null });
+      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 'e1', organizationId: 'org-1' }),
+        update: mockUpdate
+      } as any);
 
-      const result = await service.update('emp1', { teamId: null });
-      expect(result).toEqual({ id: 'emp1', teamId: null });
+      const result = await service.update('e1', { ...updateDto, teamId: null }, 'org-1');
+      expect(result.teamId).toBe(null);
     });
 
     it('should throw NotFoundException if team points to missing Team', async () => {
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'emp1', organizationId: 'org1' } as any);
-      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce(null);
+      vi.mocked(db.orm.public.Employee.where).mockReturnValueOnce({
+        first: vi.fn().mockResolvedValue({ id: 'e1', organizationId: 'org-1' })
+      } as any);
+      vi.mocked(db.orm.public.Team.where).mockReturnValueOnce({
+        first: vi.fn().mockResolvedValue(null)
+      } as any);
 
-      await expect(service.update('emp1', { teamId: 't1' })).rejects.toThrow(NotFoundException);
+      await expect(service.update('e1', { ...updateDto, teamId: 't1' }, 'org-1')).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw BadRequestException if team belongs to another organization', async () => {
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'emp1', organizationId: 'org1' } as any);
-      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', organizationId: 'org2' } as any);
+    it('should throw NotFoundException if team belongs to another organization', async () => {
+      vi.mocked(db.orm.public.Employee.where).mockReturnValueOnce({
+        first: vi.fn().mockResolvedValue({ id: 'e1', organizationId: 'org-1' })
+      } as any);
+      vi.mocked(db.orm.public.Team.where).mockReturnValueOnce({
+        first: vi.fn().mockResolvedValue(null) // Because we check { id: 't1', organizationId: 'org-1' }
+      } as any);
 
-      await expect(service.update('emp1', { teamId: 't1' })).rejects.toThrow(BadRequestException);
+      await expect(service.update('e1', { ...updateDto, teamId: 't1' }, 'org-1')).rejects.toThrow(NotFoundException);
     });
 
     it('existing employeeCode/email uniqueness behavior still works', async () => {
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'emp1', organizationId: 'org1', employeeCode: 'E1' } as any);
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'emp2' } as any); // duplicate code
-      await expect(service.update('emp1', { employeeCode: 'E2' })).rejects.toThrow(ConflictException);
+      vi.mocked(db.orm.public.Employee.where).mockReturnValueOnce({
+        first: vi.fn().mockResolvedValue({ id: 'e1', organizationId: 'org-1' })
+      } as any).mockReturnValueOnce({
+        first: vi.fn().mockResolvedValue({ id: 'e-dup' })
+      } as any);
 
-      vi.clearAllMocks();
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'emp1', organizationId: 'org1', email: '1@a.com' } as any);
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'emp2' } as any); // duplicate email
-      await expect(service.update('emp1', { email: '2@a.com' })).rejects.toThrow(ConflictException);
+      await expect(service.update('e1', { ...updateDto, employeeCode: 'E2' }, 'org-1')).rejects.toThrow(ConflictException);
+
+      vi.mocked(db.orm.public.Employee.where).mockReturnValueOnce({
+        first: vi.fn().mockResolvedValue({ id: 'e1', organizationId: 'org-1' })
+      } as any).mockReturnValueOnce({
+        first: vi.fn().mockResolvedValue({ id: 'e-dup' })
+      } as any);
+
+      await expect(service.update('e1', { ...updateDto, email: '2@a.com' }, 'org-1')).rejects.toThrow(ConflictException);
     });
   });
 });

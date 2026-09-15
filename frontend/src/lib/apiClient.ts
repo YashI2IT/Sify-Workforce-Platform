@@ -1,20 +1,44 @@
 import { env } from '../config/env';
+import { authStorage } from './authUtils';
+
+/**
+ * Retrieves dev identity headers from sessionStorage.
+ * Only used when VITE_DEV_AUTH_BYPASS=true.
+ * These correspond to real employee/org records in the database.
+ */
+function getDevHeaders(): Record<string, string> {
+  const employeeId = sessionStorage.getItem('dev_employee_id');
+  const orgId = sessionStorage.getItem('dev_org_id');
+  const headers: Record<string, string> = {};
+  if (employeeId) headers['x-dev-employee-id'] = employeeId;
+  if (orgId) headers['x-dev-org-id'] = orgId;
+  return headers;
+}
 
 export async function apiClient(endpoint: string, options: RequestInit = {}, useAuthService = false) {
-  const token = localStorage.getItem('access_token');
+  const token = authStorage.getAccessToken();
+  const orgId = authStorage.getOrgId();
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
   };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  if (env.VITE_DEV_AUTH_BYPASS) {
+    // Development mode: send real employee/org IDs to the backend DevBypassGuard.
+    // These are real database records, not fake credentials.
+    Object.assign(headers, getDevHeaders());
+  } else {
+    // Production path: send real Bearer token and org header.
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    if (orgId) {
+      headers['x-org-id'] = orgId;
+    }
   }
 
   headers['x-app-id'] = env.VITE_AUTH_APP_ID;
-  if (env.VITE_AUTH_ORG_ID) {
-    headers['x-org-id'] = env.VITE_AUTH_ORG_ID;
-  }
 
   const baseUrl = useAuthService ? env.VITE_USER_MANAGEMENT_URL : env.VITE_API_URL;
   const url = `${baseUrl}${endpoint}`;
@@ -25,9 +49,14 @@ export async function apiClient(endpoint: string, options: RequestInit = {}, use
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
-      // In a real app, handle refresh token logic here.
-      // For now, we dispatch logout via store if possible, or reload.
+    if (response.status === 401 && !env.VITE_DEV_AUTH_BYPASS) {
+      // Only redirect on 401 in production mode — dev mode may not have
+      // a selected employee yet, and we don't want a redirect loop.
+      authStorage.clear();
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+      throw new Error('Session expired. Please log in again.');
     }
     const errorData = await response.json().catch(() => null);
     throw new Error(errorData?.message || `Request failed with status ${response.status}`);

@@ -2,6 +2,8 @@ import { Controller, Get, Post, Patch, Param, Body, BadRequestException } from '
 import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { TasksService } from './tasks.service.js';
 import { createTaskSchema, updateTaskSchema } from './dto/create-task.dto.js';
+import { GetAuthContext } from '../auth/auth-context.decorator.js';
+import type { AuthenticatedContext } from '../auth/authenticated-context.js';
 
 @ApiTags('Tasks')
 @Controller()
@@ -13,8 +15,8 @@ export class TasksController {
   @ApiParam({ name: 'projectId', description: 'Project UUID' })
   @ApiResponse({ status: 200, description: 'Array of active task records' })
   @ApiResponse({ status: 404, description: 'Project not found' })
-  async findAllByProject(@Param('projectId') projectId: string) {
-    return this.tasksService.findAllByProject(projectId);
+  async findAllByProject(@Param('projectId') projectId: string, @GetAuthContext() auth: AuthenticatedContext) {
+    return this.tasksService.findAllByProject(projectId, auth);
   }
 
   @Post('projects/:projectId/tasks')
@@ -36,10 +38,10 @@ export class TasksController {
   @ApiResponse({ status: 400, description: 'Validation failed or project inactive' })
   @ApiResponse({ status: 404, description: 'Project not found' })
   @ApiResponse({ status: 409, description: 'Duplicate task name in project' })
-  async create(@Param('projectId') projectId: string, @Body() body: any) {
+  async create(@Param('projectId') projectId: string, @Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {
     try {
       const validatedData = createTaskSchema.parse(body);
-      return await this.tasksService.create(projectId, validatedData);
+      return await this.tasksService.create(projectId, validatedData, auth);
     } catch (error: any) {
       if (error && error.name === 'ZodError') {
         throw new BadRequestException({
@@ -56,8 +58,8 @@ export class TasksController {
   @ApiParam({ name: 'id', description: 'Task UUID' })
   @ApiResponse({ status: 200, description: 'Task record' })
   @ApiResponse({ status: 404, description: 'Task not found' })
-  async findOne(@Param('id') id: string) {
-    return this.tasksService.findOne(id);
+  async findOne(@Param('id') id: string, @GetAuthContext() auth: AuthenticatedContext) {
+    return this.tasksService.findOne(id, auth);
   }
 
   @Patch('tasks/:id')
@@ -78,10 +80,10 @@ export class TasksController {
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 404, description: 'Task not found' })
   @ApiResponse({ status: 409, description: 'Duplicate task name in project' })
-  async update(@Param('id') id: string, @Body() body: any) {
+  async update(@Param('id') id: string, @Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {
     try {
       const validatedData = updateTaskSchema.parse(body);
-      return await this.tasksService.update(id, validatedData);
+      return await this.tasksService.update(id, validatedData, auth);
     } catch (error: any) {
       if (error && error.name === 'ZodError') {
         throw new BadRequestException({

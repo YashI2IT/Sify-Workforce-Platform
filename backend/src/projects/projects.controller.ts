@@ -1,7 +1,10 @@
-import { Controller, Get, Post, Patch, Param, Body, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Param, Body, Query, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service.js';
 import { createProjectSchema, updateProjectSchema } from './dto/create-project.dto.js';
+import { GetAuthContext } from '../auth/auth-context.decorator.js';
+import type { AuthenticatedContext } from '../auth/authenticated-context.js';
+import { parsePagination } from '../common/pagination.dto.js';
 
 @ApiTags('Projects')
 @Controller('projects')
@@ -9,19 +12,22 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List all active projects' })
-  @ApiResponse({ status: 200, description: 'Array of active project records' })
-  async findAll() {
-    return this.projectsService.findAll();
+  @ApiOperation({ summary: 'List active projects in organization' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Paginated active project records' })
+  async findAll(@GetAuthContext() auth: AuthenticatedContext, @Query() query: any) {
+    const { page, limit } = parsePagination(query);
+    return this.projectsService.findAll(auth.organizationId, page, limit);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get project by ID' })
+  @ApiOperation({ summary: 'Get project by ID within organization' })
   @ApiParam({ name: 'id', description: 'Project UUID' })
   @ApiResponse({ status: 200, description: 'Project record' })
   @ApiResponse({ status: 404, description: 'Project not found' })
-  async findOne(@Param('id') id: string) {
-    return this.projectsService.findOne(id);
+  async findOne(@Param('id') id: string, @GetAuthContext() auth: AuthenticatedContext) {
+    return this.projectsService.findOne(id, auth.organizationId);
   }
 
   @Post()
@@ -43,10 +49,10 @@ export class ProjectsController {
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 404, description: 'Organization not found' })
   @ApiResponse({ status: 409, description: 'Duplicate project name or code in organization' })
-  async create(@Body() body: any) {
+  async create(@Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {
     try {
       const validatedData = createProjectSchema.parse(body);
-      return await this.projectsService.create(validatedData);
+      return await this.projectsService.create(validatedData, auth.organizationId);
     } catch (error: any) {
       if (error && error.name === 'ZodError') {
         throw new BadRequestException({
@@ -76,10 +82,10 @@ export class ProjectsController {
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 404, description: 'Project not found' })
   @ApiResponse({ status: 409, description: 'Duplicate project name or code in organization' })
-  async update(@Param('id') id: string, @Body() body: any) {
+  async update(@Param('id') id: string, @Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {
     try {
       const validatedData = updateProjectSchema.parse(body);
-      return await this.projectsService.update(id, validatedData);
+      return await this.projectsService.update(id, validatedData, auth.organizationId);
     } catch (error: any) {
       if (error && error.name === 'ZodError') {
         throw new BadRequestException({

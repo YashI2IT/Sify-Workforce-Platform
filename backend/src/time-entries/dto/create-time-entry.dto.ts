@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 export const createTimeEntrySchema = z.object({
-  employeeId: z.string().uuid('Invalid employee ID'),
   projectId: z.string().uuid('Invalid project ID'),
   taskId: z.string().uuid('Invalid task ID'),
   activityId: z.string().uuid('Invalid activity ID'),

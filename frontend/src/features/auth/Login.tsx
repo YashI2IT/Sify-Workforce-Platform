@@ -21,16 +21,12 @@ export const Login = () => {
     try {
       const response = await authService.login({ email, password });
       
-      // We expect the company auth service to return access/refresh tokens.
-      // E.g., response.data.accessToken or response.accessToken
-      const accessToken = response.accessToken || response.data?.accessToken;
-      const refreshToken = response.refreshToken || response.data?.refreshToken;
-
-      if (!accessToken || !refreshToken) {
-        throw new Error('Authentication response did not contain required tokens.');
-      }
-
-      dispatch(setAuth({ accessToken, refreshToken }));
+      dispatch(setAuth({ 
+        accessToken: response.accessToken, 
+        refreshToken: response.refreshToken,
+        orgId: response.orgId
+      }));
+      
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');
