@@ -14,7 +14,7 @@ export function DevUserSelector() {
   if (!env.VITE_DEV_AUTH_BYPASS) return null;
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { currentEmployee, allEmployees, setCurrentEmployeeId, isLoading, error } = useDevUser();
+  const { currentEmployee, allEmployees, currentRoles, setCurrentEmployeeId, setCurrentRoles, isLoading, error } = useDevUser();
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedId = e.target.value;
@@ -39,7 +39,15 @@ export function DevUserSelector() {
       {isLoading ? (
         <p className="text-xs text-amber-600">Loading employees...</p>
       ) : error ? (
-        <p className="text-xs text-red-600">{error}</p>
+        <div className="space-y-1">
+          <p className="text-xs text-red-600 font-medium">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="text-xs bg-white border border-red-200 text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       ) : allEmployees.length === 0 ? (
         <p className="text-xs text-amber-600">No employees in DB</p>
       ) : (
@@ -58,9 +66,22 @@ export function DevUserSelector() {
             ))}
           </select>
           {currentEmployee && (
-            <p className="text-xs text-amber-600 mt-1 truncate" title={currentEmployee.email}>
-              {currentEmployee.email}
-            </p>
+            <>
+              <p className="text-xs text-amber-600 mt-1 truncate" title={currentEmployee.email}>
+                {currentEmployee.email}
+              </p>
+              
+              <p className="text-xs text-amber-600 mt-3 mb-1">Active Role:</p>
+              <select
+                value={currentRoles[0]}
+                onChange={(e) => setCurrentRoles([e.target.value])}
+                className="w-full text-xs border border-amber-300 bg-white rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400"
+              >
+                <option value="EMPLOYEE">Employee</option>
+                <option value="MANAGER">Manager</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+            </>
           )}
         </>
       )}

@@ -6,9 +6,9 @@ import { authService } from '../../services/authService';
 import { DevUserSelector } from '../dev/DevUserSelector';
 import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
 import { env } from '../../config/env';
-import {
-  LogOut, Briefcase, Clock, LayoutDashboard, CalendarDays,
-  CheckSquare, Users, UsersRound, Menu, X, ChevronRight, UserCircle2
+import { CheckSquare, Users, UsersRound, Menu, X, ChevronRight, UserCircle2,
+  Building, PieChart, BarChart3, TrendingUp, Clock4,
+  LayoutDashboard, Briefcase, Clock, CalendarDays, LogOut
 } from 'lucide-react';
 
 export const AppLayout = () => {
@@ -33,17 +33,28 @@ export const AppLayout = () => {
   };
 
   const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'My Projects', path: '/projects', icon: Briefcase },
-    { name: 'Time Entries', path: '/time-entries', icon: Clock },
-    { name: 'My Timesheets', path: '/timesheets', icon: CalendarDays },
-    { name: 'Approvals', path: '/approvals', icon: CheckSquare },
-    { name: 'Employees', path: '/employees', icon: Users },
-    { name: 'Teams', path: '/teams', icon: UsersRound },
-    { name: 'All Projects', path: '/admin/projects', icon: Briefcase },
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['EMPLOYEE', 'MANAGER', 'ADMIN'] },
+    { name: 'My Projects', path: '/projects', icon: Briefcase, roles: ['EMPLOYEE'] },
+    { name: 'Time Entries', path: '/time-entries', icon: Clock, roles: ['EMPLOYEE'] },
+    { name: 'My Timesheets', path: '/timesheets', icon: CalendarDays, roles: ['EMPLOYEE'] },
+    
+    { name: 'Approvals', path: '/approvals', icon: CheckSquare, roles: ['MANAGER'] },
+    
+    { name: 'Organization', path: '/organization', icon: Building, roles: ['ADMIN'] },
+    { name: 'Employees', path: '/employees', icon: Users, roles: ['ADMIN'] },
+    { name: 'Teams', path: '/teams', icon: UsersRound, roles: ['ADMIN'] },
+    { name: 'All Projects', path: '/admin/projects', icon: Briefcase, roles: ['ADMIN'] },
   ];
 
-  const currentNav = navItems.find(item => 
+  const reportItems = [
+    { name: 'Employee Summary', path: '/reports/employee-summary', icon: PieChart, roles: ['EMPLOYEE', 'MANAGER', 'ADMIN'] },
+    { name: 'Manager Dashboard', path: '/reports/manager-dashboard', icon: BarChart3, roles: ['MANAGER'] },
+    { name: 'Team Utilization', path: '/reports/team-utilization', icon: TrendingUp, roles: ['MANAGER'] },
+    { name: 'Project Hours', path: '/reports/project-hours', icon: Clock4, roles: ['ADMIN'] },
+    { name: 'Project Analysis', path: '/reports/project-analysis', icon: PieChart, roles: ['ADMIN'] },
+  ];
+
+  const currentNav = [...navItems, ...reportItems].find(item => 
     location.pathname === item.path || (item.path !== '/dashboard' && location.pathname.startsWith(item.path))
   );
 
@@ -54,15 +65,15 @@ export const AppLayout = () => {
       {/* Mobile backdrop */}
       {mobileNavOpen && (
         <div
-          className="fixed inset-0 bg-gray-900/50 z-40 md:hidden"
+          className="fixed inset-0 bg-gray-900/50 z-40 lg:hidden"
           onClick={closeMobileNav}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-white border-r flex flex-col transition-transform duration-200 ease-in-out ${
-          mobileNavOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r flex flex-col transition-transform duration-200 ease-in-out ${
+          mobileNavOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
         <div className="h-16 flex items-center justify-between px-6 border-b flex-shrink-0">
@@ -74,7 +85,7 @@ export const AppLayout = () => {
           </div>
           <button
             onClick={closeMobileNav}
-            className="md:hidden text-gray-400 hover:text-gray-600 p-1"
+            className="lg:hidden text-gray-400 hover:text-gray-600 p-1"
             aria-label="Close sidebar"
           >
             <X className="w-5 h-5" />
@@ -85,9 +96,8 @@ export const AppLayout = () => {
         {env.VITE_DEV_AUTH_BYPASS && <DevUserSelector />}
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {/* Employee features */}
-          <p className="px-3 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Employee</p>
-          {navItems.slice(0, 5).map((item) => {
+          {/* Main Navigation */}
+          {navItems.filter(item => !employee?.roles || item.roles.some(r => employee.roles.includes(r))).map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path || (item.path !== '/dashboard' && location.pathname.startsWith(item.path + '/'));
             return (
@@ -105,25 +115,29 @@ export const AppLayout = () => {
             );
           })}
 
-          {/* Admin/Manager features */}
-          <p className="px-3 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Management</p>
-          {navItems.slice(5).map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={closeMobileNav}
-                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
-                {item.name}
-              </Link>
-            );
-          })}
+          {/* Reports */}
+          {reportItems.filter(item => !employee?.roles || item.roles.some(r => employee.roles.includes(r))).length > 0 && (
+            <>
+              <p className="px-3 pt-6 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Reports</p>
+              {reportItems.filter(item => !employee?.roles || item.roles.some(r => employee.roles.includes(r))).map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={closeMobileNav}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </nav>
 
         <div className="p-4 border-t flex-shrink-0">
@@ -152,7 +166,7 @@ export const AppLayout = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileNavOpen(true)}
-              className="md:hidden text-gray-500 hover:text-gray-700 p-1.5 -ml-1 rounded-md hover:bg-gray-100"
+              className="lg:hidden text-gray-500 hover:text-gray-700 p-1.5 -ml-1 rounded-md hover:bg-gray-100"
               aria-label="Open sidebar"
             >
               <Menu className="w-5 h-5" />
@@ -169,7 +183,7 @@ export const AppLayout = () => {
               <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border rounded-full text-xs text-gray-700">
                 <UserCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
                 <span className="font-medium hidden sm:inline">{employee.name}</span>
-                <span className="text-gray-400 hidden md:inline">({employee.employeeCode})</span>
+                <span className="text-gray-400 hidden lg:inline">({employee.employeeCode})</span>
               </div>
             )}
           </div>

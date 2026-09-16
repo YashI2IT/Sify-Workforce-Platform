@@ -11,19 +11,33 @@ import { ActivitiesModule } from './activities/activities.module.js';
 import { AssignmentsModule } from './assignments/assignments.module.js';
 import { TimeEntriesModule } from './time-entries/time-entries.module.js';
 import { TimesheetsModule } from './timesheets/timesheets.module.js';
+import { ReportsModule } from './reports/reports.module.js';
+import { OrganizationsModule } from './organizations/organizations.module.js';
 import { DevBypassGuard } from './auth/dev-bypass.guard.js';
+import { UmsAuthGuard } from './auth/ums-auth.guard.js';
 import { DevController } from './dev/dev.controller.js';
 
-// DevBypassGuard is registered globally ONLY in development/test environments.
-// Default-deny: Disabled in production, when NODE_ENV is missing/undefined, or any unapproved env.
-// PENDING: Replace with JwtAuthGuard when Keycloak contract is finalized.
-const isDevEnvironment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+/**
+ * AUTHENTICATION GUARD SELECTION
+ *
+ * NODE_ENV=development | test  → DevBypassGuard (x-dev-* headers, local DB validation)
+ * NODE_ENV=production          → UmsAuthGuard   (UMS validate-token → Employee email lookup)
+ * NODE_ENV=anything else       → default-deny   (no guard registered = all requests rejected)
+ *
+ * CONFIRMED UMS INTEGRATION (2026-09-16):
+ *   UMS: https://apidev.sifymodernization.digital/user-mgt/api
+ *   AppId: Project-Management
+ *   Keycloak issuer: http://1.6.37.35/keycloak/realms/Project-Management
+ *   Token validation: POST /user/validate-token
+ *   User→Employee: UMS user.email → Employee.email
+ */
+const useTestAuth = process.env.USE_TEST_AUTH === 'true';
 
-const devGuardProvider = isDevEnvironment
+const authGuardProvider = useTestAuth
   ? [{ provide: APP_GUARD, useClass: DevBypassGuard }]
-  : [];
+  : [{ provide: APP_GUARD, useClass: UmsAuthGuard }];
 
-const devControllers = isDevEnvironment ? [DevController] : [];
+const devControllers = useTestAuth ? [DevController] : [];
 
 @Module({
   imports: [
@@ -39,11 +53,13 @@ const devControllers = isDevEnvironment ? [DevController] : [];
     AssignmentsModule,
     TimeEntriesModule,
     TimesheetsModule,
+    ReportsModule,
+    OrganizationsModule,
   ],
   controllers: [AppController, ...devControllers],
   providers: [
     AppService,
-    ...devGuardProvider,
+    ...authGuardProvider,
   ],
 })
 export class AppModule {}

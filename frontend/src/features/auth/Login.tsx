@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
+import { authStorage } from '../../lib/authUtils';
 import { setAuth } from '../../store/slices/authSlice';
 
 export const Login = () => {
@@ -19,12 +20,17 @@ export const Login = () => {
     setLoading(true);
 
     try {
-      const response = await authService.login({ email, password });
+      const result = await authService.login({ email, password });
       
+      // Store tokens using authStorage (keeps localStorage in sync)
+      authStorage.setTokens(result.accessToken, result.refreshToken);
+
+      // Dispatch to Redux for ProtectedRoute to recognise authenticated state.
+      // orgId will be resolved from the backend after employee lookup.
       dispatch(setAuth({ 
-        accessToken: response.accessToken, 
-        refreshToken: response.refreshToken,
-        orgId: response.orgId
+        accessToken: result.accessToken, 
+        refreshToken: result.refreshToken,
+        orgId: null,
       }));
       
       navigate('/dashboard');
@@ -80,6 +86,13 @@ export const Login = () => {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
+
+        <div className="mt-6 text-center text-sm">
+          <span className="text-gray-500">Don't have an account? </span>
+          <Link to="/register" className="text-blue-600 font-medium hover:underline">
+            Register Here
+          </Link>
+        </div>
 
         <p className="mt-6 text-center text-xs text-gray-400">
           Authentication is handled by the internal User Management Service.

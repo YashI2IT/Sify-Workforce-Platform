@@ -48,11 +48,16 @@ export class DevBypassGuard implements CanActivate {
         return false; // Reject request: employee not found, inactive, or org mismatch
       }
 
+      const devRolesHeader = request.headers['x-dev-roles'];
+      const roles = typeof devRolesHeader === 'string' && devRolesHeader 
+        ? devRolesHeader.split(',').map(r => r.trim()) 
+        : ['EMPLOYEE']; // default to employee
+
       request.user = {
         userId: `dev:${employee.id}`,
         employeeId: employee.id,
         organizationId: employee.organizationId,
-        roles: [],
+        roles,
       };
 
       return true;

@@ -24,7 +24,9 @@ export interface DevEmployee {
 interface DevUserContextValue {
   currentEmployee: DevEmployee | null;
   allEmployees: DevEmployee[];
+  currentRoles: string[];
   setCurrentEmployeeId: (id: string) => void;
+  setCurrentRoles: (roles: string[]) => void;
   isLoading: boolean;
   error: string;
 }
@@ -35,6 +37,10 @@ export function DevUserProvider({ children }: { children: ReactNode }) {
   const [allEmployees, setAllEmployees] = useState<DevEmployee[]>([]);
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string>(() => {
     return sessionStorage.getItem('dev_employee_id') || '';
+  });
+  const [currentRoles, setCurrentRolesState] = useState<string[]>(() => {
+    const r = sessionStorage.getItem('dev_roles');
+    return r ? r.split(',') : ['EMPLOYEE'];
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -57,7 +63,11 @@ export function DevUserProvider({ children }: { children: ReactNode }) {
         sessionStorage.setItem('dev_org_id', first.organizationId);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to load employees for dev selector');
+      if (err.message === 'Failed to fetch') {
+        setError('Backend unavailable — start the API server on port 3000.');
+      } else {
+        setError(err.message || 'Failed to load employees for dev selector');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -76,10 +86,16 @@ export function DevUserProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const handleSetRoles = (roles: string[]) => {
+    setCurrentRolesState(roles);
+    sessionStorage.setItem('dev_roles', roles.join(','));
+    window.location.reload();
+  };
+
   const currentEmployee = allEmployees.find(e => e.id === currentEmployeeId) ?? null;
 
   return (
-    <DevUserContext.Provider value={{ currentEmployee, allEmployees, setCurrentEmployeeId: handleSetEmployee, isLoading, error }}>
+    <DevUserContext.Provider value={{ currentEmployee, allEmployees, currentRoles, setCurrentEmployeeId: handleSetEmployee, setCurrentRoles: handleSetRoles, isLoading, error }}>
       {children}
     </DevUserContext.Provider>
   );

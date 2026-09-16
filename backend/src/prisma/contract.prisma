@@ -37,7 +37,8 @@ model Employee {
   teamId         String?
   employeeCode   String
   name           String
-  email          String
+  email          String       @unique
+  role           String       @default("EMPLOYEE")
   isActive       Boolean      @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @default(now())
@@ -47,9 +48,9 @@ model Employee {
   managedTeams   Team[]       @relation("TeamManager")
   projectAssignments EmployeeProject[]
   timeEntries    TimeEntry[]
+  timesheetAudits TimesheetAudit[]
 
   @@unique([organizationId, employeeCode])
-  @@unique([organizationId, email])
   @@index([organizationId])
   @@index([organizationId, isActive])
   @@index([teamId])
@@ -71,6 +72,7 @@ model Project {
   activities     Activity[]
   employeeAssignments EmployeeProject[]
   timeEntries    TimeEntry[]
+  requirements   ProjectRequirement[]
 
   @@unique([organizationId, name])
   @@unique([organizationId, code])
@@ -159,8 +161,44 @@ model Timesheet {
 
   employee         Employee    @relation(fields:[employeeId], references:[id])
   timeEntries      TimeEntry[]
+  audits           TimesheetAudit[]
 
   @@unique([employeeId, startDate])
   @@index([status])
   @@map("timesheet")
 }
+
+model TimesheetAudit {
+  id          String   @id @default(uuid())
+  timesheetId String
+  actorId     String
+  action      String
+  comments    String?
+  timestamp   DateTime @default(now())
+
+  timesheet   Timesheet @relation(fields:[timesheetId], references:[id])
+  actor       Employee  @relation(fields:[actorId], references:[id])
+
+  @@index([timesheetId])
+  @@index([timestamp])
+  @@map("timesheet_audit")
+}
+
+model ProjectRequirement {
+  id          String   @id @default(uuid())
+  projectId   String
+  title       String
+  description String?
+  isMandatory Boolean  @default(false)
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+
+  project     Project  @relation(fields:[projectId], references:[id])
+
+  @@index([projectId])
+  @@index([projectId, status])
+  @@map("project_requirement")
+}
+
+

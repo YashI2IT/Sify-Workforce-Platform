@@ -9,9 +9,11 @@ import { authStorage } from './authUtils';
 function getDevHeaders(): Record<string, string> {
   const employeeId = sessionStorage.getItem('dev_employee_id');
   const orgId = sessionStorage.getItem('dev_org_id');
+  const roles = sessionStorage.getItem('dev_roles');
   const headers: Record<string, string> = {};
   if (employeeId) headers['x-dev-employee-id'] = employeeId;
   if (orgId) headers['x-dev-org-id'] = orgId;
+  if (roles) headers['x-dev-roles'] = roles;
   return headers;
 }
 
@@ -59,7 +61,17 @@ export async function apiClient(endpoint: string, options: RequestInit = {}, use
       throw new Error('Session expired. Please log in again.');
     }
     const errorData = await response.json().catch(() => null);
-    throw new Error(errorData?.message || `Request failed with status ${response.status}`);
+
+    if (response.status === 403 && errorData?.code === 'WORKFORCE_ONBOARDING_REQUIRED') {
+      if (typeof window !== 'undefined' && window.location.pathname !== '/onboarding') {
+        window.location.href = '/onboarding';
+      }
+    }
+
+    const err = new Error(errorData?.message || `Request failed with status ${response.status}`);
+    (err as any).code = errorData?.code;
+    (err as any).status = response.status;
+    throw err;
   }
 
   return response.json();

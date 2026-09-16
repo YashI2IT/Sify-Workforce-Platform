@@ -1,7 +1,7 @@
 export const env = {
   VITE_API_URL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1',
-  VITE_USER_MANAGEMENT_URL: import.meta.env.VITE_USER_MANAGEMENT_URL || 'http://localhost:3001/api',
-  VITE_AUTH_APP_ID: import.meta.env.VITE_AUTH_APP_ID || 'project-management',
+  VITE_USER_MANAGEMENT_URL: import.meta.env.VITE_USER_MANAGEMENT_URL || 'https://apidev.sifymodernization.digital/user-mgt/api',
+  VITE_AUTH_APP_ID: import.meta.env.VITE_AUTH_APP_ID || 'Project-Management',
 
   /**
    * VITE_DEV_AUTH_BYPASS
