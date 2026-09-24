@@ -4,18 +4,17 @@ import { CreateTimeEntryDto } from './dto/create-time-entry.dto.js';
 import { UpdateTimeEntryDto } from './dto/update-time-entry.dto.js';
 import { AuthenticatedContext } from '../auth/authenticated-context.js';
 import { PaginatedResponse } from '../common/pagination.dto.js';
+import { getUtcMonday } from '../common/date.utils.js';
+import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 
-function getMonday(d: any) {
-  const date = new Date(d?.toString ? d.toString() : d);
-  const day = date.getDay();
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(date.setDate(diff));
-  monday.setUTCHours(0, 0, 0, 0);
-  return monday;
+export function getMonday(d: any): Date {
+  return getUtcMonday(d);
 }
 
 @Injectable()
 export class TimeEntriesService {
+  constructor(private auditLogsService: AuditLogsService) {}
+
   async validateReferences(employeeId: string, projectId: string, taskId: string, activityId: string, orgId: string) {
     const employee = await db.orm.public.Employee.where({ id: employeeId, organizationId: orgId }).first();
     if (!employee) throw new NotFoundException('Employee not found');
@@ -45,9 +44,12 @@ export class TimeEntriesService {
 
   private async getOrCreateTimesheet(employeeId: string, dateString: string) {
     const startJsDate = getMonday(dateString);
-    const endJsDate = new Date(startJsDate);
-    endJsDate.setDate(endJsDate.getDate() + 6);
-    endJsDate.setUTCHours(23, 59, 59, 999);
+    const endJsDate = new Date(Date.UTC(
+      startJsDate.getUTCFullYear(),
+      startJsDate.getUTCMonth(),
+      startJsDate.getUTCDate() + 6,
+      23, 59, 59, 999
+    ));
 
     // Prisma 8 requires Temporal.Instant for timestamptz
     const startDate = (globalThis as any).Temporal.Instant.from(startJsDate.toISOString());
@@ -107,6 +109,15 @@ export class TimeEntriesService {
       hours: dto.hours,
       remarks: dto.remarks ?? null,
     });
+
+    if (auth.employeeId) {
+      await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'TIME_ENTRY_CREATED', 'TimeEntry', timeEntry.id, {
+        timesheetId,
+        projectId: dto.projectId,
+        date: dto.date,
+        hours: dto.hours
+      });
+    }
 
     return timeEntry;
   }
@@ -214,6 +225,13 @@ export class TimeEntriesService {
     }
 
     const updatedEntry = await db.orm.public.TimeEntry.where({ id }).update(updatedData);
+    
+    if (auth.employeeId) {
+      await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'TIME_ENTRY_UPDATED', 'TimeEntry', id, {
+        updatedFields: Object.keys(updatedData)
+      });
+    }
+
     return updatedEntry;
   }
 }

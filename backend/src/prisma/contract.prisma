@@ -1,16 +1,40 @@
-// use prisma-next
 model Organization {
-  id        String     @id @default(uuid())
-  name      String
-  code      String     @unique
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @default(now())
+  id               String     @id @default(uuid())
+  name             String
+  normalizedName   String     @unique
+  organizationType String
+  description      String?
+  isSetupComplete  Boolean    @default(false)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @default(now())
 
   employees Employee[]
   teams     Team[]
   projects  Project[]
+  workingTimes WorkingTime[]
+  holidays  PublicHoliday[]
+  settings  OrganizationSettings?
+  auditLogs AuditLog[]
 
   @@map("organization")
+}
+
+model OrganizationSettings {
+  id                          String       @id @default(uuid())
+  organizationId              String       @unique
+  weekStartsOn                Int          @default(1) // 1 = Monday
+  timeZone                    String       @default("UTC")
+  timesheetApprovalRequired   Boolean      @default(true)
+  defaultEmployeeRole         String       @default("EMPLOYEE")
+  employeeJoinPolicy          String       @default("INVITATION_ONLY")
+  projectCreationPermission   String       @default("ADMIN")
+  projectAssignmentPermission String       @default("MANAGER")
+  createdAt                   DateTime     @default(now())
+  updatedAt                   DateTime     @default(now())
+
+  organization                Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_settings")
 }
 
 model Team {
@@ -33,6 +57,7 @@ model Team {
 
 model Employee {
   id             String       @id @default(uuid())
+  umsUserId      String?      @unique
   organizationId String
   teamId         String?
   employeeCode   String
@@ -49,6 +74,11 @@ model Employee {
   projectAssignments EmployeeProject[]
   timeEntries    TimeEntry[]
   timesheetAudits TimesheetAudit[]
+  assignedTasks  Task[]       @relation("TaskAssignee")
+  createdTasks   Task[]       @relation("TaskCreator")
+  preference     UserPreference?
+  workingTime    WorkingTime?
+  auditLogs      AuditLog[]
 
   @@unique([organizationId, employeeCode])
   @@index([organizationId])
@@ -62,6 +92,9 @@ model Project {
   organizationId String
   name           String
   code           String
+  description    String?
+  startDate      DateTime?
+  endDate        DateTime?
   status         String
   isActive       Boolean      @default(true)
   createdAt      DateTime     @default(now())
@@ -73,6 +106,7 @@ model Project {
   employeeAssignments EmployeeProject[]
   timeEntries    TimeEntry[]
   requirements   ProjectRequirement[]
+  milestones     Milestone[]
 
   @@unique([organizationId, name])
   @@unique([organizationId, code])
@@ -80,21 +114,74 @@ model Project {
   @@map("project")
 }
 
+model Milestone {
+  id          String   @id @default(uuid())
+  projectId   String
+  name        String
+  description String?
+  targetDate  DateTime?
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+
+  project     Project  @relation(fields:[projectId], references:[id])
+  tasks       Task[]
+
+  @@index([projectId])
+  @@map("milestone")
+}
+
 model Task {
   id             String       @id @default(uuid())
   projectId      String
   name           String
   description    String?
+  priority       String       @default("MEDIUM")
+  assigneeId     String?
+  creatorId      String?
+  requirementId  String?
+  milestoneId    String?
+  parentTaskId   String?
+  startDate      DateTime?
+  dueDate        DateTime?
+  estimatedHours Float?
   status         String
   isActive       Boolean      @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @default(now())
 
   project        Project      @relation(fields:[projectId], references:[id])
+  assignee       Employee?    @relation("TaskAssignee", fields:[assigneeId], references:[id])
+  creator        Employee?    @relation("TaskCreator", fields:[creatorId], references:[id])
+  requirement    ProjectRequirement? @relation(fields:[requirementId], references:[id])
+  milestone      Milestone?   @relation(fields:[milestoneId], references:[id])
+  parentTask     Task?        @relation("Subtasks", fields:[parentTaskId], references:[id])
+  subtasks       Task[]       @relation("Subtasks")
   timeEntries    TimeEntry[]
+  predecessors   TaskDependency[] @relation("TaskSuccessor")
+  successors     TaskDependency[] @relation("TaskPredecessor")
 
   @@unique([projectId, name])
+  @@index([assigneeId])
+  @@index([requirementId])
+  @@index([parentTaskId])
   @@map("task")
+}
+
+model TaskDependency {
+  id            String   @id @default(uuid())
+  predecessorId String
+  successorId   String
+  type          String   @default("FS") // Finish-to-Start
+  createdAt     DateTime @default(now())
+
+  predecessor   Task     @relation("TaskPredecessor", fields:[predecessorId], references:[id])
+  successor     Task     @relation("TaskSuccessor", fields:[successorId], references:[id])
+
+  @@unique([predecessorId, successorId])
+  @@index([predecessorId])
+  @@index([successorId])
+  @@map("task_dependency")
 }
 
 model Activity {
@@ -195,10 +282,105 @@ model ProjectRequirement {
   updatedAt   DateTime @default(now())
 
   project     Project  @relation(fields:[projectId], references:[id])
+  tasks       Task[]
 
   @@index([projectId])
   @@index([projectId, status])
   @@map("project_requirement")
 }
 
+model EmployeeInvitation {
+  id             String    @id @default(uuid())
+  organizationId String
+  email          String
+  name           String
+  role           String    @default("EMPLOYEE")
+  teamId         String?
+  invitedBy      String
+  tokenHash      String
+  status         String    @default("PENDING")
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now())
 
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  inviter        Employee     @relation(fields: [invitedBy], references: [id])
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("employee_invitation")
+}
+
+model WorkingTime {
+  id             String    @id @default(uuid())
+  organizationId String
+  employeeId     String?   @unique
+  monday         Float     @default(8)
+  tuesday        Float     @default(8)
+  wednesday      Float     @default(8)
+  thursday       Float     @default(8)
+  friday         Float     @default(8)
+  saturday       Float     @default(0)
+  sunday         Float     @default(0)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  employee       Employee?    @relation(fields: [employeeId], references: [id])
+
+  @@unique([organizationId, employeeId])
+  @@map("working_time")
+}
+
+model PublicHoliday {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  date           String   
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, date])
+  @@map("public_holiday")
+}
+
+model UserPreference {
+  id          String   @id @default(uuid())
+  employeeId  String   @unique
+  timezone           String   @default("UTC")
+  language           String   @default("en")
+  theme              String   @default("system")
+  defaultView        String   @default("timesheet")
+  dateFormat         String   @default("DD/MM/YYYY")
+  emailNotifications Boolean  @default(true)
+  updatedAt          DateTime @default(now())
+
+  employee    Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("user_preference")
+}
+model AuditLog {
+  id             String       @id @default(uuid())
+  organizationId String
+  actorId        String?
+  action         String
+  resourceType   String
+  resourceId     String?
+  details        String?      // Stored as JSON string
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields:[organizationId], references:[id])
+  actor          Employee?    @relation(fields:[actorId], references:[id])
+
+  @@index([organizationId])
+  @@index([createdAt])
+  @@index([actorId])
+  @@index([resourceType])
+  @@index([resourceId])
+  @@map("audit_log")
+}

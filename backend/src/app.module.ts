@@ -13,9 +13,7 @@ import { TimeEntriesModule } from './time-entries/time-entries.module.js';
 import { TimesheetsModule } from './timesheets/timesheets.module.js';
 import { ReportsModule } from './reports/reports.module.js';
 import { OrganizationsModule } from './organizations/organizations.module.js';
-import { DevBypassGuard } from './auth/dev-bypass.guard.js';
 import { UmsAuthGuard } from './auth/ums-auth.guard.js';
-import { DevController } from './dev/dev.controller.js';
 
 /**
  * AUTHENTICATION GUARD SELECTION
@@ -31,13 +29,19 @@ import { DevController } from './dev/dev.controller.js';
  *   Token validation: POST /user/validate-token
  *   User→Employee: UMS user.email → Employee.email
  */
-const useTestAuth = process.env.USE_TEST_AUTH === 'true';
+import { RolesGuard } from './auth/roles.guard.js';
+import { AuthController } from './auth/auth.controller.js';
+import { EmployeeInvitationsModule } from './employee-invitations/employee-invitations.module.js';
+import { MailModule } from './mail/mail.module.js';
+import { WorkingTimesModule } from './working-times/working-times.module.js';
+import { PublicHolidaysModule } from './public-holidays/public-holidays.module.js';
+import { UserPreferencesModule } from './user-preferences/user-preferences.module.js';
+import { AuditLogsModule } from './audit-logs/audit-logs.module.js';
 
-const authGuardProvider = useTestAuth
-  ? [{ provide: APP_GUARD, useClass: DevBypassGuard }]
-  : [{ provide: APP_GUARD, useClass: UmsAuthGuard }];
-
-const devControllers = useTestAuth ? [DevController] : [];
+const authGuardProvider = [
+  { provide: APP_GUARD, useClass: UmsAuthGuard },
+  { provide: APP_GUARD, useClass: RolesGuard },
+];
 
 @Module({
   imports: [
@@ -55,8 +59,14 @@ const devControllers = useTestAuth ? [DevController] : [];
     TimesheetsModule,
     ReportsModule,
     OrganizationsModule,
+    EmployeeInvitationsModule,
+    MailModule,
+    WorkingTimesModule,
+    PublicHolidaysModule,
+    UserPreferencesModule,
+    AuditLogsModule,
   ],
-  controllers: [AppController, ...devControllers],
+  controllers: [AppController, AuthController],
   providers: [
     AppService,
     ...authGuardProvider,

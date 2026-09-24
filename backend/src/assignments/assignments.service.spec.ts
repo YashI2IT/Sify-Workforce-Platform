@@ -1,8 +1,10 @@
+import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AssignmentsService } from './assignments.service.js';
 import { db } from '../prisma/db.js';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { AuthenticatedContext } from '../auth/authenticated-context.js';
 
 vi.mock('../prisma/db.js', () => {
   const mEmployeeProject = {
@@ -21,6 +23,10 @@ vi.mock('../prisma/db.js', () => {
     where: vi.fn(() => mEmployee),
     first: vi.fn(),
   };
+  const mOrganizationSettings = {
+    where: vi.fn(() => mOrganizationSettings),
+    first: vi.fn(),
+  };
 
   return {
     db: {
@@ -29,6 +35,7 @@ vi.mock('../prisma/db.js', () => {
           EmployeeProject: mEmployeeProject,
           Project: mProject,
           Employee: mEmployee,
+          OrganizationSettings: mOrganizationSettings,
         },
       },
     },
@@ -37,12 +44,13 @@ vi.mock('../prisma/db.js', () => {
 
 describe('AssignmentsService', () => {
   let service: AssignmentsService;
+  const authCtx: AuthenticatedContext = { userId: 'u1', employeeId: 'e1', organizationId: 'org1', roles: ['ADMIN'] };
 
   beforeEach(async () => {
     vi.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AssignmentsService],
+      providers: [AssignmentsService, { provide: AuditLogsService, useValue: { logEvent: vi.fn(), getOrganizationLogs: vi.fn() } }],
     }).compile();
 
     service = module.get<AssignmentsService>(AssignmentsService);
@@ -55,37 +63,37 @@ describe('AssignmentsService', () => {
   describe('assignEmployeeToProject', () => {
     it('should throw NotFoundException if project not found', async () => {
       vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce(null);
-      await expect(service.assignEmployeeToProject('p1', 'e1')).rejects.toThrow(NotFoundException);
+      await expect(service.assignEmployeeToProject('p1', 'e1', authCtx)).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException if project is inactive', async () => {
-      vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce({ id: 'p1', isActive: false } as any);
-      await expect(service.assignEmployeeToProject('p1', 'e1')).rejects.toThrow(BadRequestException);
+      vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce({ id: 'p1', isActive: false, organizationId: 'org1' } as any);
+      await expect(service.assignEmployeeToProject('p1', 'e1', authCtx)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException if employee not found', async () => {
       vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce({ id: 'p1', isActive: true, organizationId: 'org1' } as any);
       vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce(null);
-      await expect(service.assignEmployeeToProject('p1', 'e1')).rejects.toThrow(NotFoundException);
+      await expect(service.assignEmployeeToProject('p1', 'e1', authCtx)).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException if employee is inactive', async () => {
       vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce({ id: 'p1', isActive: true, organizationId: 'org1' } as any);
       vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'e1', isActive: false, organizationId: 'org1' } as any);
-      await expect(service.assignEmployeeToProject('p1', 'e1')).rejects.toThrow(BadRequestException);
+      await expect(service.assignEmployeeToProject('p1', 'e1', authCtx)).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException for cross-organization assignment', async () => {
+    it('should throw NotFoundException for cross-organization assignment', async () => {
       vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce({ id: 'p1', isActive: true, organizationId: 'org1' } as any);
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'e1', isActive: true, organizationId: 'org2' } as any);
-      await expect(service.assignEmployeeToProject('p1', 'e1')).rejects.toThrow(BadRequestException);
+      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce(null);
+      await expect(service.assignEmployeeToProject('p1', 'e1', authCtx)).rejects.toThrow(NotFoundException);
     });
 
     it('should throw ConflictException for duplicate assignment', async () => {
       vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce({ id: 'p1', isActive: true, organizationId: 'org1' } as any);
       vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'e1', isActive: true, organizationId: 'org1' } as any);
       vi.mocked(db.orm.public.EmployeeProject.first).mockResolvedValueOnce({ projectId: 'p1', employeeId: 'e1' } as any);
-      await expect(service.assignEmployeeToProject('p1', 'e1')).rejects.toThrow(ConflictException);
+      await expect(service.assignEmployeeToProject('p1', 'e1', authCtx)).rejects.toThrow(ConflictException);
     });
 
     it('should assign successfully', async () => {
@@ -96,21 +104,22 @@ describe('AssignmentsService', () => {
       const created = { projectId: 'p1', employeeId: 'e1' };
       vi.mocked(db.orm.public.EmployeeProject.create).mockResolvedValueOnce(created as any);
 
-      const result = await service.assignEmployeeToProject('p1', 'e1');
+      const result = await service.assignEmployeeToProject('p1', 'e1', authCtx);
       expect(db.orm.public.EmployeeProject.create).toHaveBeenCalledWith(created);
       expect(result).toEqual(created);
     });
   });
 
   describe('removeEmployeeFromProject', () => {
-    it('should throw NotFoundException if assignment does not exist', async () => {
-      vi.mocked(db.orm.public.EmployeeProject.first).mockResolvedValueOnce(null);
-      await expect(service.removeEmployeeFromProject('p1', 'e1')).rejects.toThrow(NotFoundException);
+    it('should throw NotFoundException if project not found', async () => {
+      vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce(null);
+      await expect(service.removeEmployeeFromProject('p1', 'e1', authCtx)).rejects.toThrow(NotFoundException);
     });
 
     it('should remove successfully', async () => {
+      vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce({ id: 'p1', organizationId: 'org1' } as any);
       vi.mocked(db.orm.public.EmployeeProject.first).mockResolvedValueOnce({ projectId: 'p1', employeeId: 'e1' } as any);
-      await service.removeEmployeeFromProject('p1', 'e1');
+      await service.removeEmployeeFromProject('p1', 'e1', authCtx);
       expect(db.orm.public.EmployeeProject.delete).toHaveBeenCalled();
     });
   });
@@ -118,18 +127,18 @@ describe('AssignmentsService', () => {
   describe('getProjectEmployees', () => {
     it('should throw NotFoundException if project not found', async () => {
       vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce(null);
-      await expect(service.getProjectEmployees('p1')).rejects.toThrow(NotFoundException);
+      await expect(service.getProjectEmployees('p1', authCtx)).rejects.toThrow(NotFoundException);
     });
 
     it('should return active employees', async () => {
-      vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce({ id: 'p1' } as any);
+      vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce({ id: 'p1', organizationId: 'org1' } as any);
       const assignments = [
         { employee: { id: 'e1', isActive: true } },
         { employee: { id: 'e2', isActive: false } },
       ];
       vi.mocked(db.orm.public.EmployeeProject.all).mockResolvedValueOnce(assignments as any);
 
-      const result = await service.getProjectEmployees('p1');
+      const result = await service.getProjectEmployees('p1', authCtx);
       expect(result).toEqual([{ id: 'e1', isActive: true }]);
     });
   });
@@ -137,19 +146,19 @@ describe('AssignmentsService', () => {
   describe('getEmployeeProjects', () => {
     it('should throw NotFoundException if employee not found', async () => {
       vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce(null);
-      await expect(service.getEmployeeProjects('e1')).rejects.toThrow(NotFoundException);
+      await expect(service.getEmployeeProjects('e1', authCtx)).rejects.toThrow(NotFoundException);
     });
 
     it('should return active projects', async () => {
-      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'e1' } as any);
+      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'e1', organizationId: 'org1' } as any);
       const assignments = [
-        { project: { id: 'p1', isActive: true } },
-        { project: { id: 'p2', isActive: false } },
+        { project: { id: 'p1', isActive: true, organizationId: 'org1' } },
+        { project: { id: 'p2', isActive: false, organizationId: 'org1' } },
       ];
       vi.mocked(db.orm.public.EmployeeProject.all).mockResolvedValueOnce(assignments as any);
 
-      const result = await service.getEmployeeProjects('e1');
-      expect(result).toEqual([{ id: 'p1', isActive: true }]);
+      const result = await service.getEmployeeProjects('e1', authCtx);
+      expect(result).toEqual([{ id: 'p1', isActive: true, organizationId: 'org1' }]);
     });
   });
 });

@@ -1,5 +1,6 @@
+import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 import { Test, TestingModule } from '@nestjs/testing';
-import { TimeEntriesService } from './time-entries.service.js';
+import { TimeEntriesService, getMonday } from './time-entries.service.js';
 import { db } from '../prisma/db.js';
 import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -49,7 +50,7 @@ describe('TimeEntriesService', () => {
     vi.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [TimeEntriesService],
+      providers: [TimeEntriesService, { provide: AuditLogsService, useValue: { logEvent: vi.fn(), getOrganizationLogs: vi.fn() } }],
     }).compile();
 
     service = module.get<TimeEntriesService>(TimeEntriesService);
@@ -75,6 +76,26 @@ describe('TimeEntriesService', () => {
     expect(service).toBeDefined();
   });
 
+  describe('getMonday UTC calculation', () => {
+    it('should correctly calculate Monday for any day of the week without timezone drift', () => {
+      // 2026-09-14 is Monday
+      const mon = getMonday('2026-09-14');
+      expect(mon.toISOString().slice(0, 10)).toBe('2026-09-14');
+
+      // 2026-09-16 is Wednesday -> Monday is 2026-09-14
+      const wed = getMonday('2026-09-16');
+      expect(wed.toISOString().slice(0, 10)).toBe('2026-09-14');
+
+      // 2026-09-20 is Sunday -> Monday is 2026-09-14
+      const sun = getMonday('2026-09-20');
+      expect(sun.toISOString().slice(0, 10)).toBe('2026-09-14');
+
+      // 2026-09-21 is next Monday -> Monday is 2026-09-21
+      const nextMon = getMonday('2026-09-21');
+      expect(nextMon.toISOString().slice(0, 10)).toBe('2026-09-21');
+    });
+  });
+
   describe('create', () => {
     const validDto = { projectId: 'p1', taskId: 't1', activityId: 'a1', date: '2026-09-10', hours: 8 };
     const authCtx: AuthenticatedContext = { userId: 'u1', employeeId: 'e1', organizationId: 'org1', roles: [] };
@@ -98,6 +119,16 @@ describe('TimeEntriesService', () => {
       await expect(service.create(validDto, authCtx)).rejects.toThrow(BadRequestException);
     });
 
+    it('should throw BadRequestException if employee not assigned to project', async () => {
+      setupMocks({ assignment: null });
+      await expect(service.create(validDto, authCtx)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException if project is inactive', async () => {
+      setupMocks({ project: { id: 'p1', isActive: false, organizationId: 'org1' } });
+      await expect(service.create(validDto, authCtx)).rejects.toThrow(BadRequestException);
+    });
+
     it('should throw BadRequestException if task inactive', async () => {
       setupMocks({ task: { id: 't1', projectId: 'p1', isActive: false } });
       await expect(service.create(validDto, authCtx)).rejects.toThrow(BadRequestException);
@@ -106,6 +137,16 @@ describe('TimeEntriesService', () => {
     it('should throw BadRequestException if activity from wrong project', async () => {
       setupMocks({ activity: { id: 'a1', projectId: 'p2', isActive: true } });
       await expect(service.create(validDto, authCtx)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw ForbiddenException if timesheet is SUBMITTED', async () => {
+      setupMocks({ timesheet: { id: 'ts1', status: 'SUBMITTED' } });
+      await expect(service.create(validDto, authCtx)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw ForbiddenException if timesheet is APPROVED', async () => {
+      setupMocks({ timesheet: { id: 'ts1', status: 'APPROVED' } });
+      await expect(service.create(validDto, authCtx)).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -173,6 +214,12 @@ describe('TimeEntriesService', () => {
       const result = await service.update('te1', { hours: 4 }, authCtx);
       expect(result).toEqual({ id: 'te1', hours: 4 });
       expect(db.orm.public.TimeEntry.update).toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException if existing timesheet is SUBMITTED', async () => {
+      vi.mocked(db.orm.public.TimeEntry.first).mockResolvedValueOnce({ id: 'te1', employeeId: 'e1', projectId: 'p1', taskId: 't1', activityId: 'a1', date: '2026-09-15' } as any);
+      setupMocks({ timesheet: { id: 'ts1', status: 'SUBMITTED' } });
+      await expect(service.update('te1', { hours: 5 }, authCtx)).rejects.toThrow(ForbiddenException);
     });
 
     it('should return existing if empty update', async () => {

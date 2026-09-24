@@ -34,7 +34,7 @@ describe('UmsOnboardingGuard', () => {
   });
 
   it('rejects if no authorization header', async () => {
-    expect(await guard.canActivate(mockCtx)).toBe(false);
+    await expect(guard.canActivate(mockCtx)).rejects.toThrow('Missing or invalid Authorization header');
   });
 
   it('sets umsUser and returns true if UMS valid and no Employee exists', async () => {
@@ -49,14 +49,29 @@ describe('UmsOnboardingGuard', () => {
     expect(mockRequest.umsUser).toEqual({ id: 'ums1', email: 'test@example.com' });
   });
 
-  it('throws ConflictException if UMS valid but Employee DOES exist', async () => {
+  it('throws ConflictException if UMS valid but Employee DOES exist by email', async () => {
     mockRequest.headers['authorization'] = 'Bearer valid_token';
     global.fetch = vi.fn().mockResolvedValueOnce({
       ok: true,
       json: async () => ({ data: { valid: true, user: { id: 'ums1', email: 'test@example.com' } } }),
     } as any);
 
-    mockDbFirstOnboarding.mockResolvedValueOnce({ id: 'emp1' });
+    mockDbFirstOnboarding
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'emp1' });
+
+    await expect(guard.canActivate(mockCtx)).rejects.toThrow(ConflictException);
+  });
+
+  it('throws ConflictException if UMS valid but Employee DOES exist by umsUserId', async () => {
+    mockRequest.headers['authorization'] = 'Bearer valid_token';
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { valid: true, user: { id: 'ums1', email: 'test@example.com' } } }),
+    } as any);
+
+    mockDbFirstOnboarding
+      .mockResolvedValueOnce({ id: 'emp1' }); // first call returns employee
 
     await expect(guard.canActivate(mockCtx)).rejects.toThrow(ConflictException);
   });

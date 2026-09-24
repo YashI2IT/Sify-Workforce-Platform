@@ -1,4 +1,4 @@
-import { Injectable, type CanActivate, type ExecutionContext, UnauthorizedException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { Injectable, type CanActivate, type ExecutionContext, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { db } from '../prisma/db.js';
 
 @Injectable()
@@ -11,11 +11,11 @@ export class UmsOnboardingGuard implements CanActivate {
 
     const authHeader = request.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return false;
+      throw new UnauthorizedException('Missing or invalid Authorization header');
     }
 
     const token = authHeader.substring(7);
-    if (!token) return false;
+    if (!token) throw new UnauthorizedException('Missing token');
 
     // Validate token via UMS
     let umsUser: { id: string; email: string; name?: string; username?: string };
@@ -27,35 +27,43 @@ export class UmsOnboardingGuard implements CanActivate {
           'Authorization': `Bearer ${token}`,
           'x-app-id': this.appId,
         },
+        signal: AbortSignal.timeout(6000),
       });
 
       if (!response.ok) {
-        return false; // Token invalid or expired
+        throw new UnauthorizedException('Token invalid or expired');
       }
 
       const body = await response.json();
       if (!body?.data?.valid) {
-        return false;
+        throw new UnauthorizedException('Token invalid or expired');
       }
 
       umsUser = body.data.user;
       if (!umsUser?.email) {
-        return false;
+        throw new UnauthorizedException('User email missing from token');
       }
     } catch (err) {
+      if (err instanceof UnauthorizedException) throw err;
       console.error('[UmsOnboardingGuard] Token validation failed:', (err as Error).message);
-      return false;
+      throw new UnauthorizedException('Token validation failed');
     }
 
-    // Map UMS user → Workforce Employee by email
+    // Check if UMS user is already mapped to an active Workforce Employee
     let employee: { id: string; organizationId: string; isActive: boolean } | null = null;
     try {
-      employee = await db.orm.public.Employee.where({
+      const empByUmsId = await db.orm.public.Employee.where({
+        umsUserId: umsUser.id,
+        isActive: true,
+      }).first().catch(() => null);
+
+      const empByEmail = await db.orm.public.Employee.where({
         email: umsUser.email,
         isActive: true,
-      }).first();
+      }).first().catch(() => null);
+
+      employee = empByUmsId || empByEmail || null;
     } catch (err) {
-      // If .first() throws when not found, treat as null
       employee = null;
     }
 

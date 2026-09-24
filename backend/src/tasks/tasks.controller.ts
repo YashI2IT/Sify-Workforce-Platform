@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Patch, Param, Body, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { TasksService } from './tasks.service.js';
 import { createTaskSchema, updateTaskSchema } from './dto/create-task.dto.js';
 import { GetAuthContext } from '../auth/auth-context.decorator.js';
 import type { AuthenticatedContext } from '../auth/authenticated-context.js';
+import { Roles } from '../auth/roles.decorator.js';
 
 @ApiTags('Tasks')
 @Controller()
@@ -20,6 +21,7 @@ export class TasksController {
   }
 
   @Post('projects/:projectId/tasks')
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Create a new task under a project' })
   @ApiParam({ name: 'projectId', description: 'Project UUID' })
   @ApiBody({
@@ -31,6 +33,12 @@ export class TasksController {
         description: { type: 'string', nullable: true, example: 'Create ER diagrams' },
         status: { type: 'string', example: 'TODO' },
         isActive: { type: 'boolean', default: true },
+        priority: { type: 'string', example: 'HIGH' },
+        assigneeId: { type: 'string', nullable: true },
+        startDate: { type: 'string', format: 'date-time', nullable: true },
+        dueDate: { type: 'string', format: 'date-time', nullable: true },
+        estimatedHours: { type: 'number', nullable: true },
+        parentTaskId: { type: 'string', nullable: true },
       },
     },
   })
@@ -63,6 +71,7 @@ export class TasksController {
   }
 
   @Patch('tasks/:id')
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Update an existing task' })
   @ApiParam({ name: 'id', description: 'Task UUID' })
   @ApiBody({
@@ -73,6 +82,12 @@ export class TasksController {
         description: { type: 'string', nullable: true, example: 'Updated description' },
         status: { type: 'string', example: 'IN_PROGRESS' },
         isActive: { type: 'boolean', example: false },
+        priority: { type: 'string' },
+        assigneeId: { type: 'string', nullable: true },
+        startDate: { type: 'string', format: 'date-time', nullable: true },
+        dueDate: { type: 'string', format: 'date-time', nullable: true },
+        estimatedHours: { type: 'number', nullable: true },
+        parentTaskId: { type: 'string', nullable: true },
       },
     },
   })
@@ -93,5 +108,37 @@ export class TasksController {
       }
       throw error;
     }
+  }
+
+  // --- Task Dependencies ---
+
+  @Get('tasks/:id/dependencies')
+  @ApiOperation({ summary: 'List task dependencies' })
+  @ApiParam({ name: 'id', description: 'Task UUID' })
+  async findDependencies(@Param('id') id: string, @GetAuthContext() auth: AuthenticatedContext) {
+    return this.tasksService.findDependencies(id, auth);
+  }
+
+  @Post('tasks/:id/dependencies')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Create task dependency' })
+  @ApiParam({ name: 'id', description: 'Predecessor Task UUID' })
+  @ApiBody({ schema: { type: 'object', required: ['successorId'], properties: { successorId: { type: 'string' } } } })
+  async addDependency(@Param('id') id: string, @Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {
+    if (!body.successorId) throw new BadRequestException('Validation failed: successorId is required');
+    return this.tasksService.addDependency(id, body.successorId, auth);
+  }
+
+  @Delete('tasks/:id/dependencies/:successorId')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Delete task dependency' })
+  @ApiParam({ name: 'id', description: 'Predecessor Task UUID' })
+  @ApiParam({ name: 'successorId', description: 'Successor Task UUID' })
+  async deleteDependency(
+    @Param('id') id: string,
+    @Param('successorId') successorId: string,
+    @GetAuthContext() auth: AuthenticatedContext
+  ) {
+    return this.tasksService.removeDependency(id, successorId, auth);
   }
 }

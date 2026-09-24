@@ -6,9 +6,20 @@ import { AuthenticatedContext } from '../auth/authenticated-context.js';
 @Injectable()
 export class ActivitiesService {
   async findAllByProject(projectId: string, auth: AuthenticatedContext) {
-    const project = await db.orm.public.Project.where({ id: projectId }).first();
-    if (!project || project.organizationId !== auth.organizationId) {
+    const project = await db.orm.public.Project.where({ id: projectId, organizationId: auth.organizationId }).first();
+    if (!project) {
       throw new NotFoundException('Project not found');
+    }
+
+    const isAdmin = auth.roles && auth.roles.includes('ADMIN');
+    if (!isAdmin) {
+      if (!auth.employeeId) {
+        throw new NotFoundException('Project not found');
+      }
+      const assignment = await db.orm.public.EmployeeProject.where({ projectId, employeeId: auth.employeeId }).first();
+      if (!assignment) {
+        throw new NotFoundException('Project not found');
+      }
     }
 
     return db.orm.public.Activity.where({ projectId, isActive: true }).all();
@@ -19,10 +30,22 @@ export class ActivitiesService {
     if (!activity) {
       throw new NotFoundException('Activity not found');
     }
-    const project = await db.orm.public.Project.where({ id: activity.projectId }).first();
-    if (!project || project.organizationId !== auth.organizationId) {
+    const project = await db.orm.public.Project.where({ id: activity.projectId, organizationId: auth.organizationId }).first();
+    if (!project) {
       throw new NotFoundException('Activity not found');
     }
+
+    const isAdmin = auth.roles && auth.roles.includes('ADMIN');
+    if (!isAdmin) {
+      if (!auth.employeeId) {
+        throw new NotFoundException('Activity not found');
+      }
+      const assignment = await db.orm.public.EmployeeProject.where({ projectId: activity.projectId, employeeId: auth.employeeId }).first();
+      if (!assignment) {
+        throw new NotFoundException('Activity not found');
+      }
+    }
+
     return activity;
   }
 
@@ -30,8 +53,8 @@ export class ActivitiesService {
     const { name, description, isActive } = createActivityDto;
 
     // Verify project exists
-    const project = await db.orm.public.Project.where({ id: projectId }).first();
-    if (!project || project.organizationId !== auth.organizationId) {
+    const project = await db.orm.public.Project.where({ id: projectId, organizationId: auth.organizationId }).first();
+    if (!project) {
       throw new NotFoundException('Project not found');
     }
 
@@ -62,8 +85,8 @@ export class ActivitiesService {
     if (!activity) {
       throw new NotFoundException('Activity not found');
     }
-    const project = await db.orm.public.Project.where({ id: activity.projectId }).first();
-    if (!project || project.organizationId !== auth.organizationId) {
+    const project = await db.orm.public.Project.where({ id: activity.projectId, organizationId: auth.organizationId }).first();
+    if (!project) {
       throw new NotFoundException('Activity not found');
     }
 
@@ -75,7 +98,7 @@ export class ActivitiesService {
         projectId: activity.projectId,
         name,
       }).first();
-      if (existingName) {
+      if (existingName && existingName.id !== activity.id) {
         throw new ConflictException('Activity with this name already exists in the project');
       }
     }

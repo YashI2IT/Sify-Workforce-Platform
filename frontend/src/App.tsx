@@ -3,6 +3,7 @@ import { ProtectedRoute } from './routes/ProtectedRoute';
 import { AppLayout } from './components/layout/AppLayout';
 import { Login } from './features/auth/Login';
 import { Register } from './features/auth/Register';
+import { Invite } from './features/auth/Invite';
 import { Onboarding } from './features/onboarding/Onboarding';
 import { Dashboard } from './features/dashboard/Dashboard';
 import { MyProjects } from './features/projects/MyProjects';
@@ -14,7 +15,8 @@ import { ManagerApprovals } from './features/approvals/ManagerApprovals';
 import { EmployeesList } from './features/employees/EmployeesList';
 import { TeamsList } from './features/teams/TeamsList';
 import { AllProjectsList } from './features/admin-projects/AllProjectsList';
-import { OrganizationDetail } from './features/organization/OrganizationDetail';
+import { OrganizationOverview } from './features/organization/OrganizationOverview';
+import { OrganizationSettings } from './features/organization/OrganizationSettings';
 
 import { EmployeeSummary } from './features/reports/EmployeeSummary';
 import { ManagerDashboard } from './features/reports/ManagerDashboard';
@@ -22,17 +24,32 @@ import { TeamUtilization } from './features/reports/TeamUtilization';
 import { ProjectHours } from './features/reports/ProjectHours';
 import { ProjectAnalysis } from './features/reports/ProjectAnalysis';
 
+import { AuditLogsList } from './features/system/AuditLogsList';
+
+import { WorkingTimesConfig } from './features/working-times/WorkingTimesConfig';
+import { PublicHolidaysConfig } from './features/working-times/PublicHolidaysConfig';
+import { UserPreferences } from './features/working-times/UserPreferences';
+
+import { OrganizationSetup } from './features/organization-setup/OrganizationSetup';
+import { LandingPage } from './features/landing/LandingPage';
+import { AuthInitializer } from './components/auth/AuthInitializer';
+
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/onboarding" element={<Onboarding />} />
+      <AuthInitializer>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/invite/:token" element={<Invite />} />
         
         <Route element={<ProtectedRoute />}>
+          {/* Setup dashboard does not use AppLayout to hide the sidebar */}
+          <Route path="/setup" element={<OrganizationSetup />} />
+
           <Route element={<AppLayout />}>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/projects" element={<MyProjects />} />
             <Route path="/projects/:projectId" element={<ProjectDetail />} />
@@ -42,22 +59,33 @@ function App() {
             <Route path="/approvals" element={<ManagerApprovals />} />
             <Route path="/employees" element={<EmployeesList />} />
             <Route path="/teams" element={<TeamsList />} />
-            <Route path="/organization" element={<OrganizationDetail />} />
+            <Route path="/organization" element={<OrganizationOverview />} />
+            <Route path="/organization/overview" element={<Navigate to="/organization" replace />} />
+            <Route path="/organization/profile" element={<Navigate to="/organization" replace />} />
+            <Route path="/organization/settings" element={<OrganizationSettings />} />
             <Route path="/admin/projects" element={<AllProjectsList />} />
+            <Route path="/admin/working-times" element={<WorkingTimesConfig />} />
+            <Route path="/admin/public-holidays" element={<PublicHolidaysConfig />} />
             
-            {/* Reports */}
+            {/* Reports Routing */}
+            <Route path="/reports" element={<Navigate to="/reports/employee-summary" replace />} />
             <Route path="/reports/employee-summary" element={<EmployeeSummary />} />
             <Route path="/reports/manager-dashboard" element={<ManagerDashboard />} />
             <Route path="/reports/team-utilization" element={<TeamUtilization />} />
             <Route path="/reports/project-hours" element={<ProjectHours />} />
             <Route path="/reports/project-analysis" element={<ProjectAnalysis />} />
+
+            {/* System */}
+            <Route path="/admin/audit-logs" element={<AuditLogsList />} />
+            <Route path="/preferences" element={<UserPreferences />} />
           </Route>
         </Route>
         
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
-    </Router>
-  )
+    </AuthInitializer>
+  </Router>
+)
 }
 
 export default App

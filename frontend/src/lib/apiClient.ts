@@ -18,6 +18,7 @@ function getDevHeaders(): Record<string, string> {
 }
 
 export async function apiClient(endpoint: string, options: RequestInit = {}, useAuthService = false) {
+  const isAuthEndpoint = endpoint === '/user/login' || endpoint.endsWith('/login') || endpoint === '/user/' || endpoint === '/user';
   const token = authStorage.getAccessToken();
   const orgId = authStorage.getOrgId();
 
@@ -31,11 +32,11 @@ export async function apiClient(endpoint: string, options: RequestInit = {}, use
     // These are real database records, not fake credentials.
     Object.assign(headers, getDevHeaders());
   } else {
-    // Production path: send real Bearer token and org header.
-    if (token) {
+    // Production path: send real Bearer token and org header for authenticated requests.
+    if (token && !isAuthEndpoint) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    if (orgId) {
+    if (orgId && !isAuthEndpoint) {
       headers['x-org-id'] = orgId;
     }
   }
@@ -51,8 +52,8 @@ export async function apiClient(endpoint: string, options: RequestInit = {}, use
   });
 
   if (!response.ok) {
-    if (response.status === 401 && !env.VITE_DEV_AUTH_BYPASS) {
-      // Only redirect on 401 in production mode — dev mode may not have
+    if (response.status === 401 && !env.VITE_DEV_AUTH_BYPASS && !isAuthEndpoint) {
+      // Only redirect on 401 in production mode for authenticated requests — dev mode may not have
       // a selected employee yet, and we don't want a redirect loop.
       authStorage.clear();
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
@@ -68,7 +69,8 @@ export async function apiClient(endpoint: string, options: RequestInit = {}, use
       }
     }
 
-    const err = new Error(errorData?.message || `Request failed with status ${response.status}`);
+    const errorMessage = errorData?.message || errorData?.error || (typeof errorData === 'string' ? errorData : `Request failed with status ${response.status}`);
+    const err = new Error(errorMessage);
     (err as any).code = errorData?.code;
     (err as any).status = response.status;
     throw err;

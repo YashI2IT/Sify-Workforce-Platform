@@ -1,10 +1,13 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { db } from '../prisma/db.js';
+import { AuthenticatedContext } from '../auth/authenticated-context.js';
+import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 
 @Injectable()
 export class AssignmentsService {
-  async assignEmployeeToProject(projectId: string, employeeId: string) {
-    const project = await db.orm.public.Project.where({ id: projectId }).first();
+  constructor(private auditLogsService: AuditLogsService) {}
+  async assignEmployeeToProject(projectId: string, employeeId: string, auth: AuthenticatedContext) {
+    const project = await db.orm.public.Project.where({ id: projectId, organizationId: auth.organizationId }).first();
     if (!project) {
       throw new NotFoundException('Project not found');
     }
@@ -12,7 +15,13 @@ export class AssignmentsService {
       throw new BadRequestException('Project is inactive');
     }
 
-    const employee = await db.orm.public.Employee.where({ id: employeeId }).first();
+    const settings = await db.orm.public.OrganizationSettings.where({ organizationId: auth.organizationId }).first();
+    const requiredRole = settings?.projectAssignmentPermission || 'MANAGER';
+    if (!auth.roles.includes('ADMIN') && !auth.roles.includes(requiredRole)) {
+      throw new ForbiddenException(`You must be a ${requiredRole} or ADMIN to assign employees to projects`);
+    }
+
+    const employee = await db.orm.public.Employee.where({ id: employeeId, organizationId: auth.organizationId }).first();
     if (!employee) {
       throw new NotFoundException('Employee not found');
     }
@@ -37,11 +46,28 @@ export class AssignmentsService {
       projectId,
       employeeId,
     });
+    
+    if (auth.employeeId) {
+      await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'EMPLOYEE_ASSIGNED_TO_PROJECT', 'Project', projectId, {
+        assignedEmployeeId: employeeId
+      });
+    }
 
     return assignment;
   }
 
-  async removeEmployeeFromProject(projectId: string, employeeId: string) {
+  async removeEmployeeFromProject(projectId: string, employeeId: string, auth: AuthenticatedContext) {
+    const project = await db.orm.public.Project.where({ id: projectId, organizationId: auth.organizationId }).first();
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const settings = await db.orm.public.OrganizationSettings.where({ organizationId: auth.organizationId }).first();
+    const requiredRole = settings?.projectAssignmentPermission || 'MANAGER';
+    if (!auth.roles.includes('ADMIN') && !auth.roles.includes(requiredRole)) {
+      throw new ForbiddenException(`You must be a ${requiredRole} or ADMIN to remove employees from projects`);
+    }
+
     const existingAssignment = await db.orm.public.EmployeeProject.where({
       projectId,
       employeeId,
@@ -52,37 +78,74 @@ export class AssignmentsService {
     }
 
     await db.orm.public.EmployeeProject.where({ projectId, employeeId }).delete();
+    
+    if (auth.employeeId) {
+      await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'EMPLOYEE_REMOVED_FROM_PROJECT', 'Project', projectId, {
+        removedEmployeeId: employeeId
+      });
+    }
   }
 
-  async getProjectEmployees(projectId: string) {
-    const project = await db.orm.public.Project.where({ id: projectId }).first();
+  async getProjectEmployees(projectId: string, auth: AuthenticatedContext) {
+    const project = await db.orm.public.Project.where({ id: projectId, organizationId: auth.organizationId }).first();
     if (!project) {
       throw new NotFoundException('Project not found');
+    }
+
+    const isAdmin = auth.roles && auth.roles.includes('ADMIN');
+    if (!isAdmin) {
+      if (!auth.employeeId) {
+        throw new NotFoundException('Project not found');
+      }
+      const myAssignment = await db.orm.public.EmployeeProject.where({ projectId, employeeId: auth.employeeId }).first();
+      if (!myAssignment) {
+        throw new NotFoundException('Project not found');
+      }
     }
 
     const assignments = await db.orm.public.EmployeeProject.where({ projectId })
       .include('employee')
       .all();
 
-    // Filter to only return active employees per normal operational use
     return assignments
-      .map((a) => a.employee)
-      .filter((e) => e && e.isActive);
+      .map((a: any) => a.employee)
+      .filter((e: any) => e && e.isActive);
   }
 
-  async getEmployeeProjects(employeeId: string) {
-    const employee = await db.orm.public.Employee.where({ id: employeeId }).first();
+  async getUnassignedEmployees(projectId: string, auth: AuthenticatedContext) {
+    const project = await db.orm.public.Project.where({ id: projectId, organizationId: auth.organizationId }).first();
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    // Fetch all active employees in organization
+    const orgEmployees = await db.orm.public.Employee.where({ organizationId: auth.organizationId, isActive: true }).all();
+
+    // Fetch existing assignments
+    const assignments = await db.orm.public.EmployeeProject.where({ projectId }).all();
+    const assignedEmployeeIds = new Set(assignments.map((a: any) => a.employeeId));
+
+    // Return unassigned employees
+    return orgEmployees.filter((e: any) => !assignedEmployeeIds.has(e.id));
+  }
+
+  async getEmployeeProjects(employeeId: string, auth: AuthenticatedContext) {
+    const employee = await db.orm.public.Employee.where({ id: employeeId, organizationId: auth.organizationId }).first();
     if (!employee) {
       throw new NotFoundException('Employee not found');
+    }
+
+    const isAdmin = auth.roles && auth.roles.includes('ADMIN');
+    if (!isAdmin && auth.employeeId !== employeeId) {
+      throw new ForbiddenException('Cannot view projects for another employee');
     }
 
     const assignments = await db.orm.public.EmployeeProject.where({ employeeId })
       .include('project')
       .all();
 
-    // Filter to only return active projects per normal operational use
     return assignments
-      .map((a) => a.project)
-      .filter((p) => p && p.isActive);
+      .map((a: any) => a.project)
+      .filter((p: any) => p && p.isActive && p.organizationId === auth.organizationId);
   }
 }

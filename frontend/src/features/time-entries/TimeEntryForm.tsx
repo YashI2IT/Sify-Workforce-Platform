@@ -1,86 +1,156 @@
 import { useEffect, useState } from 'react';
-import { apiClient } from '../../lib/apiClient';
+import { useSearchParams } from 'react-router-dom';
 import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
 import { Clock, CheckCircle2, AlertCircle, Calendar, Hash, FolderKanban, ListTodo, Layers, MessageSquare, X } from 'lucide-react';
+import {
+  useGetEmployeeProjectsQuery,
+  useGetProjectTasksQuery,
+  useGetProjectActivitiesQuery,
+  useGetTimeEntryQuery,
+  useCreateTimeEntryMutation
+} from '../../store/apiSlice';
 
-export const TimeEntryForm = ({ onSuccess }: { onSuccess?: () => void }) => {
+export const TimeEntryForm = ({ onSuccess, defaultValues, selectedDate, embedded = false }: { onSuccess?: () => void, defaultValues?: any, selectedDate?: string, embedded?: boolean }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const reuseId = searchParams.get('reuse');
   const { employee } = useCurrentEmployee();
-  const [projects, setProjects] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [activities, setActivities] = useState<any[]>([]);
 
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedTask, setSelectedTask] = useState('');
   const [selectedActivity, setSelectedActivity] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return selectedDate || `${y}-${m}-${day}`;
+  });
+
+  useEffect(() => {
+    if (selectedDate) {
+      setDate(selectedDate);
+    }
+  }, [selectedDate]);
   const [hours, setHours] = useState('');
   const [remarks, setRemarks] = useState('');
-
-  const [loadingProjects, setLoadingProjects] = useState(false);
-  const [loadingDetails, setLoadingDetails] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  // Load employee's assigned projects
-  useEffect(() => {
-    if (!employee) return;
-    setLoadingProjects(true);
-    apiClient(`/employees/${employee.id}/projects`)
-      .then(data => {
-        const list = Array.isArray(data) ? data : (data?.data ?? []);
-        setProjects(list.filter((p: any) => p.isActive));
-      })
-      .catch(err => setError(err.message || 'Failed to load assigned projects'))
-      .finally(() => setLoadingProjects(false));
-  }, [employee]);
+  const { data: projectsData, isLoading: loadingProjects } = useGetEmployeeProjectsQuery(employee?.id as string, { skip: !employee });
+  const projects = Array.isArray(projectsData) ? projectsData.filter((p: any) => p.isActive) : [];
 
-  // Load tasks and activities when a project is selected
+  const { data: tasksData, isLoading: loadingTasks } = useGetProjectTasksQuery(selectedProject, { skip: !selectedProject });
+  const tasks = Array.isArray(tasksData) ? tasksData.filter((t: any) => t.isActive) : [];
+
+  const { data: activitiesData, isLoading: loadingActivities } = useGetProjectActivitiesQuery(selectedProject, { skip: !selectedProject });
+  const activities = Array.isArray(activitiesData) ? activitiesData.filter((a: any) => a.isActive) : [];
+
+  const loadingDetails = loadingTasks || loadingActivities;
+
+  const [createTimeEntryM] = useCreateTimeEntryMutation();
+  const { data: reuseEntryData, isSuccess: reuseEntryLoaded } = useGetTimeEntryQuery(reuseId || '', { skip: !reuseId });
+
+  // Handle Reuse Entry
   useEffect(() => {
-    if (selectedProject) {
-      setLoadingDetails(true);
-      Promise.all([
-        apiClient(`/projects/${selectedProject}/tasks`),
-        apiClient(`/projects/${selectedProject}/activities`),
-      ])
-        .then(([tasksData, activitiesData]) => {
-          const tList = Array.isArray(tasksData) ? tasksData : [];
-          const aList = Array.isArray(activitiesData) ? activitiesData : [];
-          setTasks(tList.filter((t: any) => t.isActive));
-          setActivities(aList.filter((a: any) => a.isActive));
-          setError('');
-        })
-        .catch(err => {
-          setTasks([]);
-          setActivities([]);
-          setError(err.message || 'Failed to load tasks and activities for the selected project');
-        })
-        .finally(() => setLoadingDetails(false));
-    } else {
-      setTasks([]);
-      setActivities([]);
+    if (reuseId && reuseEntryLoaded && reuseEntryData) {
+      if (projects.find((p: any) => p.id === reuseEntryData.projectId)) {
+        setSelectedProject(reuseEntryData.projectId);
+        setHours(reuseEntryData.hours?.toString() || '');
+        setRemarks(reuseEntryData.remarks || '');
+        // Task and activity will be set by the other effect once they load
+      }
+      searchParams.delete('reuse');
+      setSearchParams(searchParams, { replace: true });
     }
+  }, [reuseId, reuseEntryLoaded, reuseEntryData, projects, searchParams, setSearchParams]);
+
+  // Handle Default Values and LocalStorage on mount
+  useEffect(() => {
+    if (!employee || reuseId) return;
+    if (projects.length === 0) return;
+
+    if (defaultValues) {
+      if (projects.find((p: any) => p.id === defaultValues.projectId)) {
+        setSelectedProject(defaultValues.projectId);
+        setHours(defaultValues.hours?.toString() || '');
+        setRemarks(defaultValues.remarks || '');
+      }
+    } else {
+      const savedProject = localStorage.getItem('last_project_id');
+      if (savedProject && projects.find((p: any) => p.id === savedProject)) {
+        setSelectedProject(savedProject);
+      }
+    }
+  }, [employee, defaultValues, projects, reuseId]);
+
+  // Auto-select tasks and activities when they load
+  useEffect(() => {
+    if (selectedProject && !loadingDetails) {
+      let targetTaskId: string | null = null;
+      let targetActivityId: string | null = null;
+
+      if (defaultValues?.projectId === selectedProject) {
+        targetTaskId = defaultValues.taskId;
+        targetActivityId = defaultValues.activityId;
+      } else if (reuseEntryData?.projectId === selectedProject) {
+        targetTaskId = reuseEntryData.taskId;
+        targetActivityId = reuseEntryData.activityId;
+      } else if (localStorage.getItem('last_project_id') === selectedProject) {
+        targetTaskId = localStorage.getItem('last_task_id');
+        targetActivityId = localStorage.getItem('last_activity_id');
+      }
+
+      if (targetTaskId && tasks.find((t: any) => t.id === targetTaskId)) {
+        setSelectedTask(targetTaskId);
+      } else if (tasks.length > 0 && !selectedTask) {
+        setSelectedTask(tasks[0].id);
+      } else if (tasks.length === 0) {
+        setSelectedTask('');
+      }
+
+      if (targetActivityId && activities.find((a: any) => a.id === targetActivityId)) {
+        setSelectedActivity(targetActivityId);
+      } else if (activities.length > 0 && !selectedActivity) {
+        setSelectedActivity(activities[0].id);
+      } else if (activities.length === 0) {
+        setSelectedActivity('');
+      }
+    }
+  }, [selectedProject, loadingDetails, tasks, activities, defaultValues, reuseEntryData, selectedTask, selectedActivity]);
+
+  const handleProjectChange = (projectId: string) => {
+    setSelectedProject(projectId);
     setSelectedTask('');
     setSelectedActivity('');
-  }, [selectedProject]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
 
-    // Validation
     const parsedHours = parseFloat(hours);
     if (isNaN(parsedHours) || parsedHours <= 0) {
-      setError('Hours must be greater than 0');
+      setError('Hours must be a positive number');
       return;
     }
     if (parsedHours > 24) {
-      setError('Hours logged in a single entry cannot exceed 24');
+      setError('Hours cannot exceed 24 in a single entry');
+      return;
+    }
+    if (Math.round(parsedHours * 4) !== parsedHours * 4) {
+      setError('Hours must be in 0.25h increments (e.g., 0.25, 0.5, 0.75, 1)');
       return;
     }
     if (!selectedProject || !selectedTask || !selectedActivity) {
-      setError('Please select Project, Task, and Activity');
+      setError('Project, Task, and Activity are all required');
+      return;
+    }
+    const taskBelongs = tasks.some((t) => t.id === selectedTask);
+    const actBelongs = activities.some((a) => a.id === selectedActivity);
+    if (!taskBelongs || !actBelongs) {
+      setError('Selected Task or Activity does not belong to the selected project');
       return;
     }
     if (!date) {
@@ -91,25 +161,25 @@ export const TimeEntryForm = ({ onSuccess }: { onSuccess?: () => void }) => {
     setSubmitting(true);
 
     try {
-      await apiClient('/time-entries', {
-        method: 'POST',
-        body: JSON.stringify({
-          projectId: selectedProject,
-          taskId: selectedTask,
-          activityId: selectedActivity,
-          date,
-          hours: parsedHours,
-          remarks: remarks.trim() || null,
-        }),
-      });
+      await createTimeEntryM({
+        projectId: selectedProject,
+        taskId: selectedTask,
+        activityId: selectedActivity,
+        date,
+        hours: parsedHours,
+        remarks: remarks.trim() || null,
+      }).unwrap();
 
       setSuccessMsg(`Successfully logged ${parsedHours} hours for ${date}`);
       setTimeout(() => setSuccessMsg(''), 4000);
 
-      // Reset form fields
+      localStorage.setItem('last_project_id', selectedProject);
+      localStorage.setItem('last_task_id', selectedTask);
+      localStorage.setItem('last_activity_id', selectedActivity);
+
       setHours('');
       setRemarks('');
-      // Keep selected project for quick entry of multiple tasks, but allow change
+      
       if (onSuccess) onSuccess();
     } catch (err: any) {
       setError(err.message || 'Failed to save time entry');
@@ -119,34 +189,36 @@ export const TimeEntryForm = ({ onSuccess }: { onSuccess?: () => void }) => {
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6 shadow-xs">
-      <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-5">
-        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-          <Clock className="w-5 h-5 text-blue-600" />
-          Log Time
-        </h2>
-        <span className="text-xs text-gray-400 font-medium">All fields with * are required</span>
-      </div>
+    <div className={embedded ? "w-full" : "bg-white border border-slate-200/90 rounded-2xl p-6 mb-6 shadow-2xs"}>
+      {!embedded && (
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3.5 mb-5">
+          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 font-display">
+            <Clock className="w-4 h-4 text-slate-950" />
+            Log Daily Time
+          </h2>
+          <span className="text-xs text-slate-400 font-mono">All fields with * are required</span>
+        </div>
+      )}
 
       {error && (
-        <div className="mb-5 p-3.5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg flex items-center justify-between animate-fadeIn">
+        <div className="mb-5 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center justify-between animate-fadeIn">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-500" />
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
             <span>{error}</span>
           </div>
-          <button onClick={() => setError('')} className="text-red-500 hover:text-red-700">
+          <button onClick={() => setError('')} className="text-rose-500 hover:text-rose-700 cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
       {successMsg && (
-        <div className="mb-5 p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-lg flex items-center justify-between animate-fadeIn">
+        <div className="mb-5 p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center justify-between animate-fadeIn">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
             <span>{successMsg}</span>
           </div>
-          <button onClick={() => setSuccessMsg('')} className="text-emerald-600 hover:text-emerald-800">
+          <button onClick={() => setSuccessMsg('')} className="text-emerald-600 hover:text-emerald-800 cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -156,16 +228,16 @@ export const TimeEntryForm = ({ onSuccess }: { onSuccess?: () => void }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Project selector */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1 flex items-center gap-1.5">
-              <FolderKanban className="w-3.5 h-3.5 text-gray-400" />
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+              <FolderKanban className="w-3.5 h-3.5 text-slate-400" />
               Project *
             </label>
             <select
               required
               disabled={loadingProjects}
               value={selectedProject}
-              onChange={e => setSelectedProject(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100"
+              onChange={(e) => handleProjectChange(e.target.value)}
+              className="w-full border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50/50 hover:bg-white text-slate-900 focus:bg-white focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs disabled:bg-slate-100 disabled:text-slate-400"
             >
               <option value="">— Select Assigned Project —</option>
               {projects.map(p => (
@@ -175,7 +247,7 @@ export const TimeEntryForm = ({ onSuccess }: { onSuccess?: () => void }) => {
               ))}
             </select>
             {projects.length === 0 && !loadingProjects && (
-              <p className="text-xs text-amber-600 mt-1">
+              <p className="text-xs text-amber-600 mt-1 font-medium">
                 You are not currently assigned to any active projects.
               </p>
             )}
@@ -183,8 +255,8 @@ export const TimeEntryForm = ({ onSuccess }: { onSuccess?: () => void }) => {
 
           {/* Task selector */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1 flex items-center gap-1.5">
-              <ListTodo className="w-3.5 h-3.5 text-gray-400" />
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+              <ListTodo className="w-3.5 h-3.5 text-slate-400" />
               Task *
             </label>
             <select
@@ -192,7 +264,7 @@ export const TimeEntryForm = ({ onSuccess }: { onSuccess?: () => void }) => {
               disabled={!selectedProject || loadingDetails}
               value={selectedTask}
               onChange={e => setSelectedTask(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-400"
+              className="w-full border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50/50 hover:bg-white text-slate-900 focus:bg-white focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs disabled:bg-slate-100 disabled:text-slate-400"
             >
               <option value="">
                 {!selectedProject
@@ -213,8 +285,8 @@ export const TimeEntryForm = ({ onSuccess }: { onSuccess?: () => void }) => {
 
           {/* Activity selector */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-gray-400" />
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-slate-400" />
               Activity *
             </label>
             <select
@@ -222,7 +294,7 @@ export const TimeEntryForm = ({ onSuccess }: { onSuccess?: () => void }) => {
               disabled={!selectedProject || loadingDetails}
               value={selectedActivity}
               onChange={e => setSelectedActivity(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-400"
+              className="w-full border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50/50 hover:bg-white text-slate-900 focus:bg-white focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs disabled:bg-slate-100 disabled:text-slate-400"
             >
               <option value="">
                 {!selectedProject
@@ -243,8 +315,8 @@ export const TimeEntryForm = ({ onSuccess }: { onSuccess?: () => void }) => {
 
           {/* Date picker */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-gray-400" />
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
               Work Date *
             </label>
             <input
@@ -252,14 +324,14 @@ export const TimeEntryForm = ({ onSuccess }: { onSuccess?: () => void }) => {
               required
               value={date}
               onChange={e => setDate(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="w-full border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-sm font-mono bg-slate-50/50 hover:bg-white text-slate-900 focus:bg-white focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs"
             />
           </div>
 
           {/* Hours input */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1 flex items-center gap-1.5">
-              <Hash className="w-3.5 h-3.5 text-gray-400" />
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+              <Hash className="w-3.5 h-3.5 text-slate-400" />
               Hours Worked *
             </label>
             <input
@@ -271,14 +343,14 @@ export const TimeEntryForm = ({ onSuccess }: { onSuccess?: () => void }) => {
               placeholder="e.g. 8"
               value={hours}
               onChange={e => setHours(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="w-full border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-sm font-mono bg-slate-50/50 hover:bg-white text-slate-900 focus:bg-white focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs"
             />
           </div>
 
           {/* Remarks */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1 flex items-center gap-1.5">
-              <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+              <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
               Remarks (Optional)
             </label>
             <input
@@ -286,16 +358,16 @@ export const TimeEntryForm = ({ onSuccess }: { onSuccess?: () => void }) => {
               placeholder="Brief description of work done..."
               value={remarks}
               onChange={e => setRemarks(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="w-full border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50/50 hover:bg-white text-slate-900 focus:bg-white focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs"
             />
           </div>
         </div>
 
-        <div className="flex justify-end pt-3 border-t border-gray-100">
+        <div className="flex justify-end pt-3.5 border-t border-slate-100">
           <button
             type="submit"
             disabled={submitting || !selectedProject || !selectedTask || !selectedActivity}
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-5 rounded-lg text-sm transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 bg-slate-950 hover:bg-slate-800 text-white font-medium py-2.5 px-5 rounded-xl text-sm transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.99]"
           >
             <Clock className="w-4 h-4" />
             {submitting ? 'Saving Time Entry...' : 'Save Time Entry'}
@@ -305,4 +377,3 @@ export const TimeEntryForm = ({ onSuccess }: { onSuccess?: () => void }) => {
     </div>
   );
 };
-

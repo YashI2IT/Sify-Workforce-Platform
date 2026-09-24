@@ -44,3 +44,7 @@ Thumbs.db
 # Temporary files
 .temp/
 .tmp/
+
+# Documentation containing sensitive internal architecture & credentials
+docs/
+

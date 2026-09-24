@@ -46,7 +46,7 @@ describe('ProjectsController', () => {
       vi.mocked(service.findAll).mockResolvedValue(expectedProjects as any);
 
       expect(await controller.findAll(auth, {})).toBe(expectedProjects);
-      expect(service.findAll).toHaveBeenCalledWith('org1', 1, 50);
+      expect(service.findAll).toHaveBeenCalledWith(auth, 1, 50);
     });
   });
 
@@ -57,7 +57,7 @@ describe('ProjectsController', () => {
       vi.mocked(service.findOne).mockResolvedValue(expectedProject as any);
 
       expect(await controller.findOne('1', auth)).toBe(expectedProject);
-      expect(service.findOne).toHaveBeenCalledWith('1', 'org1');
+      expect(service.findOne).toHaveBeenCalledWith('1', auth);
     });
   });
 
@@ -75,7 +75,7 @@ describe('ProjectsController', () => {
       vi.mocked(service.create).mockResolvedValue(createdProject as any);
 
       expect(await controller.create(validDto, auth)).toBe(createdProject);
-      expect(service.create).toHaveBeenCalledWith(validDto, 'org-1');
+      expect(service.create).toHaveBeenCalledWith(validDto, auth);
     });
 
     it('should throw BadRequestException on missing required fields', async () => {
@@ -109,7 +109,7 @@ describe('ProjectsController', () => {
       vi.mocked(service.update).mockResolvedValue(updatedProject as any);
 
       expect(await controller.update('1', validDto, auth)).toBe(updatedProject);
-      expect(service.update).toHaveBeenCalledWith('1', validDto, 'org1');
+      expect(service.update).toHaveBeenCalledWith('1', validDto, 'org1', 'e1');
     });
 
     it('should throw BadRequestException if update field is invalid', async () => {

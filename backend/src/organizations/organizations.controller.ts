@@ -1,9 +1,21 @@
-import { Controller, Get, Patch, Post, Body, BadRequestException, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Body, BadRequestException, ForbiddenException, UseGuards, Req, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { OrganizationsService } from './organizations.service.js';
 import { GetAuthContext } from '../auth/auth-context.decorator.js';
 import type { AuthenticatedContext } from '../auth/authenticated-context.js';
 import { UmsOnboardingGuard } from '../auth/ums-onboarding.guard.js';
+
+export const VALID_ORGANIZATION_TYPES = [
+  'TECHNOLOGY',
+  'EDUCATION',
+  'HEALTHCARE',
+  'FINANCE',
+  'MANUFACTURING',
+  'RETAIL',
+  'NGO',
+  'GOVERNMENT',
+  'OTHER',
+] as const;
 
 @ApiTags('Organizations')
 @Controller('organizations')
@@ -16,24 +28,34 @@ export class OrganizationsController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['name', 'code'],
+      required: ['name', 'organizationType'],
       properties: {
         name: { type: 'string', example: 'Example Organization' },
-        code: { type: 'string', example: 'EXAMPLE' },
+        organizationType: { type: 'string', example: 'TECHNOLOGY' },
+        description: { type: 'string', example: 'A tech company' },
       }
     }
   })
   @ApiResponse({ status: 201, description: 'Organization and Admin Employee created' })
-  @ApiResponse({ status: 409, description: 'Duplicate organization code or user already onboarded' })
+  @ApiResponse({ status: 409, description: 'Duplicate organization name or user already onboarded' })
   async createOrganization(@Body() body: any, @Req() req: any) {
     if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
       throw new BadRequestException('Invalid or missing organization name');
     }
-    if (!body.code || typeof body.code !== 'string' || body.code.trim() === '') {
-      throw new BadRequestException('Invalid or missing organization code');
+    
+    if (!body.organizationType || typeof body.organizationType !== 'string' || !(VALID_ORGANIZATION_TYPES as readonly string[]).includes(body.organizationType)) {
+      throw new BadRequestException('Invalid or missing organization type');
     }
 
-    return this.organizationsService.createOnboardingOrganization(req.umsUser, body.name.trim(), body.code.trim());
+    let description: string | undefined = undefined;
+    if (body.description !== undefined) {
+      if (typeof body.description !== 'string' || body.description.length > 500) {
+        throw new BadRequestException('Description must be a string up to 500 characters');
+      }
+      description = body.description.trim();
+    }
+
+    return this.organizationsService.createOnboardingOrganization(req.umsUser, body.name.trim(), body.organizationType, description);
   }
 
   @Get('current')
@@ -43,6 +65,23 @@ export class OrganizationsController {
     return this.organizationsService.getCurrentOrganization(auth.organizationId);
   }
 
+  @Get('current/setup-status')
+  @ApiOperation({ summary: 'Get checklist metrics for initial organization setup' })
+  @ApiResponse({ status: 200, description: 'Setup status metrics' })
+  async getSetupStatus(@GetAuthContext() auth: AuthenticatedContext) {
+    return this.organizationsService.getSetupStatus(auth.organizationId);
+  }
+
+  @Patch('current/setup/complete')
+  @ApiOperation({ summary: 'Mark organization setup as complete' })
+  @ApiResponse({ status: 200, description: 'Setup completed' })
+  async completeSetup(@GetAuthContext() auth: AuthenticatedContext) {
+    if (!auth.roles?.includes('ADMIN')) {
+      throw new BadRequestException('Only admins can complete setup');
+    }
+    return this.organizationsService.completeSetup(auth.organizationId);
+  }
+
   @Patch('current')
   @ApiOperation({ summary: 'Update current organization details' })
   @ApiBody({
@@ -50,21 +89,74 @@ export class OrganizationsController {
       type: 'object',
       properties: {
         name: { type: 'string', example: 'Acme Corp' },
-        code: { type: 'string', example: 'ACME' },
+        organizationType: { type: 'string', example: 'TECHNOLOGY' },
+        description: { type: 'string', example: 'Updated desc' },
       }
     }
   })
   @ApiResponse({ status: 200, description: 'Organization updated' })
-  @ApiResponse({ status: 409, description: 'Duplicate organization code' })
+  @ApiResponse({ status: 403, description: 'Only admins can update organization profile' })
+  @ApiResponse({ status: 409, description: 'Duplicate organization name' })
   async updateCurrent(@Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {
+    if (!auth.roles?.includes('ADMIN')) {
+      throw new ForbiddenException('Only admins can update organization profile');
+    }
+
     // Basic validation
     if (body.name !== undefined && (typeof body.name !== 'string' || body.name.trim() === '')) {
       throw new BadRequestException('Invalid name');
     }
-    if (body.code !== undefined && (typeof body.code !== 'string' || body.code.trim() === '')) {
-      throw new BadRequestException('Invalid code');
+    
+    if (body.organizationType !== undefined) {
+      if (typeof body.organizationType !== 'string' || !(VALID_ORGANIZATION_TYPES as readonly string[]).includes(body.organizationType)) {
+        throw new BadRequestException('Invalid organization type');
+      }
     }
 
-    return this.organizationsService.updateCurrentOrganization(auth.organizationId, body);
+    if (body.description !== undefined && (typeof body.description !== 'string' || body.description.length > 500)) {
+      throw new BadRequestException('Description must be a string up to 500 characters');
+    }
+
+    return this.organizationsService.updateCurrentOrganization(auth.organizationId, auth.employeeId, {
+      name: body.name?.trim(),
+      organizationType: body.organizationType,
+      description: body.description?.trim(),
+    });
+  }
+
+  @Get('available')
+  @UseGuards(UmsOnboardingGuard)
+  @ApiOperation({ summary: 'Get list of available organizations to join' })
+  @ApiResponse({ status: 200, description: 'List of organizations' })
+  async getAvailableOrganizations() {
+    return this.organizationsService.getAvailableOrganizations();
+  }
+
+  @Post(':id/join')
+  @UseGuards(UmsOnboardingGuard)
+  @ApiOperation({ summary: 'Join an existing organization (Onboarding ONLY)' })
+  @ApiResponse({ status: 201, description: 'Successfully joined organization' })
+  @ApiResponse({ status: 404, description: 'Organization not found' })
+  @ApiResponse({ status: 409, description: 'User already has an active Workforce Employee record' })
+  async joinOrganization(@Req() req: any, @Param('id') id: string) {
+    return this.organizationsService.joinOrganization(req.umsUser, id);
+  }
+
+  @Get('current/settings')
+  @ApiOperation({ summary: 'Get current organization settings' })
+  @ApiResponse({ status: 200, description: 'Organization settings record' })
+  async getSettings(@GetAuthContext() auth: AuthenticatedContext) {
+    return this.organizationsService.getSettings(auth.organizationId);
+  }
+
+  @Patch('current/settings')
+  @ApiOperation({ summary: 'Update current organization settings' })
+  @ApiResponse({ status: 200, description: 'Organization settings updated' })
+  @ApiResponse({ status: 403, description: 'Only admins can update organization settings' })
+  async updateSettings(@Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {
+    if (!auth.roles?.includes('ADMIN')) {
+      throw new ForbiddenException('Only admins can update organization settings');
+    }
+    return this.organizationsService.updateSettings(auth.organizationId, body);
   }
 }

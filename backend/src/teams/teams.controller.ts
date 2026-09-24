@@ -1,36 +1,42 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, BadRequestException, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { TeamsService } from './teams.service.js';
 import { createTeamSchema, updateTeamSchema } from './dto/create-team.dto.js';
 import { GetAuthContext } from '../auth/auth-context.decorator.js';
 import type { AuthenticatedContext } from '../auth/authenticated-context.js';
 import { parsePagination } from '../common/pagination.dto.js';
+import { RolesGuard } from '../auth/roles.guard.js';
+import { Roles } from '../auth/roles.decorator.js';
 
 @ApiTags('Teams')
 @Controller('teams')
+@UseGuards(RolesGuard)
 export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
 
   @Get()
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'List teams in organization' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Paginated active team records' })
   async findAll(@GetAuthContext() auth: AuthenticatedContext, @Query() query: any) {
     const { page, limit } = parsePagination(query);
-    return this.teamsService.findAll(auth.organizationId, page, limit);
+    return this.teamsService.findAll(auth, page, limit);
   }
 
   @Get(':id')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Get team by ID within organization' })
   @ApiParam({ name: 'id', description: 'Team UUID' })
   @ApiResponse({ status: 200, description: 'Team record' })
   @ApiResponse({ status: 404, description: 'Team not found' })
   async findOne(@Param('id') id: string, @GetAuthContext() auth: AuthenticatedContext) {
-    return this.teamsService.findOne(id, auth.organizationId);
+    return this.teamsService.findOne(id, auth);
   }
 
   @Post()
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Create a new team' })
   @ApiBody({
     schema: {
@@ -50,7 +56,7 @@ export class TeamsController {
   async create(@Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {
     try {
       const validatedData = createTeamSchema.parse(body);
-      return await this.teamsService.create(validatedData, auth.organizationId);
+      return await this.teamsService.create(validatedData, auth.organizationId, auth.employeeId);
     } catch (error: any) {
       if (error && error.name === 'ZodError') {
         throw new BadRequestException({
@@ -63,6 +69,7 @@ export class TeamsController {
   }
 
   @Patch(':id')
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Update an existing team' })
   @ApiParam({ name: 'id', description: 'Team UUID' })
   @ApiBody({
@@ -81,7 +88,7 @@ export class TeamsController {
   async update(@Param('id') id: string, @Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {
     try {
       const validatedData = updateTeamSchema.parse(body);
-      return await this.teamsService.update(id, validatedData, auth.organizationId);
+      return await this.teamsService.update(id, validatedData, auth.organizationId, auth.employeeId);
     } catch (error: any) {
       if (error && error.name === 'ZodError') {
         throw new BadRequestException({

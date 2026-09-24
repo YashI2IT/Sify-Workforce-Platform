@@ -4,6 +4,7 @@ import { ActivitiesService } from './activities.service.js';
 import { createActivitySchema, updateActivitySchema } from './dto/create-activity.dto.js';
 import { GetAuthContext } from '../auth/auth-context.decorator.js';
 import type { AuthenticatedContext } from '../auth/authenticated-context.js';
+import { Roles } from '../auth/roles.decorator.js';
 
 @ApiTags('Activities')
 @Controller()
@@ -20,6 +21,7 @@ export class ActivitiesController {
   }
 
   @Post('projects/:projectId/activities')
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Create a new activity under a project' })
   @ApiParam({ name: 'projectId', description: 'Project UUID' })
   @ApiBody({
@@ -62,6 +64,7 @@ export class ActivitiesController {
   }
 
   @Patch('activities/:id')
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Update an existing activity' })
   @ApiParam({ name: 'id', description: 'Activity UUID' })
   @ApiBody({

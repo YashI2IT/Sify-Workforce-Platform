@@ -1,3 +1,4 @@
+import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrganizationsService } from './organizations.service.js';
 import { db } from '../prisma/db.js';
@@ -10,6 +11,8 @@ vi.mock('../prisma/db.js', () => {
     first: vi.fn(),
     update: vi.fn(),
     create: vi.fn(),
+    orderBy: vi.fn(() => mOrg),
+    all: vi.fn(),
   };
 
   const mEmp = {
@@ -47,7 +50,7 @@ describe('OrganizationsService', () => {
     vi.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [OrganizationsService],
+      providers: [OrganizationsService, { provide: AuditLogsService, useValue: { logEvent: vi.fn(), getOrganizationLogs: vi.fn() } }],
     }).compile();
 
     service = module.get<OrganizationsService>(OrganizationsService);
@@ -76,92 +79,184 @@ describe('OrganizationsService', () => {
   describe('createOnboardingOrganization', () => {
     const umsUser = { id: 'ums1', email: 'test@example.com', name: 'Test User' };
 
-    it('creates organization and employee atomically', async () => {
+    it('creates organization and first employee', async () => {
       // Simulate no existing employee
       vi.mocked(db.orm.public.Employee.where).mockReturnValue({
         first: vi.fn().mockResolvedValue(null)
       } as any);
 
-      // Simulate no existing organization code
+      // Simulate no existing organization normalized name
       vi.mocked(db.orm.public.Organization.where).mockReturnValue({
         first: vi.fn().mockResolvedValue(null)
       } as any);
 
-      vi.mocked(db.orm.public.Organization.create).mockResolvedValue({ id: 'org1', name: 'Org', code: 'ORG' } as any);
-      vi.mocked(db.orm.public.Employee.create).mockResolvedValue({ id: 'emp1', employeeCode: 'EMP-1', name: 'Test User', email: 'test@example.com', role: 'ADMIN' } as any);
+      // Mock creations
+      vi.mocked(db.orm.public.Organization.create).mockResolvedValue({ id: 'org1', name: 'Org', normalizedName: 'org', organizationType: 'TECHNOLOGY', description: null } as any);
+      vi.mocked(db.orm.public.Employee.create).mockResolvedValue({ id: 'emp1', employeeCode: 'EMP-1', name: 'Test', email: 'test@example.com' } as any);
 
-      const result = await service.createOnboardingOrganization(umsUser, 'Org', 'ORG');
-      expect(result.data.organization.id).toBe('org1');
-      expect(result.data.employee.id).toBe('emp1');
-      expect(result.data.role).toBe('ADMIN');
-      expect(db.orm.public.Organization.create).toHaveBeenCalledWith({ name: 'Org', code: 'ORG' });
+      const result = await service.createOnboardingOrganization({ id: '1', email: 'test@example.com' }, 'Org', 'TECHNOLOGY');
+
+      expect(result.data.organization.name).toBe('Org');
+      expect(result.data.organization.organizationType).toBe('TECHNOLOGY');
+      expect(db.orm.public.Organization.create).toHaveBeenCalledWith({ name: 'Org', normalizedName: 'org', organizationType: 'TECHNOLOGY', description: null });
       expect(db.orm.public.Employee.create).toHaveBeenCalledWith(expect.objectContaining({
         organizationId: 'org1',
         email: 'test@example.com',
-        role: 'ADMIN',
-        isActive: true,
+        role: 'ADMIN'
       }));
     });
 
-    it('throws ConflictException if employee already exists', async () => {
+    it('throws ConflictException if user already has an employee record', async () => {
+      // Simulate existing employee
       vi.mocked(db.orm.public.Employee.where).mockReturnValue({
         first: vi.fn().mockResolvedValue({ id: 'emp1' })
       } as any);
 
-      await expect(service.createOnboardingOrganization(umsUser, 'Org', 'ORG')).rejects.toThrow(ConflictException);
+      await expect(service.createOnboardingOrganization({ id: '1', email: 'test@example.com' }, 'Org', 'TECHNOLOGY')).rejects.toThrow(ConflictException);
     });
 
-    it('throws ConflictException if organization code exists', async () => {
+    it('throws ConflictException if organization normalized name exists', async () => {
+      // Simulate no existing employee
+      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue(null)
+      } as any);
+
+      // Simulate existing organization
+      vi.mocked(db.orm.public.Organization.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 'org1', name: 'Org', normalizedName: 'org' })
+      } as any);
+
+      await expect(service.createOnboardingOrganization({ id: '1', email: 'test@example.com' }, 'Org', 'TECHNOLOGY')).rejects.toThrow(ConflictException);
+    });
+
+    it('throws ConflictException if unique constraint fails during transaction', async () => {
       vi.mocked(db.orm.public.Employee.where).mockReturnValue({
         first: vi.fn().mockResolvedValue(null)
       } as any);
       vi.mocked(db.orm.public.Organization.where).mockReturnValue({
-        first: vi.fn().mockResolvedValue({ id: 'org2' })
-      } as any);
-
-      await expect(service.createOnboardingOrganization(umsUser, 'Org', 'ORG')).rejects.toThrow(ConflictException);
-    });
-
-    it('safely throws ConflictException on concurrent employee creation (P2002)', async () => {
-      // Simulate BOTH checks returning null (race condition)
-      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
-        first: vi.fn().mockResolvedValue(null)
-      } as any);
-      vi.mocked(db.orm.public.Organization.where).mockReturnValue({
         first: vi.fn().mockResolvedValue(null)
       } as any);
 
-      // Simulate Organization creation succeeding
-      vi.mocked(db.orm.public.Organization.create).mockResolvedValue({ id: 'org1', name: 'Org', code: 'ORG' } as any);
-
-      // Simulate Employee creation throwing unique constraint violation
+      vi.mocked(db.orm.public.Organization.create).mockResolvedValue({ id: 'org1', name: 'Org', normalizedName: 'org', organizationType: 'TECHNOLOGY' } as any);
+      
+      // Simulate Prisma unique constraint error on Employee
       vi.mocked(db.orm.public.Employee.create).mockRejectedValue({ code: 'P2002' });
 
-      await expect(service.createOnboardingOrganization(umsUser, 'Org', 'ORG')).rejects.toThrow(ConflictException);
-      await expect(service.createOnboardingOrganization(umsUser, 'Org', 'ORG')).rejects.toThrowError('User already has an active Workforce Employee record');
+      await expect(service.createOnboardingOrganization({ id: '1', email: 'test@example.com' }, 'Org', 'TECHNOLOGY')).rejects.toThrow(ConflictException);
     });
   });
 
   describe('updateCurrentOrganization', () => {
-    const existing = { id: 'org1', name: 'Test Org', code: 'TEST' };
+    const existing = { id: 'org1', name: 'Test Org', normalizedName: 'test org', organizationType: 'TECHNOLOGY' };
 
-    it('should update organization name and code', async () => {
+    it('should update organization fields', async () => {
       vi.mocked(db.orm.public.Organization.where).mockReturnValue({
         first: vi.fn().mockResolvedValue(existing).mockResolvedValueOnce(existing).mockResolvedValueOnce(null),
-        update: vi.fn().mockResolvedValue({ ...existing, name: 'New Name', code: 'NEW' })
+        update: vi.fn().mockResolvedValue({ ...existing, name: 'New Name', normalizedName: 'new name', organizationType: 'EDUCATION', description: 'desc' })
       } as any);
 
-      const result = await service.updateCurrentOrganization('org1', { name: 'New Name', code: 'NEW' });
-      expect(result.name).toBe('New Name');
-      expect(result.code).toBe('NEW');
+      const result = await service.updateCurrentOrganization('org1', 'actor1', { name: 'New Name', organizationType: 'EDUCATION', description: 'desc' });
+      expect(result!.name).toBe('New Name');
+      expect(result!.organizationType).toBe('EDUCATION');
+      expect(result!.description).toBe('desc');
     });
 
-    it('should throw ConflictException if duplicate code', async () => {
+    it('should throw ConflictException if duplicate normalized name', async () => {
       vi.mocked(db.orm.public.Organization.where).mockReturnValue({
         first: vi.fn().mockResolvedValue(existing).mockResolvedValueOnce(existing).mockResolvedValueOnce({ id: 'org2' })
       } as any);
 
-      await expect(service.updateCurrentOrganization('org1', { code: 'NEW' })).rejects.toThrow(ConflictException);
+      await expect(service.updateCurrentOrganization('org1', 'actor1', { name: 'New Name' })).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('getAvailableOrganizations', () => {
+    it('should return available organizations', async () => {
+      vi.mocked(db.orm.public.Organization.all).mockResolvedValueOnce([
+        { id: 'org1', name: 'Org 1', organizationType: 'TECHNOLOGY' }
+      ] as any);
+
+      const result = await service.getAvailableOrganizations();
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Org 1');
+      expect(db.orm.public.Organization.orderBy).toHaveBeenCalled();
+    });
+  });
+
+  describe('joinOrganization', () => {
+    it('should throw ConflictException if user already has an employee record', async () => {
+      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
+        first: vi.fn().mockResolvedValueOnce({ id: 'emp1' })
+      } as any);
+      
+      await expect(service.joinOrganization({ id: 'ums1', email: 'test@example.com' }, 'org1'))
+        .rejects.toThrow(ConflictException);
+    });
+
+    it('should throw NotFoundException if organization not found', async () => {
+      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
+        first: vi.fn().mockResolvedValueOnce(null)
+      } as any);
+      vi.mocked(db.orm.public.Organization.where).mockReturnValue({
+        first: vi.fn().mockResolvedValueOnce(null)
+      } as any);
+      
+      await expect(service.joinOrganization({ id: 'ums1', email: 'test@example.com' }, 'org1'))
+        .rejects.toThrow(NotFoundException);
+    });
+
+    it('should join organization and create employee', async () => {
+      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
+        first: vi.fn().mockResolvedValueOnce(null)
+      } as any);
+      vi.mocked(db.orm.public.Organization.where).mockReturnValue({
+        first: vi.fn().mockResolvedValueOnce({ id: 'org1', name: 'Org 1', organizationType: 'TECHNOLOGY', description: null })
+      } as any);
+
+      vi.mocked(db.orm.public.Employee.create).mockResolvedValueOnce({
+        id: 'emp1', employeeCode: 'EMP1', name: 'Test', email: 'test@example.com'
+      } as any);
+
+      const result = await service.joinOrganization({ id: 'ums1', email: 'test@example.com', name: 'Test' }, 'org1');
+      expect(result.data.employee.email).toBe('test@example.com');
+      expect(result.data.role).toBe('EMPLOYEE');
+      expect(db.orm.public.Employee.create).toHaveBeenCalledWith(expect.objectContaining({
+        organizationId: 'org1',
+        role: 'EMPLOYEE'
+      }));
+    });
+  });
+
+  describe('completeSetup', () => {
+    it('should mark setup complete when org exists and not yet complete', async () => {
+      const org = { id: 'org1', name: 'Test Org', isSetupComplete: false };
+      vi.mocked(db.orm.public.Organization.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue(org),
+        update: vi.fn().mockResolvedValue({ ...org, isSetupComplete: true }),
+      } as any);
+
+      const result = await service.completeSetup('org1');
+      expect(result).toEqual({ success: true });
+      expect(db.orm.public.Organization.where).toHaveBeenCalledWith({ id: 'org1' });
+    });
+
+    it('should return success without updating if already complete', async () => {
+      const org = { id: 'org1', name: 'Test Org', isSetupComplete: true };
+      vi.mocked(db.orm.public.Organization.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue(org),
+        update: vi.fn(),
+      } as any);
+
+      const result = await service.completeSetup('org1');
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should throw NotFoundException if org does not exist', async () => {
+      vi.mocked(db.orm.public.Organization.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue(null),
+      } as any);
+
+      await expect(service.completeSetup('invalid')).rejects.toThrow(NotFoundException);
     });
   });
 });

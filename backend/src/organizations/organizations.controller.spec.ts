@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrganizationsController } from './organizations.controller.js';
 import { OrganizationsService } from './organizations.service.js';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 describe('OrganizationsController', () => {
@@ -18,6 +18,10 @@ describe('OrganizationsController', () => {
             getCurrentOrganization: vi.fn(),
             updateCurrentOrganization: vi.fn(),
             createOnboardingOrganization: vi.fn(),
+            getAvailableOrganizations: vi.fn(),
+            joinOrganization: vi.fn(),
+            getSetupStatus: vi.fn(),
+            completeSetup: vi.fn(),
           },
         },
       ],
@@ -28,29 +32,71 @@ describe('OrganizationsController', () => {
   });
 
   describe('createOrganization', () => {
-    it('should create organization and employee', async () => {
+    it('should successfully create an organization', async () => {
       const req = { umsUser: { id: 'ums1', email: 'test@example.com' } };
       vi.mocked(service.createOnboardingOrganization).mockResolvedValue({
-        data: { organization: { id: 'org1', name: 'Org', code: 'ORG' }, employee: { id: 'emp1', employeeCode: 'EMP1', name: 'Test', email: 'test@example.com' }, role: 'ADMIN' }
+        data: { organization: { id: 'org1', name: 'Org', organizationType: 'TECHNOLOGY', description: null }, employee: { id: 'emp1', employeeCode: 'EMP1', name: 'Test', email: 'test@example.com' }, role: 'ADMIN' }
       } as any);
 
-      const result = await controller.createOrganization({ name: 'Org', code: 'ORG' }, req);
-      expect(result.data.organization.id).toBe('org1');
-      expect(service.createOnboardingOrganization).toHaveBeenCalledWith(req.umsUser, 'Org', 'ORG');
+      const result = await controller.createOrganization({ name: 'Org', organizationType: 'TECHNOLOGY' }, req);
+      expect(result.data.organization.name).toBe('Org');
+      expect(service.createOnboardingOrganization).toHaveBeenCalledWith(
+        { id: 'ums1', email: 'test@example.com' },
+        'Org',
+        'TECHNOLOGY',
+        undefined
+      );
     });
 
     it('should throw BadRequestException if name is missing', async () => {
-      await expect(controller.createOrganization({ code: 'ORG' }, {})).rejects.toThrow(BadRequestException);
+      await expect(controller.createOrganization({ organizationType: 'TECHNOLOGY' }, {})).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException if code is missing', async () => {
+    it('should throw BadRequestException if type is missing', async () => {
       await expect(controller.createOrganization({ name: 'Org' }, {})).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException if type is invalid', async () => {
+      await expect(controller.createOrganization({ name: 'Org', organizationType: 'INVALID' }, {})).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException if description is too long', async () => {
+      const longDesc = 'a'.repeat(501);
+      await expect(controller.createOrganization({ name: 'Org', organizationType: 'TECHNOLOGY', description: longDesc }, {})).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getAvailableOrganizations', () => {
+    it('should return available organizations', async () => {
+      vi.mocked(service.getAvailableOrganizations).mockResolvedValue([
+        { id: 'org1', name: 'Org 1', organizationType: 'TECHNOLOGY' }
+      ] as any);
+
+      const result = await controller.getAvailableOrganizations();
+      expect(result).toHaveLength(1);
+      expect(service.getAvailableOrganizations).toHaveBeenCalled();
+    });
+  });
+
+  describe('joinOrganization', () => {
+    it('should join organization', async () => {
+      const req = { umsUser: { id: 'ums1', email: 'test@example.com' } };
+      vi.mocked(service.joinOrganization).mockResolvedValue({
+        data: { organization: { id: 'org1', name: 'Org 1', organizationType: 'TECHNOLOGY', description: null }, employee: { id: 'emp1', employeeCode: 'EMP1', name: 'Test', email: 'test@example.com' }, role: 'EMPLOYEE' }
+      } as any);
+
+      const result = await controller.joinOrganization(req, 'org1');
+      expect(result.data.organization.name).toBe('Org 1');
+      expect(service.joinOrganization).toHaveBeenCalledWith(
+        { id: 'ums1', email: 'test@example.com' },
+        'org1'
+      );
     });
   });
 
   describe('getCurrent', () => {
     it('should return current organization', async () => {
-      const auth: any = { organizationId: 'org1' };
+      const auth: any = { organizationId: 'org1', roles: ['ADMIN'] };
       vi.mocked(service.getCurrentOrganization).mockResolvedValue({ id: 'org1', name: 'Acme' } as any);
 
       const result = await controller.getCurrent(auth);
@@ -59,24 +105,68 @@ describe('OrganizationsController', () => {
     });
   });
 
-  describe('updateCurrent', () => {
-    it('should update organization', async () => {
-      const auth: any = { organizationId: 'org1' };
-      vi.mocked(service.updateCurrentOrganization).mockResolvedValue({ id: 'org1', name: 'Acme 2' } as any);
+  describe('getSetupStatus', () => {
+    it('should return setup status checklist and isProfileSaved', async () => {
+      const auth: any = { organizationId: 'org1', roles: ['ADMIN'] };
+      vi.mocked(service.getSetupStatus).mockResolvedValue({
+        data: {
+          isProfileSaved: true,
+          hasEmployees: false,
+          hasTeams: false,
+          hasRoles: false,
+          hasManagers: false,
+        }
+      } as any);
 
-      const result = await controller.updateCurrent({ name: 'Acme 2' }, auth);
-      expect(result.name).toBe('Acme 2');
-      expect(service.updateCurrentOrganization).toHaveBeenCalledWith('org1', { name: 'Acme 2' });
+      const result = await controller.getSetupStatus(auth);
+      expect(result.data.isProfileSaved).toBe(true);
+      expect(service.getSetupStatus).toHaveBeenCalledWith('org1');
+    });
+  });
+
+  describe('updateCurrent', () => {
+    it('authorized admin can update current organization and ignores client-supplied organizationId', async () => {
+      const auth: any = { organizationId: 'org1', roles: ['ADMIN'] };
+      vi.mocked(service.updateCurrentOrganization).mockResolvedValue({
+        id: 'org1', name: 'New Name', organizationType: 'TECHNOLOGY'
+      } as any);
+
+      // Client attempts to pass a forged organizationId in the body
+      const result = await controller.updateCurrent(
+        { name: 'New Name', organizationType: 'TECHNOLOGY', organizationId: 'forged-org-id' },
+        auth
+      );
+      expect(result!.name).toBe('New Name');
+      // Verifies server uses auth.organizationId ('org1'), not 'forged-org-id'
+      expect(service.updateCurrentOrganization).toHaveBeenCalledWith('org1', undefined, {
+        name: 'New Name',
+        organizationType: 'TECHNOLOGY',
+        description: undefined,
+      });
+    });
+
+    it('unauthorized non-admin user cannot update organization (throws 403 Forbidden)', async () => {
+      const auth: any = { organizationId: 'org1', roles: ['EMPLOYEE'] };
+      await expect(
+        controller.updateCurrent({ name: 'Hacked Name' }, auth)
+      ).rejects.toThrow(ForbiddenException);
+      expect(service.updateCurrentOrganization).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if name is empty', async () => {
-      const auth: any = { organizationId: 'org1' };
-      await expect(controller.updateCurrent({ name: '' }, auth)).rejects.toThrow(BadRequestException);
+      const auth: any = { organizationId: 'org1', roles: ['ADMIN'] };
+      await expect(controller.updateCurrent({ name: '  ' }, auth)).rejects.toThrow(BadRequestException);
+    });
+    
+    it('should throw BadRequestException if type is invalid', async () => {
+      const auth: any = { organizationId: 'org1', roles: ['ADMIN'] };
+      await expect(controller.updateCurrent({ organizationType: 'INVALID' }, auth)).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException if code is empty', async () => {
-      const auth: any = { organizationId: 'org1' };
-      await expect(controller.updateCurrent({ code: '  ' }, auth)).rejects.toThrow(BadRequestException);
+    it('should throw BadRequestException if description exceeds 500 characters', async () => {
+      const auth: any = { organizationId: 'org1', roles: ['ADMIN'] };
+      const longDesc = 'a'.repeat(501);
+      await expect(controller.updateCurrent({ description: longDesc }, auth)).rejects.toThrow(BadRequestException);
     });
   });
 });

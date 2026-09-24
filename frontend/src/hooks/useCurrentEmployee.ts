@@ -11,8 +11,8 @@
  *   PENDING: company Keycloak/JWT contract is not yet available.
  */
 import { useMemo } from 'react';
-import { useDevUser } from '../context/DevUserContext';
-import { env } from '../config/env';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
 
 export interface CurrentEmployee {
   id: string;
@@ -22,24 +22,26 @@ export interface CurrentEmployee {
   employeeCode: string;
   teamId: string | null;
   roles: string[];
+  role: string;
 }
 
 export function useCurrentEmployee(): { employee: CurrentEmployee | null; isLoading: boolean; error: string | null } {
-  if (env.VITE_DEV_AUTH_BYPASS) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { currentEmployee, currentRoles, isLoading, error } = useDevUser();
+  const employeeData = useSelector((state: RootState) => state.auth.employee);
+  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
+
+  const employee = useMemo(() => {
+    if (!employeeData) return null;
     
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const employee = useMemo(() => {
-      return currentEmployee ? { ...currentEmployee, roles: currentRoles } : null;
-    }, [currentEmployee, currentRoles]);
+    // Normalize role string into roles array for the frontend if not already present
+    const roles = Array.isArray(employeeData.roles) 
+      ? employeeData.roles 
+      : (employeeData.role ? [employeeData.role] : []);
+      
+    return { ...employeeData, roles };
+  }, [employeeData]);
 
-    return { employee, isLoading, error };
-  }
+  // If we are authenticated but have no employee data yet, we might be loading/bootstrapping
+  const isLoading = isAuthenticated && !employee;
 
-  // PRODUCTION: PENDING company Keycloak/JWT integration
-  // The employee identity will be decoded from the JWT and resolved
-  // against the User Management Service once the contract is confirmed.
-  // Do not guess the claims structure here.
-  return { employee: null, isLoading: false, error: null };
+  return { employee, isLoading, error: null };
 }

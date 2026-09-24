@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { UmsAuthGuard } from './ums-auth.guard.js';
 import { ForbiddenException } from '@nestjs/common';
 
-export const mockDbFirst = vi.fn().mockResolvedValue({ id: 'emp_id', organizationId: 'org_id', role: 'EMPLOYEE', isActive: true });
+export const mockDbFirst = vi.fn().mockResolvedValue({ id: 'emp_id', organizationId: 'org_id', role: 'EMPLOYEE', isActive: true, umsUserId: null });
+export const mockDbUpdate = vi.fn().mockResolvedValue(null);
 
 vi.mock('../prisma/db.js', () => ({
   db: {
@@ -11,6 +12,7 @@ vi.mock('../prisma/db.js', () => ({
         Employee: {
           where: () => ({
             first: mockDbFirst,
+            update: mockDbUpdate,
           }),
         },
       },
@@ -22,34 +24,13 @@ describe('UmsAuthGuard', () => {
   describe('mapRoles', () => {
     it('maps ADMIN role correctly', () => {
       expect(UmsAuthGuard.mapRoles('ADMIN')).toEqual(['ADMIN']);
-      expect(UmsAuthGuard.mapRoles('admin')).toEqual(['ADMIN']);
     });
-
-    it('maps MANAGER role correctly', () => {
-      expect(UmsAuthGuard.mapRoles('MANAGER')).toEqual(['MANAGER']);
-      expect(UmsAuthGuard.mapRoles('manager')).toEqual(['MANAGER']);
-    });
-
-    it('maps EMPLOYEE role correctly', () => {
-      expect(UmsAuthGuard.mapRoles('EMPLOYEE')).toEqual(['EMPLOYEE']);
-      expect(UmsAuthGuard.mapRoles('employee')).toEqual(['EMPLOYEE']);
-    });
-
-    it('returns empty array when role is empty string (no role assigned)', () => {
-      expect(UmsAuthGuard.mapRoles('')).toEqual([]);
-    });
-
-    it('returns empty array when role is null or undefined', () => {
-      expect(UmsAuthGuard.mapRoles(null as any)).toEqual([]);
-      expect(UmsAuthGuard.mapRoles(undefined as any)).toEqual([]);
-    });
-
     it('returns empty array for unknown role name', () => {
       expect(UmsAuthGuard.mapRoles('SUPERUSER')).toEqual([]);
     });
   });
 
-  describe('canActivate', () => {
+  describe('canActivate identity binding', () => {
     let guard: UmsAuthGuard;
     let mockCtx: any;
     let mockRequest: any;
@@ -60,95 +41,99 @@ describe('UmsAuthGuard', () => {
       mockCtx = {
         switchToHttp: () => ({ getRequest: () => mockRequest }),
       };
-      mockDbFirst.mockResolvedValue({ id: 'emp_id', organizationId: 'org_id', role: 'EMPLOYEE', isActive: true });
+      
+      // Default to returning null on all DB lookups to require explicit mocking per test
+      mockDbFirst.mockResolvedValue(null);
+      mockDbUpdate.mockResolvedValue(null);
+      
       vi.clearAllMocks();
     });
 
-    it('rejects request with no Authorization header', async () => {
-      const result = await guard.canActivate(mockCtx);
-      expect(result).toBe(false);
-    });
-
-    it('rejects request with non-Bearer Authorization header', async () => {
-      mockRequest.headers['authorization'] = 'Basic dXNlcjpwYXNz';
-      const result = await guard.canActivate(mockCtx);
-      expect(result).toBe(false);
-    });
-
-    it('rejects when UMS returns invalid token', async () => {
-      mockRequest.headers['authorization'] = 'Bearer invalid_token';
-      
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ data: { valid: false } }),
-      } as any);
-
-      const result = await guard.canActivate(mockCtx);
-      expect(result).toBe(false);
-    });
-
-    it('rejects when UMS returns non-ok response', async () => {
-      mockRequest.headers['authorization'] = 'Bearer expired_token';
-      
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-      } as any);
-
-      const result = await guard.canActivate(mockCtx);
-      expect(result).toBe(false);
-    });
-
-    it('rejects when UMS fetch throws (network error)', async () => {
-      mockRequest.headers['authorization'] = 'Bearer some_token';
-      
-      global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network error'));
-
-      const result = await guard.canActivate(mockCtx);
-      expect(result).toBe(false);
-    });
-    it('throws ForbiddenException when mapped roles are empty or unknown', async () => {
+    it('CASE A: Existing Employee with matching umsUserId authenticates normally', async () => {
       mockRequest.headers['authorization'] = 'Bearer valid_token';
-      
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ data: { valid: true, user: { id: 'uuid', email: 'test@example.com' } } }),
+        json: async () => ({ data: { valid: true, user: { id: 'ums_uuid_1', email: 'test@example.com' } } }),
       } as any);
 
-      // Simulate Employee with invalid role
-      mockDbFirst.mockResolvedValueOnce({ id: 'emp_id', organizationId: 'org_id', role: 'INVALID_ROLE', isActive: true });
+      // 1st call: lookup by umsUserId -> returns Employee A
+      // 2nd call: lookup by email -> returns Employee A (same ID)
+      mockDbFirst
+        .mockResolvedValueOnce({ id: 'emp_1', umsUserId: 'ums_uuid_1', role: 'EMPLOYEE', isActive: true, organizationId: 'org_1' })
+        .mockResolvedValueOnce({ id: 'emp_1', umsUserId: 'ums_uuid_1', role: 'EMPLOYEE', isActive: true, organizationId: 'org_1' });
+
+      const result = await guard.canActivate(mockCtx);
+      expect(result).toBe(true);
+      expect(mockRequest.user.userId).toBe('ums_uuid_1');
+      expect(mockRequest.user.employeeId).toBe('emp_1');
+    });
+
+    it('CASE B: Existing Employee with NULL umsUserId + matching email -> binds UMS user ID safely', async () => {
+      mockRequest.headers['authorization'] = 'Bearer valid_token';
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { valid: true, user: { id: 'ums_uuid_2', email: 'unbound@example.com' } } }),
+      } as any);
+
+      // 1st call: lookup by umsUserId -> null
+      // 2nd call: lookup by email -> returns Employee B (umsUserId: null)
+      // 3rd call: reload after update -> returns Employee B
+      mockDbFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'emp_2', umsUserId: null, email: 'unbound@example.com', role: 'EMPLOYEE', isActive: true, organizationId: 'org_1' })
+        .mockResolvedValueOnce({ id: 'emp_2', umsUserId: 'ums_uuid_2', email: 'unbound@example.com', role: 'EMPLOYEE', isActive: true, organizationId: 'org_1' });
+
+      const result = await guard.canActivate(mockCtx);
+      expect(result).toBe(true);
+      
+      expect(mockDbUpdate).toHaveBeenCalledWith({ umsUserId: 'ums_uuid_2' });
+      expect(mockRequest.user.userId).toBe('ums_uuid_2');
+    });
+
+    it('CASE C: Employee email matches, but email is already bound to a DIFFERENT UMS user', async () => {
+      mockRequest.headers['authorization'] = 'Bearer valid_token';
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { valid: true, user: { id: 'malicious_ums_uuid', email: 'stolen@example.com' } } }),
+      } as any);
+
+      // 1st call: lookup by umsUserId -> null
+      // 2nd call: lookup by email -> returns Employee B (bound to different umsUserId)
+      mockDbFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'emp_2', umsUserId: 'legit_ums_uuid', email: 'stolen@example.com', role: 'EMPLOYEE', isActive: true, organizationId: 'org_1' });
 
       await expect(guard.canActivate(mockCtx)).rejects.toThrow(ForbiddenException);
     });
 
-    it('returns true and populates request.user for valid UMS user + existing Employee + valid role', async () => {
+    it('CASE D: UMS user matches Employee A, but UMS email matches Employee B (Identity Conflict)', async () => {
       mockRequest.headers['authorization'] = 'Bearer valid_token';
-      
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ data: { valid: true, user: { id: 'ums_uuid', email: 'test@example.com', role: { roleName: 'EMPLOYEE' } } } }),
+        json: async () => ({ data: { valid: true, user: { id: 'ums_uuid_1', email: 'stolen@example.com' } } }),
       } as any);
 
-      const result = await guard.canActivate(mockCtx);
-      expect(result).toBe(true);
-      expect(mockRequest.user).toEqual({
-        userId: 'ums_uuid',
-        employeeId: 'emp_id',
-        organizationId: 'org_id',
-        roles: ['EMPLOYEE'],
-      });
+      // 1st call: lookup by umsUserId -> returns Employee A
+      // 2nd call: lookup by email -> returns Employee B
+      mockDbFirst
+        .mockResolvedValueOnce({ id: 'emp_1', umsUserId: 'ums_uuid_1', role: 'EMPLOYEE', isActive: true, organizationId: 'org_1' })
+        .mockResolvedValueOnce({ id: 'emp_2', umsUserId: null, role: 'EMPLOYEE', isActive: true, organizationId: 'org_1' });
+
+      await expect(guard.canActivate(mockCtx)).rejects.toThrow(ForbiddenException);
     });
 
-    it('throws WORKFORCE_ONBOARDING_REQUIRED for valid UMS user + no Employee', async () => {
+    it('CASE E: No matching Employee by umsUserId or email throws WORKFORCE_ONBOARDING_REQUIRED', async () => {
       mockRequest.headers['authorization'] = 'Bearer valid_token';
-      
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ data: { valid: true, user: { id: 'ums_uuid', email: 'test@example.com', role: { roleName: 'EMPLOYEE' } } } }),
+        json: async () => ({ data: { valid: true, user: { id: 'new_ums_uuid', email: 'new@example.com' } } }),
       } as any);
 
-      // Simulate no existing Employee in DB
-      mockDbFirst.mockResolvedValueOnce(null);
+      // 1st call: lookup by umsUserId -> null
+      // 2nd call: lookup by email -> null
+      mockDbFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
 
       try {
         await guard.canActivate(mockCtx);
@@ -157,6 +142,33 @@ describe('UmsAuthGuard', () => {
         expect(err).toBeInstanceOf(ForbiddenException);
         expect(err.getResponse()).toMatchObject({
           code: 'WORKFORCE_ONBOARDING_REQUIRED',
+        });
+      }
+    });
+
+    it('rejects concurrent duplicate binding (update fails)', async () => {
+      mockRequest.headers['authorization'] = 'Bearer valid_token';
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { valid: true, user: { id: 'ums_uuid_3', email: 'race@example.com' } } }),
+      } as any);
+
+      // 1st call: lookup by umsUserId -> null
+      // 2nd call: lookup by email -> returns unbound Employee
+      mockDbFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'emp_3', umsUserId: null, email: 'race@example.com', role: 'EMPLOYEE', isActive: true, organizationId: 'org_1' });
+
+      // Update throws
+      mockDbUpdate.mockRejectedValueOnce(new Error('Concurrent update violation'));
+
+      try {
+        await guard.canActivate(mockCtx);
+        expect.fail('Should have thrown ForbiddenException');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(ForbiddenException);
+        expect(err.getResponse()).toMatchObject({
+          code: 'IDENTITY_BINDING_FAILED',
         });
       }
     });

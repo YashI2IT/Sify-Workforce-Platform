@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -42,9 +43,9 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
     '5xl': 'max-w-5xl',
   };
 
-  return (
+  const modalNode = (
     <div 
-      className="fixed inset-0 bg-gray-900/50 z-50 flex items-center justify-center p-4 sm:p-6 animate-fadeIn"
+      className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[100] flex justify-center p-3 sm:p-6 animate-fadeIn overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
@@ -52,23 +53,25 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
     >
       <div 
         ref={modalRef}
-        className={`bg-white rounded-xl shadow-xl w-full ${maxWidthClasses[maxWidth]} max-h-[90vh] flex flex-col animate-slideDown overflow-hidden`}
+        className={`bg-white rounded-2xl shadow-2xl w-full ${maxWidthClasses[maxWidth]} flex flex-col animate-slideDown border border-slate-200/90 m-auto`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
-          <h2 id="modal-title" className="text-lg font-bold text-gray-900">{title}</h2>
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white rounded-t-2xl">
+          <h2 id="modal-title" className="text-base sm:text-lg font-bold text-slate-900 font-display">{title}</h2>
           <button 
             onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors focus:outline-none cursor-pointer"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto">
+        <div className="p-5 sm:p-6">
           {children}
         </div>
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalNode, document.body) : modalNode;
 };

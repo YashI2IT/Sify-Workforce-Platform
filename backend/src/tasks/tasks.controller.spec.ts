@@ -34,10 +34,21 @@ describe('TasksController', () => {
 
   describe('create', () => {
     it('should successfully create a task', async () => {
-      const dto = { name: 'New Task', status: 'TODO' };
-      const validatedDto = { ...dto, isActive: true };
+      const dto: CreateTaskDto = {
+        name: 'New Task',
+        description: null,
+        status: 'TODO',
+        isActive: true,
+      };
+
+      const validatedDto = {
+        ...dto,
+        isActive: true, // Zod default
+        priority: 'MEDIUM' // Zod default
+      };
+
       const expectedResult = { id: 't1', projectId: 'p1', ...validatedDto };
-      vi.mocked(service.create).mockResolvedValueOnce(expectedResult as any);
+      vi.mocked(service.create).mockResolvedValue(expectedResult as any);
 
       const result = await controller.create('p1', dto, { organizationId: 'org1' } as any);
 
@@ -48,13 +59,13 @@ describe('TasksController', () => {
     it('should throw BadRequestException on validation failure (missing name)', async () => {
       const dto = { status: 'TODO' };
       
-      await expect(controller.create('p1', dto)).rejects.toThrow(BadRequestException);
+      await expect(controller.create('p1', dto as any, { organizationId: 'org1' } as any)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException on validation failure (missing status)', async () => {
       const dto = { name: 'Task' };
       
-      await expect(controller.create('p1', dto)).rejects.toThrow(BadRequestException);
+      await expect(controller.create('p1', dto as any, { organizationId: 'org1' } as any)).rejects.toThrow(BadRequestException);
     });
 
     it('should accept nullable description', async () => {
@@ -81,7 +92,7 @@ describe('TasksController', () => {
     it('should throw BadRequestException on invalid update (empty name)', async () => {
       const dto = { name: '' };
       
-      await expect(controller.update('t1', dto)).rejects.toThrow(BadRequestException);
+      await expect(controller.update('t1', dto, { organizationId: 'org1' } as any)).rejects.toThrow(BadRequestException);
     });
     
     it('projectId cannot be updated by omitting it from schema', async () => {

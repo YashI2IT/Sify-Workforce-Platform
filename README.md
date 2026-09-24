@@ -1,61 +1,58 @@
 # Sify Workforce Platform
 
-Enterprise workforce management platform.
+Enterprise workforce, project management, and timesheet tracking platform for organization-wide employee allocation, time tracking, managerial approvals, and operational reporting.
 
-## Tech Stack
+---
 
-### Frontend
+## 📚 Documentation
 
-- React 19
-- TypeScript
-- Vite
-- Tailwind CSS
-- shadcn/ui
-- Redux Toolkit
-- Zod
+The repository maintains a centralized, single source of truth for architecture, domain models, APIs, and development workflows:
 
-### Backend
+- **[Project Master Specification](docs/PROJECT_MASTER.md)**  
+  The authoritative master document covering architecture, domain entities, RBAC, authentication & identity binding, onboarding, project breakdown, weekly timesheet lifecycles, managerial approval hierarchies, operational reporting, database schemas, and current verification status.
 
-- NestJS
-- TypeScript
-- Prisma ORM
-- PostgreSQL
+- **[UMS API Reference](docs/UMS_API_REFERENCE.md)**  
+  The complete technical reference for the external User Management Service (UMS) and Keycloak integration, covering authentication, organizations, roles, user app roles, ABAC policies, and token validation.
 
-### Authentication (Planned)
+---
 
-- Keycloak (SSO, RBAC)
-
-## Project Structure
-
-```
-frontend/   — React + Vite application
-backend/    — NestJS API server
-```
-
-## Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
+- **Node.js**: v20+
+- **PostgreSQL**: v16+ (running on port 5432)
+- **Mailpit**: Mock SMTP server (running on port 1025, web UI on port 8025)
 
-- Node.js >= 22
-- npm >= 10
-- PostgreSQL >= 15
+### 1. Backend Service
+```bash
+cd backend
+npm install
+npm run contract:emit
+npx prisma db update
+npm run start:dev
+```
+Backend API runs on `http://localhost:3000/api/v1` (Swagger docs at `/api/docs`).
 
-### Frontend
-
+### 2. Frontend Application
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+Frontend development server runs on `http://localhost:5173`.
 
-### Backend
+### 3. Local SMTP (Mailpit)
+Start `mailpit.exe` in the workspace root to capture invitation emails.  
+View captured emails at `http://localhost:8025`.
+
+---
+
+## 🧪 Testing
 
 ```bash
-cd backend
-npm install
-npm run start:dev
+# Run backend test suite (309 tests across 27 suites)
+cd backend && npm test
+
+# Run frontend test suite (74 tests across 17 suites)
+cd frontend && npm test
 ```
-
-### Environment Variables
-
-Copy `.env.example` to `.env` in both `frontend/` and `backend/` directories and update the values for your local environment.

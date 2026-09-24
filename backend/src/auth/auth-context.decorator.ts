@@ -6,7 +6,7 @@ export const GetAuthContext = createParamDecorator(
     const request = ctx.switchToHttp().getRequest();
 
     if (!request.user) {
-      throw new UnauthorizedException('Authentication context is missing (Blocked on Keycloak integration)');
+      throw new UnauthorizedException('Authentication context is missing');
     }
 
     return request.user as AuthenticatedContext;

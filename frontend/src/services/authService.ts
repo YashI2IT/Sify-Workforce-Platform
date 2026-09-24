@@ -148,27 +148,28 @@ export const authService = {
       const valid = await authService.validateToken(accessToken);
       if (valid) {
         // Token still valid — reconstruct a minimal LoginResult
-        // (we don't have user fields without re-validating, but that's fine)
-        return {
-          accessToken,
-          refreshToken: refreshTokenVal || '',
-          expiresIn: 0,
-          userId: '',
-          email: '',
-          username: '',
-        };
+        return { accessToken, refreshToken: refreshTokenVal || '', expiresIn: 0, userId: '', email: '', username: '' };
       }
-    } catch {
-      // Token expired — try refresh
-    }
-
-    if (refreshTokenVal) {
-      try {
+      if (refreshTokenVal) {
         return await authService.refreshToken(refreshTokenVal);
-      } catch {
-        return null;
       }
+      return null;
+    } catch {
+      return null;
     }
-    return null;
   },
+
+  bootstrap: async () => {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), 6000) : null;
+    try {
+      const response = await apiClient('/auth/me', {
+        method: 'GET',
+        signal: controller?.signal,
+      });
+      return response?.data || { authenticated: false, onboardingRequired: false };
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  }
 };

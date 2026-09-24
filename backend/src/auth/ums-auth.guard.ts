@@ -54,14 +54,29 @@ export class UmsAuthGuard implements CanActivate {
     if (request.path === '/api/v1/organizations' && request.method === 'POST') {
       return true; // Let UmsOnboardingGuard handle this specific route
     }
+    if (request.path === '/api/v1/organizations/available' && request.method === 'GET') {
+      return true; // Let UmsOnboardingGuard handle this specific route
+    }
+    if (request.path.match(/^\/api\/v1\/organizations\/[^/]+\/join$/) && request.method === 'POST') {
+      return true; // Let UmsOnboardingGuard handle this specific route
+    }
+    if (request.path.match(/^\/api\/v1\/employee-invitations\/[^/]+\/details$/) && request.method === 'GET') {
+      return true; // Unauthenticated route to get public invitation details
+    }
+    if (request.path === '/api/v1/employee-invitations/my-invitations' && request.method === 'GET') {
+      return true; // Let UmsOnboardingGuard handle this specific route
+    }
+    if (request.path.match(/^\/api\/v1\/employee-invitations\/[^/]+\/(accept|decline)-invite$/) && request.method === 'POST') {
+      return true; // Let UmsOnboardingGuard handle this specific route
+    }
 
     const authHeader = request.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return false;
+      throw new UnauthorizedException('Missing or invalid Authorization header');
     }
 
     const token = authHeader.substring(7);
-    if (!token) return false;
+    if (!token) throw new UnauthorizedException('Missing token');
 
     // Validate token via UMS
     let umsUser: { id: string; email: string; role: Record<string, any> };
@@ -73,40 +88,110 @@ export class UmsAuthGuard implements CanActivate {
           'Authorization': `Bearer ${token}`,
           'x-app-id': this.appId,
         },
+        signal: AbortSignal.timeout(6000),
       });
 
       if (!response.ok) {
-        return false; // Token invalid or expired
+        throw new UnauthorizedException('Token invalid or expired');
       }
 
       const body = await response.json();
       if (!body?.data?.valid) {
-        return false;
+        throw new UnauthorizedException('Token invalid or expired');
       }
 
       umsUser = body.data.user;
       if (!umsUser?.email) {
-        return false;
+        throw new UnauthorizedException('User email missing from token');
       }
     } catch (err) {
+      if (err instanceof UnauthorizedException) throw err;
       console.error('[UmsAuthGuard] Token validation failed:', (err as Error).message);
-      return false;
+      throw new UnauthorizedException('Token validation failed');
     }
 
-    // Map UMS user → Workforce Employee by email
-    let employee: { id: string; organizationId: string; isActive: boolean; role: string } | null = null;
+    // Map UMS user → Workforce Employee
+    let employee: { id: string; organizationId: string; isActive: boolean; role: string; umsUserId: string | null } | null = null;
     try {
-      employee = await db.orm.public.Employee.where({
-        email: umsUser.email,
-        isActive: true,
-      }).first();
+      // 1. Try lookup by stable umsUserId (CASE A, C, D)
+      const empByUmsId = await db.orm.public.Employee.where({
+        umsUserId: umsUser.id,
+      }).first().catch(() => null);
+
+      if (empByUmsId) {
+        // We found an employee firmly bound to this UMS identity.
+        // Even if the email changed in UMS, the identity binding remains intact.
+        // We must check if the UMS email belongs to a different BOUND employee.
+        // If UMS email matches another employee who is already bound to a different UMS user, 
+        // that's a conflict. We prevent silent email stealing.
+        const empByEmail = await db.orm.public.Employee.where({ email: umsUser.email }).first().catch(() => null);
+        if (empByEmail && empByEmail.id !== empByUmsId.id) {
+          // CASE D
+          throw new ForbiddenException({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: 'Identity conflict: UMS user matches one employee, but email matches another.',
+            code: 'IDENTITY_CONFLICT'
+          });
+        }
+        employee = empByUmsId;
+      } else {
+        // 2. Fallback to lookup by email
+        const empByEmail = await db.orm.public.Employee.where({
+          email: umsUser.email,
+        }).first().catch(() => null);
+
+        if (empByEmail) {
+          if (empByEmail.umsUserId !== null && empByEmail.umsUserId !== umsUser.id) {
+            // CASE C / Email conflict
+            throw new ForbiddenException({
+              statusCode: 403,
+              error: 'Forbidden',
+              message: 'Identity conflict: Email is already bound to a different identity.',
+              code: 'IDENTITY_CONFLICT'
+            });
+          }
+
+          // CASE B: Employee.umsUserId is NULL AND Employee.email matches UMS email
+          // Safely bind umsUserId to that Employee.
+          try {
+            // Atomic update where umsUserId must be null
+            await db.orm.public.Employee.where({ 
+              id: empByEmail.id,
+              umsUserId: null
+            }).update({ umsUserId: umsUser.id });
+            
+            // Reload the employee to confirm update and proceed
+            employee = await db.orm.public.Employee.where({ id: empByEmail.id }).first();
+          } catch (err) {
+            // Binding failed (e.g., concurrent update violation on unique constraint)
+            throw new ForbiddenException({
+              statusCode: 403,
+              error: 'Forbidden',
+              message: 'Identity binding failed due to a concurrent update or conflict.',
+              code: 'IDENTITY_BINDING_FAILED'
+            });
+          }
+        }
+      }
     } catch (err) {
-      // If .first() throws when no record is found, catch it and treat as null
+      if (err instanceof ForbiddenException) throw err;
+      // Database errors
       employee = null;
     }
 
+    const isAuthMe = request.path.endsWith('/auth/me');
+    const isAcceptInvite = (request.path.match(/^\/api\/v1\/employee-invitations\/[^/]+\/accept$/) || request.path.match(/^\/api\/v1\/employee-invitations\/[^/]+\/accept-invite$/)) && request.method === 'POST';
+    const isMyInvitations = request.path.endsWith('/employee-invitations/my-invitations') && request.method === 'GET';
+
+    request.umsUser = umsUser; // Ensure controller has access to UMS details
+
     if (!employee) {
-      // Valid UMS user but no matching active Workforce employee
+      if (isAuthMe || isAcceptInvite || isMyInvitations) {
+        request.onboardingRequired = true;
+        return true;
+      }
+      // Valid UMS user but no matching active Workforce employee (CASE E)
       throw new ForbiddenException({
         statusCode: 403,
         error: 'Forbidden',
@@ -115,15 +200,41 @@ export class UmsAuthGuard implements CanActivate {
       });
     }
 
+    if (!employee.isActive) {
+      if (isAuthMe || isAcceptInvite) {
+        request.employee = employee;
+        request.onboardingRequired = true; // Inactive can be treated as requiring onboarding or admin intervention
+        return true;
+      }
+      throw new ForbiddenException({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'User is authenticated but Workforce Employee record is inactive',
+        code: 'WORKFORCE_ONBOARDING_REQUIRED',
+      });
+    }
+
     // Map Local Workforce role
     const roles = UmsAuthGuard.mapRoles(employee.role);
     if (roles.length === 0) {
+      if (isAuthMe || isAcceptInvite) {
+        request.employee = employee;
+        request.onboardingRequired = true; 
+        return true;
+      }
       throw new ForbiddenException({
         statusCode: 403,
         error: 'Forbidden',
         message: 'Invalid or missing Workforce role',
         code: 'WORKFORCE_ROLE_INVALID',
       });
+    }
+
+    if (isAuthMe) {
+      request.employee = employee;
+      request.onboardingRequired = false;
+      request.roles = roles;
+      return true;
     }
 
     // Build AuthenticatedContext
