@@ -1,4 +1,4 @@
-﻿import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 import { Clock, AlertCircle, GripVertical, User, ChevronDown, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';
@@ -134,6 +134,7 @@ export const ProjectTasksBacklog = ({
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                                     <h5 className={`font-semibold text-sm leading-snug truncate ${section.id === 'COMPLETED' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
+                                      <span className="text-slate-400 font-mono mr-1.5 font-normal text-xs">{t.ticketId}</span>
                                       {t.name}
                                     </h5>
                                     {section.id === 'COMPLETED' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}

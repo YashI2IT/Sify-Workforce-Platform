@@ -66,33 +66,6 @@ describe('OrganizationsController', () => {
     });
   });
 
-  describe('getAvailableOrganizations', () => {
-    it('should return available organizations', async () => {
-      vi.mocked(service.getAvailableOrganizations).mockResolvedValue([
-        { id: 'org1', name: 'Org 1', organizationType: 'TECHNOLOGY' }
-      ] as any);
-
-      const result = await controller.getAvailableOrganizations();
-      expect(result).toHaveLength(1);
-      expect(service.getAvailableOrganizations).toHaveBeenCalled();
-    });
-  });
-
-  describe('joinOrganization', () => {
-    it('should join organization', async () => {
-      const req = { umsUser: { id: 'ums1', email: 'test@example.com' } };
-      vi.mocked(service.joinOrganization).mockResolvedValue({
-        data: { organization: { id: 'org1', name: 'Org 1', organizationType: 'TECHNOLOGY', description: null }, employee: { id: 'emp1', employeeCode: 'EMP1', name: 'Test', email: 'test@example.com' }, role: 'EMPLOYEE' }
-      } as any);
-
-      const result = await controller.joinOrganization(req, 'org1');
-      expect(result.data.organization.name).toBe('Org 1');
-      expect(service.joinOrganization).toHaveBeenCalledWith(
-        { id: 'ums1', email: 'test@example.com' },
-        'org1'
-      );
-    });
-  });
 
   describe('getCurrent', () => {
     it('should return current organization', async () => {

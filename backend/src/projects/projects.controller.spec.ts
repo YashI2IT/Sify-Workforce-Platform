@@ -11,6 +11,7 @@ const mockProjectsService = {
   findOne: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
+  getProjectHealth: vi.fn(),
 };
 
 describe('ProjectsController', () => {
@@ -58,6 +59,17 @@ describe('ProjectsController', () => {
 
       expect(await controller.findOne('1', auth)).toBe(expectedProject);
       expect(service.findOne).toHaveBeenCalledWith('1', auth);
+    });
+  });
+
+  describe('getHealth', () => {
+    it('should return project health', async () => {
+      const auth: AuthenticatedContext = { userId: 'u1', employeeId: 'e1', organizationId: 'org1', roles: [] };
+      const expectedHealth = { overdueTasksCount: 1 };
+      vi.mocked(service.getProjectHealth).mockResolvedValue(expectedHealth as any);
+
+      expect(await controller.getHealth('1', auth)).toBe(expectedHealth);
+      expect(service.getProjectHealth).toHaveBeenCalledWith('1', auth);
     });
   });
 

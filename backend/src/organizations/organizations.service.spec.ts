@@ -170,62 +170,6 @@ describe('OrganizationsService', () => {
     });
   });
 
-  describe('getAvailableOrganizations', () => {
-    it('should return available organizations', async () => {
-      vi.mocked(db.orm.public.Organization.all).mockResolvedValueOnce([
-        { id: 'org1', name: 'Org 1', organizationType: 'TECHNOLOGY' }
-      ] as any);
-
-      const result = await service.getAvailableOrganizations();
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Org 1');
-      expect(db.orm.public.Organization.orderBy).toHaveBeenCalled();
-    });
-  });
-
-  describe('joinOrganization', () => {
-    it('should throw ConflictException if user already has an employee record', async () => {
-      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
-        first: vi.fn().mockResolvedValueOnce({ id: 'emp1' })
-      } as any);
-      
-      await expect(service.joinOrganization({ id: 'ums1', email: 'test@example.com' }, 'org1'))
-        .rejects.toThrow(ConflictException);
-    });
-
-    it('should throw NotFoundException if organization not found', async () => {
-      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
-        first: vi.fn().mockResolvedValueOnce(null)
-      } as any);
-      vi.mocked(db.orm.public.Organization.where).mockReturnValue({
-        first: vi.fn().mockResolvedValueOnce(null)
-      } as any);
-      
-      await expect(service.joinOrganization({ id: 'ums1', email: 'test@example.com' }, 'org1'))
-        .rejects.toThrow(NotFoundException);
-    });
-
-    it('should join organization and create employee', async () => {
-      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
-        first: vi.fn().mockResolvedValueOnce(null)
-      } as any);
-      vi.mocked(db.orm.public.Organization.where).mockReturnValue({
-        first: vi.fn().mockResolvedValueOnce({ id: 'org1', name: 'Org 1', organizationType: 'TECHNOLOGY', description: null })
-      } as any);
-
-      vi.mocked(db.orm.public.Employee.create).mockResolvedValueOnce({
-        id: 'emp1', employeeCode: 'EMP1', name: 'Test', email: 'test@example.com'
-      } as any);
-
-      const result = await service.joinOrganization({ id: 'ums1', email: 'test@example.com', name: 'Test' }, 'org1');
-      expect(result.data.employee.email).toBe('test@example.com');
-      expect(result.data.role).toBe('EMPLOYEE');
-      expect(db.orm.public.Employee.create).toHaveBeenCalledWith(expect.objectContaining({
-        organizationId: 'org1',
-        role: 'EMPLOYEE'
-      }));
-    });
-  });
 
   describe('completeSetup', () => {
     it('should mark setup complete when org exists and not yet complete', async () => {

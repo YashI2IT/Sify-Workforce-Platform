@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart3, UsersRound, ArrowRight, ShieldCheck, CheckCircle2, FileEdit } from 'lucide-react';
+import { BarChart3, UsersRound, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { ReportLayout, ReportEmptyState } from './components/ReportLayout';
 import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
-import { useGetManagerDashboardReportQuery } from '../../store/apiSlice';
+import { useGetManagerDashboardReportQuery, useGetWorkloadReportQuery } from '../../store/apiSlice';
 
 export const ManagerDashboard = () => {
   const { employee } = useCurrentEmployee();
@@ -33,14 +33,22 @@ export const ManagerDashboard = () => {
     { skip: !isValidDateRange || !isManager }
   );
 
-  const loading = isLoading;
+  const { data: workloadData, isLoading: workloadLoading, error: workloadError, refetch: refetchWorkload } = useGetWorkloadReportQuery(
+    { startDate, endDate },
+    { skip: !isValidDateRange || !isManager }
+  );
+
+  const loading = isLoading || workloadLoading;
   const error = !isManager ? 'You are not authorized to view the Manager Dashboard.' :
                 (endDate < startDate) ? 'End date cannot be before start date' :
-                reportError ? 'Failed to fetch manager dashboard report' : '';
+                (reportError || workloadError) ? 'Failed to fetch manager dashboard reports' : '';
   const data = reportData || null;
 
   const fetchReport = () => {
-    if (isValidDateRange && isManager) refetch();
+    if (isValidDateRange && isManager) {
+      refetch();
+      refetchWorkload();
+    }
   };
 
   const getInitials = (name?: string) => {
@@ -68,7 +76,7 @@ export const ManagerDashboard = () => {
       ) : (
         <div className="p-6 space-y-6">
           {/* Summary Metrics */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Managed Teams</p>
@@ -96,15 +104,6 @@ export const ManagerDashboard = () => {
               </div>
               <h3 className="text-3xl font-extrabold text-slate-950 font-display mt-2">{data.pendingApprovalsCount || 0}</h3>
               <p className="text-[11px] text-slate-400 mt-2 font-medium">Awaiting review</p>
-            </div>
-            
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Missing Drafts</p>
-                <FileEdit className="w-4 h-4 text-slate-400" />
-              </div>
-              <h3 className="text-3xl font-extrabold text-slate-950 font-display mt-2">{data.missingDraftTimesheetCount || 0}</h3>
-              <p className="text-[11px] text-slate-400 mt-2 font-medium">Unsubmitted cycles</p>
             </div>
             
             <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
@@ -164,6 +163,70 @@ export const ManagerDashboard = () => {
                     </Link>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Team Workload & Capacity */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 font-display">
+                  <BarChart3 className="w-4 h-4 text-slate-950" />
+                  Team Workload & Capacity
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Factual breakdown of configured capacity versus actual hours logged for the selected period.
+                </p>
+              </div>
+            </div>
+
+            {!workloadData || workloadData.length === 0 ? (
+              <div className="py-12 px-4 text-center text-slate-500 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                <BarChart3 className="w-8 h-8 mx-auto text-slate-300 mb-1" />
+                <p className="text-sm font-bold text-slate-800 font-display">No Workload Data</p>
+                <p className="text-xs text-slate-400 mt-0.5">There is no team workload data available for this period.</p>
+              </div>
+            ) : (
+              <div className="overflow-hidden border border-slate-200/80 rounded-xl shadow-2xs">
+                <table className="w-full text-left text-sm text-slate-600">
+                  <thead className="bg-slate-50/80 text-xs uppercase font-bold text-slate-500 font-mono tracking-wider border-b border-slate-200/80">
+                    <tr>
+                      <th className="px-4 py-3">Employee</th>
+                      <th className="px-4 py-3 text-right">Configured Capacity</th>
+                      <th className="px-4 py-3 text-right">Logged Hours</th>
+                      <th className="px-4 py-3 text-right">Remaining</th>
+                      <th className="px-4 py-3 text-right">Over-Capacity</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200/80 bg-white">
+                    {workloadData.map((row: any) => (
+                      <tr key={row.employeeId} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 font-bold font-mono text-[10px] flex items-center justify-center border border-slate-200">
+                              {getInitials(row.employeeName)}
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-900 font-display">{row.employeeName}</p>
+                              <p className="text-[10px] text-slate-500 font-mono">{row.employeeCode}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-medium">{row.configuredCapacity}h</td>
+                        <td className="px-4 py-3 text-right font-mono font-medium">{row.actualHours}h</td>
+                        <td className="px-4 py-3 text-right font-mono font-medium text-emerald-600">{row.remainingCapacity}h</td>
+                        <td className="px-4 py-3 text-right font-mono font-medium">
+                          {row.overCapacity > 0 ? (
+                            <span className="text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md font-bold">{row.overCapacity}h</span>
+                          ) : (
+                            <span className="text-slate-400">0h</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

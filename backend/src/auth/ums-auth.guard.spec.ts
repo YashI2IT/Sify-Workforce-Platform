@@ -146,6 +146,24 @@ describe('UmsAuthGuard', () => {
       }
     });
 
+    it('Syncs Employee email with UMS email if it has changed', async () => {
+      mockRequest.headers['authorization'] = 'Bearer valid_token';
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { valid: true, user: { id: 'ums_uuid_1', email: 'new_email@example.com' } } }),
+      } as any);
+
+      // 1st call: lookup by umsUserId -> returns Employee A with old email
+      // 2nd call: lookup by new email -> returns null (no other employee has this email)
+      mockDbFirst
+        .mockResolvedValueOnce({ id: 'emp_1', umsUserId: 'ums_uuid_1', email: 'old_email@example.com', role: 'EMPLOYEE', isActive: true, organizationId: 'org_1' })
+        .mockResolvedValueOnce(null);
+
+      const result = await guard.canActivate(mockCtx);
+      expect(result).toBe(true);
+      expect(mockDbUpdate).toHaveBeenCalledWith({ email: 'new_email@example.com' });
+    });
+
     it('rejects concurrent duplicate binding (update fails)', async () => {
       mockRequest.headers['authorization'] = 'Bearer valid_token';
       global.fetch = vi.fn().mockResolvedValueOnce({

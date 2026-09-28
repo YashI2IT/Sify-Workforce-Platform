@@ -53,7 +53,7 @@ export const OrganizationOverview = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-200/80">
         <div className="space-y-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
               {org?.name || 'Organization Overview'}
             </h1>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold tracking-wider uppercase bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono">
@@ -64,7 +64,7 @@ export const OrganizationOverview = () => {
 
           <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
             <Building className="w-4 h-4 text-slate-400 shrink-0" />
-            <span className="text-slate-700 font-bold font-display truncate">
+            <span className="text-slate-700 font-bold truncate">
               {org?.organizationType || 'TECHNOLOGY'}
             </span>
             {org?.description && (
@@ -111,7 +111,7 @@ export const OrganizationOverview = () => {
             </div>
             <div className="my-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                   {loading ? <span className="text-slate-300 font-mono">—</span> : activeEmployees}
                 </span>
                 <span className="text-xs text-slate-400 font-mono font-medium">active</span>
@@ -135,7 +135,7 @@ export const OrganizationOverview = () => {
             </div>
             <div className="my-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                   {loading ? <span className="text-slate-300 font-mono">—</span> : totalTeams}
                 </span>
                 <span className="text-xs text-slate-400 font-mono font-medium">total</span>
@@ -159,7 +159,7 @@ export const OrganizationOverview = () => {
             </div>
             <div className="my-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                   {loading ? <span className="text-slate-300 font-mono">—</span> : totalProjects}
                 </span>
                 <span className="text-xs text-slate-400 font-mono font-medium">total</span>
@@ -190,7 +190,7 @@ export const OrganizationOverview = () => {
               <span className="text-[11px] font-bold text-emerald-800 font-mono uppercase">Active</span>
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
             </div>
-            <span className="text-2xl font-extrabold text-slate-900 font-display mt-1 block">
+            <span className="text-2xl font-bold text-slate-900 mt-1 block">
               {projectStatusCounts.ACTIVE}
             </span>
           </div>
@@ -200,7 +200,7 @@ export const OrganizationOverview = () => {
               <span className="text-[11px] font-bold text-blue-800 font-mono uppercase">In Progress</span>
               <span className="w-2 h-2 rounded-full bg-blue-600" />
             </div>
-            <span className="text-2xl font-extrabold text-slate-900 font-display mt-1 block">
+            <span className="text-2xl font-bold text-slate-900 mt-1 block">
               {projectStatusCounts.IN_PROGRESS}
             </span>
           </div>
@@ -210,7 +210,7 @@ export const OrganizationOverview = () => {
               <span className="text-[11px] font-bold text-amber-800 font-mono uppercase">Planning</span>
               <span className="w-2 h-2 rounded-full bg-amber-500" />
             </div>
-            <span className="text-2xl font-extrabold text-slate-900 font-display mt-1 block">
+            <span className="text-2xl font-bold text-slate-900 mt-1 block">
               {projectStatusCounts.PLANNING}
             </span>
           </div>
@@ -220,7 +220,7 @@ export const OrganizationOverview = () => {
               <span className="text-[11px] font-bold text-slate-700 font-mono uppercase">On Hold</span>
               <span className="w-2 h-2 rounded-full bg-slate-400" />
             </div>
-            <span className="text-2xl font-extrabold text-slate-900 font-display mt-1 block">
+            <span className="text-2xl font-bold text-slate-900 mt-1 block">
               {projectStatusCounts.ON_HOLD}
             </span>
           </div>
@@ -230,7 +230,7 @@ export const OrganizationOverview = () => {
               <span className="text-[11px] font-bold text-purple-800 font-mono uppercase">Completed</span>
               <span className="w-2 h-2 rounded-full bg-purple-500" />
             </div>
-            <span className="text-2xl font-extrabold text-slate-900 font-display mt-1 block">
+            <span className="text-2xl font-bold text-slate-900 mt-1 block">
               {projectStatusCounts.COMPLETED}
             </span>
           </div>
@@ -239,3 +239,4 @@ export const OrganizationOverview = () => {
     </div>
   );
 };
+

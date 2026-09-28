@@ -3,6 +3,7 @@ import { TasksController } from './tasks.controller.js';
 import { TasksService } from './tasks.service.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
+import { CreateTaskDto } from './dto/create-task.dto.js';
 
 describe('TasksController', () => {
   let controller: TasksController;

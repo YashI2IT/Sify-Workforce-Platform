@@ -334,7 +334,10 @@ export const TimesheetDetail = () => {
             ? 'bg-rose-50 border-rose-200 text-rose-800'
             : 'bg-emerald-50 border-emerald-200 text-emerald-800'
         }`}>
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          {actionFeedback.startsWith('Error')
+            ? <AlertCircle className="w-4 h-4 shrink-0" />
+            : <CheckCircle2 className="w-4 h-4 shrink-0" />
+          }
           <span>{actionFeedback}</span>
         </div>
       )}
@@ -618,7 +621,7 @@ export const TimesheetDetail = () => {
                       </p>
                       {record.comments && (
                         <p className="text-xs text-slate-700 mt-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 break-words font-sans">
-                          "{record.comments}"
+                          &ldquo;{record.comments}&rdquo;
                         </p>
                       )}
                     </div>

@@ -2,7 +2,7 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectsService } from './projects.service.js';
 import { db } from '../prisma/db.js';
-import { NotFoundException, ConflictException } from '@nestjs/common';
+import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { AuthenticatedContext } from '../auth/authenticated-context.js';
 
@@ -13,6 +13,10 @@ vi.mock('../prisma/db.js', () => {
     first: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    aggregate: vi.fn(),
+    orderBy: vi.fn(() => mProject),
+    limit: vi.fn(() => mProject),
+    offset: vi.fn(() => mProject),
   };
   const mRequirement = {
     where: vi.fn(() => mRequirement),
@@ -45,6 +49,14 @@ vi.mock('../prisma/db.js', () => {
   const mMilestone = {
     create: vi.fn(),
   };
+  const mTask = {
+    where: vi.fn(() => mTask),
+    all: vi.fn(),
+  };
+  const mTimeEntry = {
+    where: vi.fn(() => mTimeEntry),
+    all: vi.fn(),
+  };
 
   return {
     db: {
@@ -56,6 +68,10 @@ vi.mock('../prisma/db.js', () => {
           ProjectRequirement: mProjectRequirement,
           Milestone: mMilestone,
           OrganizationSettings: mOrganizationSettings,
+          Team: { where: vi.fn(() => ({ all: vi.fn().mockResolvedValue([]) })) },
+          Employee: { where: vi.fn(() => ({ all: vi.fn().mockResolvedValue([]) })) },
+          Task: mTask,
+          TimeEntry: mTimeEntry,
         },
       },
     },
@@ -84,17 +100,19 @@ describe('ProjectsService', () => {
   describe('findAll', () => {
     it('should list active projects for ADMIN', async () => {
       const projects = [{ id: 'p1', name: 'Portal' }];
-      vi.mocked(db.orm.public.Project.where).mockReturnValue({
-        orderBy: vi.fn(() => ({
-          limit: vi.fn(() => ({
-            offset: vi.fn(() => ({
-              all: vi.fn().mockResolvedValue(projects)
+      vi.mocked(db.orm.public.Project.where)
+        .mockReturnValueOnce({
+          orderBy: vi.fn(() => ({
+            limit: vi.fn(() => ({
+              offset: vi.fn(() => ({
+                all: vi.fn().mockResolvedValue(projects)
+              }))
             }))
           }))
-        })),
-        all: vi.fn().mockResolvedValue(projects),
-        count: vi.fn().mockResolvedValue(1)
-      } as any);
+        } as any)
+        .mockReturnValueOnce({
+          aggregate: vi.fn(() => Promise.resolve({ count: 1 }))
+        } as any);
 
       const result = await service.findAll(authCtx, 1, 50);
 
@@ -108,8 +126,18 @@ describe('ProjectsService', () => {
       vi.mocked(db.orm.public.EmployeeProject.where).mockReturnValue({
         all: vi.fn().mockResolvedValue([{ projectId: 'p1', employeeId: 'e2' }])
       } as any);
+      const mockWhere = vi.fn().mockReturnValue({
+        orderBy: vi.fn().mockReturnValue({
+          limit: vi.fn().mockReturnValue({
+            offset: vi.fn().mockReturnValue({
+              all: vi.fn().mockResolvedValue(projects)
+            })
+          })
+        }),
+        aggregate: vi.fn().mockResolvedValue({ count: 1 })
+      });
       vi.mocked(db.orm.public.Project.where).mockReturnValue({
-        all: vi.fn().mockResolvedValue(projects)
+        where: mockWhere,
       } as any);
 
       const result = await service.findAll(employeeAuthCtx, 1, 50);
@@ -139,7 +167,7 @@ describe('ProjectsService', () => {
         first: vi.fn().mockResolvedValue(activeProject)
       } as any);
       vi.mocked(db.orm.public.EmployeeProject.where).mockReturnValue({
-        first: vi.fn().mockResolvedValue({ projectId: 'p1', employeeId: 'e2' })
+        all: vi.fn().mockResolvedValue([{ projectId: 'p1', employeeId: 'e2' }])
       } as any);
 
       const result = await service.findOne('p1', employeeAuthCtx);
@@ -152,7 +180,7 @@ describe('ProjectsService', () => {
         first: vi.fn().mockResolvedValue(activeProject)
       } as any);
       vi.mocked(db.orm.public.EmployeeProject.where).mockReturnValue({
-        first: vi.fn().mockResolvedValue(null)
+        all: vi.fn().mockResolvedValue([])
       } as any);
 
       await expect(service.findOne('p1', employeeAuthCtx)).rejects.toThrow(NotFoundException);
@@ -164,6 +192,51 @@ describe('ProjectsService', () => {
       } as any);
 
       await expect(service.findOne('p-none', authCtx)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getProjectHealth', () => {
+    const mockTasks = [
+      { id: 't1', name: 'Overdue Task', status: 'IN_PROGRESS', dueDate: '2000-01-01', estimatedHours: 5 },
+      { id: 't2', name: 'Blocked Task', status: 'BLOCKED', dueDate: '2099-01-01', estimatedHours: 10 },
+      { id: 't3', name: 'Due Soon Task', status: 'IN_PROGRESS', dueDate: new Date().toISOString().split('T')[0], estimatedHours: 2 },
+      { id: 't4', name: 'Normal Task', status: 'COMPLETED', dueDate: '2000-01-01', estimatedHours: 1 }
+    ];
+
+    it('should aggregate factual project health', async () => {
+      vi.mocked(db.orm.public.Project.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 'p1', name: 'P1' })
+      } as any);
+
+      vi.mocked(db.orm.public.Task.where).mockReturnValue({
+        all: vi.fn().mockResolvedValue(mockTasks)
+      } as any);
+
+      vi.mocked(db.orm.public.TimeEntry.where).mockReturnValue({
+        all: vi.fn().mockResolvedValue([
+          { taskId: 't1', hours: 10 }, // exceeds estimated 5
+          { taskId: 't2', hours: 2 }   // under estimated 10
+        ])
+      } as any);
+
+      const result = await service.getProjectHealth('p1', authCtx);
+
+      expect(result.overdueTasksCount).toBe(1);
+      expect(result.overdueTasks[0].id).toBe('t1');
+      expect(result.blockedTasksCount).toBe(1);
+      expect(result.blockedTasks[0].id).toBe('t2');
+      expect(result.dueSoonTasksCount).toBe(1);
+      expect(result.dueSoonTasks[0].id).toBe('t3');
+      expect(result.tasksExceedingEstimateCount).toBe(1);
+      expect(result.tasksExceedingEstimate[0].id).toBe('t1');
+    });
+
+    it('should throw NotFound if project does not exist', async () => {
+      vi.mocked(db.orm.public.Project.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue(null)
+      } as any);
+
+      await expect(service.getProjectHealth('p-none', authCtx)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -276,6 +349,15 @@ describe('ProjectsService', () => {
       const result = await service.update('p1', updatePayload, 'org1');
       expect(result!.name).toBe('Omega');
     });
+
+    it('should throw BadRequestException if startDate > endDate', async () => {
+      vi.mocked(db.orm.public.Project.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ ...existing, startDate: '2025-01-01', endDate: '2025-12-31' }),
+      } as any);
+
+      // Attempt to update endDate to before startDate
+      await expect(service.update('p1', { endDate: '2024-01-01' }, 'org1')).rejects.toThrow(BadRequestException);
+    });
   });
 
   describe('Project Requirements', () => {
@@ -292,6 +374,14 @@ describe('ProjectsService', () => {
     it('should throw ConflictException if creating requirement for inactive project', async () => {
       vi.mocked(db.orm.public.Project.where).mockReturnValue({
         first: vi.fn().mockResolvedValue({ id: 'p1', isActive: false, organizationId: 'org1' })
+      } as any);
+
+      await expect(service.createRequirement('p1', { title: 'Req 1' }, authCtx)).rejects.toThrow(ConflictException);
+    });
+
+    it('should throw ConflictException if creating requirement for COMPLETED project', async () => {
+      vi.mocked(db.orm.public.Project.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 'p1', isActive: true, status: 'COMPLETED', organizationId: 'org1' })
       } as any);
 
       await expect(service.createRequirement('p1', { title: 'Req 1' }, authCtx)).rejects.toThrow(ConflictException);

@@ -1,7 +1,12 @@
-import { X, Edit2, Clock, Calendar, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
+import { X, Edit2, Clock, Calendar, AlertCircle, Send, Trash2, Edit3, MessageSquare } from 'lucide-react';
+import { useCurrentEmployee } from '../../../hooks/useCurrentEmployee';
+import { useGetTaskCommentsQuery, useCreateTaskCommentMutation, useUpdateTaskCommentMutation, useDeleteTaskCommentMutation } from '../../../store/apiSlice';
+import { useToast } from '../../../context/ToastContext';
 
 interface Task {
   id: string;
+  ticketId: string;
   name: string;
   description?: string | null;
   status: string;
@@ -68,8 +73,25 @@ export const TaskDetailPanel = ({
   employees,
   isAdmin,
   projectIsActive,
+  projectId,
   onEdit,
 }: TaskDetailPanelProps) => {
+  const { employee } = useCurrentEmployee();
+  const { showToast } = useToast();
+  
+  // Comments API
+  const { data: comments = [], isLoading: commentsLoading } = useGetTaskCommentsQuery(
+    { projectId, taskId: task?.id ?? '' },
+    { skip: !isOpen || !task }
+  );
+  const [createComment, { isLoading: isCreating }] = useCreateTaskCommentMutation();
+  const [updateComment] = useUpdateTaskCommentMutation();
+  const [deleteComment] = useDeleteTaskCommentMutation();
+
+  const [newComment, setNewComment] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+
   if (!isOpen || !task) return null;
 
   const getEmployee = (id?: string | null) => employees.find(e => e.id === id);
@@ -98,6 +120,9 @@ export const TaskDetailPanel = ({
         <div className="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold font-mono border bg-blue-50 text-blue-600 border-blue-100">
+                {task.ticketId}
+              </span>
               <span className={'px-2 py-0.5 rounded-md text-[10px] font-bold font-mono border ' + statusCls}>
                 {task.status.replace('_', ' ')}
               </span>
@@ -217,26 +242,121 @@ export const TaskDetailPanel = ({
             </section>
           )}
 
-          {/* ── MANAGER COMMENT ── */}
-          <section>
-            <p className="text-[10px] font-bold text-slate-500 uppercase font-mono mb-2">Manager Comment</p>
-            <textarea
-              rows={3}
-              placeholder="Add comment..."
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-950 focus:border-transparent bg-white shadow-sm transition-all resize-none"
-            />
-          </section>
+          {/* ── COMMENTS ── */}
+          <section className="flex flex-col flex-1 min-h-0 border-t border-slate-100">
+            <div className="p-5 flex items-center gap-2 border-b border-slate-50">
+              <MessageSquare className="w-4 h-4 text-slate-400" />
+              <h3 className="text-xs font-bold text-slate-700 uppercase font-mono tracking-wider">Comments</h3>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/50">
+              {commentsLoading ? (
+                <div className="text-center py-4 text-xs text-slate-400 font-medium">Loading comments...</div>
+              ) : comments.length === 0 ? (
+                <div className="text-center py-8">
+                  <MessageSquare className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                  <p className="text-xs text-slate-400 font-medium">No comments yet.</p>
+                </div>
+              ) : (
+                comments.map((c: any) => {
+                  const isAuthor = c.authorId === employee?.id;
+                  const canEdit = isAuthor || isAdmin;
+                  
+                  if (editingCommentId === c.id) {
+                    return (
+                      <div key={c.id} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+                        <textarea
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          className="w-full text-sm border-0 focus:ring-0 p-0 resize-none bg-transparent"
+                          rows={2}
+                          autoFocus
+                        />
+                        <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-slate-100">
+                          <button onClick={() => setEditingCommentId(null)} className="text-xs font-medium text-slate-500 hover:text-slate-700">Cancel</button>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await updateComment({ projectId, taskId: task.id, commentId: c.id, comment: editContent }).unwrap();
+                                setEditingCommentId(null);
+                              } catch (err) {
+                                showToast('Failed to update comment', 'error');
+                              }
+                            }}
+                            disabled={!editContent.trim()}
+                            className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
 
-          {/* ── ACTIONS ── */}
-          <section>
-            <p className="text-[10px] font-bold text-slate-500 uppercase font-mono mb-2">Actions</p>
-            <div className="flex gap-3">
-              <button className="flex-1 px-4 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 cursor-pointer transition-colors shadow-2xs">
-                Approve
-              </button>
-              <button className="flex-1 px-4 py-2 text-sm font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 cursor-pointer transition-colors shadow-2xs">
-                Reject
-              </button>
+                  return (
+                    <div key={c.id} className="flex gap-3 group">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center shrink-0 border border-indigo-200/50">
+                        <span className="text-xs font-bold text-indigo-700">{c.author?.name?.charAt(0) || 'U'}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start mb-1">
+                          <div>
+                            <span className="text-xs font-bold text-slate-700">{c.author?.name}</span>
+                            <span className="text-[10px] text-slate-400 ml-2 font-mono">
+                              {new Date(c.createdAt).toLocaleDateString()} {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          {canEdit && (
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => { setEditingCommentId(c.id); setEditContent(c.comment); }} className="p-1 text-slate-400 hover:text-indigo-600 rounded">
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={async () => {
+                                if(confirm('Delete this comment?')) {
+                                  try {
+                                    await deleteComment({ projectId, taskId: task.id, commentId: c.id }).unwrap();
+                                  } catch (err) {
+                                    showToast('Failed to delete comment', 'error');
+                                  }
+                                }
+                              }} className="p-1 text-slate-400 hover:text-rose-600 rounded">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{c.comment}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="p-4 border-t border-slate-100 bg-white">
+              <div className="relative">
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Add a comment..."
+                  rows={2}
+                  className="w-full px-4 py-3 pr-12 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100/50 transition-colors resize-none"
+                />
+                <button
+                  disabled={!newComment.trim() || isCreating}
+                  onClick={async () => {
+                    try {
+                      await createComment({ projectId, taskId: task.id, comment: newComment.trim() }).unwrap();
+                      setNewComment('');
+                    } catch (err) {
+                      showToast('Failed to post comment', 'error');
+                    }
+                  }}
+                  className="absolute right-2 bottom-2 p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors shadow-sm"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </section>
         </div>

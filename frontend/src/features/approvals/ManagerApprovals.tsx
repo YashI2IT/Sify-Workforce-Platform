@@ -4,7 +4,7 @@ import { apiClient } from '../../lib/apiClient';
 import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
 import { useToast } from '../../context/ToastContext';
 import { Modal } from '../../components/ui/Modal';
-import { CheckCircle2, XCircle, AlertCircle, RefreshCw, CalendarDays, ShieldCheck, Users } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertCircle, RefreshCw, CalendarDays, Users } from 'lucide-react';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { formatDateRange } from '../../utils/date';
 import {
@@ -132,12 +132,9 @@ export const ManagerApprovals = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-slate-950 text-white shadow-xs border border-slate-800 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-5 h-5 text-white" />
-            </div>
             <div>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
                   Pending Approvals
                 </h1>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
@@ -166,7 +163,7 @@ export const ManagerApprovals = () => {
       {/* Executive Telemetry Row (3 Cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Card 1: Pending Queue */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Pending Queue
@@ -175,7 +172,7 @@ export const ManagerApprovals = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                 {loading ? '—' : timesheets.length}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">submissions</span>
@@ -188,7 +185,7 @@ export const ManagerApprovals = () => {
         </div>
 
         {/* Card 2: Team Members in Queue */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Team Members
@@ -197,7 +194,7 @@ export const ManagerApprovals = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                 {loading ? '—' : uniqueMemberCount}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">members</span>
@@ -213,7 +210,7 @@ export const ManagerApprovals = () => {
         </div>
 
         {/* Card 3: Governance Audit */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Audit Readiness
@@ -222,7 +219,7 @@ export const ManagerApprovals = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                 {loading ? '—' : timesheets.length === 0 ? 'Clear' : 'Action Required'}
               </span>
             </div>
@@ -297,9 +294,11 @@ export const ManagerApprovals = () => {
               <circle cx="60" cy="60" r="44" stroke="#CBD5E1" strokeWidth="2" strokeDasharray="4 4" fill="#F8FAFC" />
               <path d="M42 62L54 74L78 46" stroke="#10B981" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <p className="text-base font-bold text-slate-900 font-display">No pending approvals</p>
+            <p className="text-base font-bold text-slate-900 ">No pending approvals</p>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-sm mx-auto">
-              All submitted timesheets from your team have been reviewed.
+              {uniqueMemberCount === 0
+                ? 'No team members have submitted timesheets for review yet.'
+                : 'All submitted timesheets from your team have been reviewed.'}
             </p>
           </div>
         ) : (
@@ -328,7 +327,7 @@ export const ManagerApprovals = () => {
                             {getInitials(emp?.name)}
                           </div>
                           <div>
-                            <div className="font-semibold text-slate-900 text-sm font-display">
+                            <div className="font-semibold text-slate-900 text-sm ">
                               {emp ? emp.name : <span className="text-slate-400 text-xs font-mono">{ts.employeeId.slice(0, 8)}…</span>}
                             </div>
                             {emp && (
@@ -340,7 +339,7 @@ export const ManagerApprovals = () => {
                         </div>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-2 font-bold text-slate-900 text-sm font-display">
+                        <div className="flex items-center gap-2 font-bold text-slate-900 text-sm ">
                           <CalendarDays className="w-4 h-4 text-slate-400 shrink-0" />
                           {formatWeekRange(ts.startDate)}
                         </div>
@@ -359,7 +358,7 @@ export const ManagerApprovals = () => {
                       </td>
                       {/* Logged */}
                       <td className="px-4 py-4 text-right">
-                        <span className="font-extrabold text-slate-900 font-mono text-sm">
+                        <span className="font-bold text-slate-900 font-mono text-sm">
                           {ts.summary
                             ? `${ts.summary.loggedHours}h`
                             : ts.timeEntries ? `${ts.timeEntries.reduce((s, e) => s + (Number(e.hours) || 0), 0)}h` : '0h'}
@@ -368,7 +367,7 @@ export const ManagerApprovals = () => {
                       {/* Variance */}
                       <td className="px-4 py-4 text-right">
                         {ts.summary ? (
-                          <span className={`font-extrabold font-mono text-sm ${
+                          <span className={`font-bold font-mono text-sm ${
                             ts.summary.variance > 0 ? 'text-emerald-600' :
                             ts.summary.variance < 0 ? 'text-rose-600' : 'text-slate-400'
                           }`}>
@@ -407,3 +406,7 @@ export const ManagerApprovals = () => {
     </div>
   );
 };
+
+
+
+

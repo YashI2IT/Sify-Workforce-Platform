@@ -6,6 +6,7 @@ import { DatePicker } from '../../../components/ui/DatePicker';
 
 interface Task {
   id: string;
+  ticketId: string;
   name: string;
   status: string;
   assigneeId?: string | null;
@@ -103,6 +104,7 @@ export const ProjectTimeTab = ({ projectId, tasks = [], employees = [] }: Projec
                   <tr key={task.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-4 py-3">
                       <p className="font-semibold text-slate-900 font-display truncate max-w-[200px]" title={task.name}>
+                        <span className="text-slate-400 font-mono mr-1.5 font-normal text-xs">{task.ticketId}</span>
                         {task.name}
                       </p>
                     </td>

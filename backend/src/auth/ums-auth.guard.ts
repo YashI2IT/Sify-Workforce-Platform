@@ -54,12 +54,7 @@ export class UmsAuthGuard implements CanActivate {
     if (request.path === '/api/v1/organizations' && request.method === 'POST') {
       return true; // Let UmsOnboardingGuard handle this specific route
     }
-    if (request.path === '/api/v1/organizations/available' && request.method === 'GET') {
-      return true; // Let UmsOnboardingGuard handle this specific route
-    }
-    if (request.path.match(/^\/api\/v1\/organizations\/[^/]+\/join$/) && request.method === 'POST') {
-      return true; // Let UmsOnboardingGuard handle this specific route
-    }
+
     if (request.path.match(/^\/api\/v1\/employee-invitations\/[^/]+\/details$/) && request.method === 'GET') {
       return true; // Unauthenticated route to get public invitation details
     }
@@ -134,6 +129,13 @@ export class UmsAuthGuard implements CanActivate {
             code: 'IDENTITY_CONFLICT'
           });
         }
+        
+        // Sync email if it has changed in UMS
+        if (empByUmsId.email !== umsUser.email) {
+          await db.orm.public.Employee.where({ id: empByUmsId.id }).update({ email: umsUser.email });
+          empByUmsId.email = umsUser.email;
+        }
+
         employee = empByUmsId;
       } else {
         // 2. Fallback to lookup by email

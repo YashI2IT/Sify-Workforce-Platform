@@ -14,7 +14,7 @@ import {
   useResendEmployeeInvitationMutation
 } from '../../store/apiSlice';
 import { 
-  Users, 
+  
   UserPlus, 
   Edit2, 
   CheckCircle2, 
@@ -400,23 +400,9 @@ export const EmployeesList = ({ isSetupWizard = false }: EmployeesListProps = {}
       <div className={isSetupWizard ? "p-6 sm:p-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4" : "flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1"}>
         <div className={isSetupWizard ? "space-y-1" : ""}>
           <div className="flex items-center gap-3">
-            {isSetupWizard ? (
-              <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center shadow-2xs">
-                <Users className="w-4 h-4" />
-              </div>
-            ) : (
-              <div className="w-11 h-11 rounded-2xl bg-slate-950 text-white shadow-xs border border-slate-800 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-              </div>
-            )}
             <div>
               <div className="flex items-center gap-2.5">
-                <h1 className={`${isSetupWizard ? 'text-lg font-bold text-slate-900 font-display' : 'text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight font-display'}`}>
+                <h1 className={`${isSetupWizard ? 'text-lg font-bold text-slate-900' : 'text-2xl font-bold text-slate-900 tracking-tight'}`}>
                   {isSetupWizard ? 'Employees & Roles' : 'Employees'}
                 </h1>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
@@ -462,7 +448,7 @@ export const EmployeesList = ({ isSetupWizard = false }: EmployeesListProps = {}
       {!isSetupWizard && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Active Workforce */}
-          <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                 Workforce Capacity
@@ -492,7 +478,7 @@ export const EmployeesList = ({ isSetupWizard = false }: EmployeesListProps = {}
           </div>
 
           {/* Card 2: Role Governance */}
-          <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                 Role Governance
@@ -533,7 +519,7 @@ export const EmployeesList = ({ isSetupWizard = false }: EmployeesListProps = {}
           </div>
 
           {/* Card 3: Department Coverage */}
-          <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                 Squad Assignment
@@ -563,7 +549,7 @@ export const EmployeesList = ({ isSetupWizard = false }: EmployeesListProps = {}
           </div>
 
           {/* Card 4: Onboarding Pipeline */}
-          <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                 Invites Pipeline
@@ -1389,3 +1375,5 @@ export const EmployeesList = ({ isSetupWizard = false }: EmployeesListProps = {}
     </div>
   );
 };
+
+

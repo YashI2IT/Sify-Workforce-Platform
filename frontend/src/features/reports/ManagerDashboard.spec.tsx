@@ -57,6 +57,19 @@ describe('ManagerDashboard Component', () => {
       if (url.startsWith('/reports/manager-dashboard')) {
         return Promise.resolve(mockDashboardData);
       }
+      if (url.startsWith('/reports/workload')) {
+        return Promise.resolve([
+          {
+            employeeId: 'e1',
+            employeeName: 'John Doe',
+            employeeCode: 'E01',
+            configuredCapacity: 40,
+            actualHours: 45,
+            remainingCapacity: 0,
+            overCapacity: 5
+          }
+        ]);
+      }
       return Promise.resolve(null);
     });
 
@@ -71,5 +84,12 @@ describe('ManagerDashboard Component', () => {
     expect(screen.getByText('Total Team Members')).toBeInTheDocument();
     expect(screen.getByText('8')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument(); // Pending approvals
+
+    // Workload tests
+    expect(await screen.findByText('Team Workload & Capacity')).toBeInTheDocument();
+    expect(screen.getByText('John Doe')).toBeInTheDocument();
+    expect(screen.getByText('40h')).toBeInTheDocument();
+    expect(screen.getByText('45h')).toBeInTheDocument();
+    expect(screen.getByText('5h')).toBeInTheDocument(); // Over-Capacity
   });
 });

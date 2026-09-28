@@ -48,7 +48,7 @@ describe('EmployeeInvitations - Decline Flow', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new EmployeeInvitationsService({} as any);
+    service = new EmployeeInvitationsService({} as any, {} as any);
     controller = new EmployeeInvitationsController(service);
   });
 

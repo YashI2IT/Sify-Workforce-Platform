@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { AlertCircle, RefreshCw, ArrowRight, CheckCircle2, Briefcase, Layers } from 'lucide-react';
+import { AlertCircle, RefreshCw, ArrowRight, CheckCircle2, Layers } from 'lucide-react';
 import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Button } from '../../components/ui/button';
@@ -44,12 +44,9 @@ export const MyProjects = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-slate-950 text-white shadow-xs border border-slate-800 flex items-center justify-center shrink-0">
-              <Briefcase className="w-5 h-5 text-white" />
-            </div>
             <div>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
                   My Projects
                 </h1>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
@@ -79,7 +76,7 @@ export const MyProjects = () => {
       {/* Executive Telemetry Row (4 Cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Assigned */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Assigned Projects
@@ -88,7 +85,7 @@ export const MyProjects = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                 {loading ? '—' : projects.length}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">initiatives</span>
@@ -101,7 +98,7 @@ export const MyProjects = () => {
         </div>
 
         {/* Card 2: Active Initiatives */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Active Workspaces
@@ -110,7 +107,7 @@ export const MyProjects = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                 {loading ? '—' : activeProjects.length}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">active</span>
@@ -126,7 +123,7 @@ export const MyProjects = () => {
         </div>
 
         {/* Card 3: Inactive / On Hold */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Inactive Initiatives
@@ -135,7 +132,7 @@ export const MyProjects = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                 {loading ? '—' : inactiveProjects.length}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">archived</span>
@@ -151,7 +148,7 @@ export const MyProjects = () => {
         </div>
 
         {/* Card 4: Vitality Ratio */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Allocation Vitality
@@ -160,7 +157,7 @@ export const MyProjects = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                 {loading ? '—' : `${activeRate}%`}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">in execution</span>
@@ -177,7 +174,7 @@ export const MyProjects = () => {
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-slate-500 space-y-3 bg-white border border-slate-200/90 rounded-2xl shadow-2xs">
+        <div className="py-20 text-center text-slate-500 space-y-3 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl">
           <LoadingSpinner size="md" />
           <p className="text-xs font-mono font-medium text-slate-500">Loading your project workspaces...</p>
         </div>
@@ -202,7 +199,7 @@ export const MyProjects = () => {
             <circle cx="88" cy="34" r="10" fill="#0F172A" />
             <path d="M84 34H92M88 30V38" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
           </svg>
-          <p className="text-base font-bold text-slate-900 font-display">No projects assigned yet</p>
+          <p className="text-base font-bold text-slate-900 ">No projects assigned yet</p>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-sm mx-auto">
             Contact your organization administrator or project lead to be assigned to active projects.
           </p>
@@ -230,7 +227,7 @@ export const MyProjects = () => {
                             {p.status || 'ACTIVE'}
                           </Badge>
                         </div>
-                        <h3 className="text-base font-bold text-slate-900 group-hover:text-slate-950 transition-colors font-display line-clamp-1">
+                        <h3 className="text-base font-bold text-slate-900 group-hover:text-slate-950 transition-colors line-clamp-1">
                           {p.name}
                         </h3>
                         <div className="mt-1.5">
@@ -274,7 +271,7 @@ export const MyProjects = () => {
                             {p.status || 'INACTIVE'}
                           </Badge>
                         </div>
-                        <h3 className="text-base font-bold text-slate-700 font-display line-clamp-1">{p.name}</h3>
+                        <h3 className="text-base font-bold text-slate-700 line-clamp-1">{p.name}</h3>
                         <div className="mt-1.5">
                           <span className="inline-block font-mono text-[11px] font-bold text-slate-500 bg-slate-200/70 px-2 py-0.5 rounded">
                             {p.code}
@@ -299,3 +296,7 @@ export const MyProjects = () => {
     </div>
   );
 };
+
+
+
+

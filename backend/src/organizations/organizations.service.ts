@@ -186,70 +186,7 @@ export class OrganizationsService {
     return updated;
   }
 
-  async getAvailableOrganizations() {
-    const orgs = await db.orm.public.Organization.orderBy(o => o.name.asc()).all();
-    return orgs.map(org => ({
-      id: org.id,
-      name: org.name,
-      organizationType: org.organizationType,
-    }));
-  }
 
-  async joinOrganization(umsUser: { id: string; email: string; name?: string; username?: string }, orgId: string) {
-    let existingEmployee = null;
-    try {
-      existingEmployee = await db.orm.public.Employee.where({ email: umsUser.email }).first();
-    } catch (err) {}
-
-    if (existingEmployee) {
-      throw new ConflictException('User already has an active Workforce Employee record');
-    }
-
-    const org = await db.orm.public.Organization.where({ id: orgId }).first();
-    if (!org) {
-      throw new NotFoundException('Organization not found');
-    }
-
-    const name = umsUser.name || umsUser.username || umsUser.email.split('@')[0];
-    const employeeCode = `EMP-${Math.floor(Math.random() * 1000000)}`;
-
-    try {
-      return await db.transaction(async (tx) => {
-        const employee = await tx.orm.public.Employee.create({
-          organizationId: org.id,
-          employeeCode: employeeCode,
-          name: name,
-          email: umsUser.email,
-          isActive: true,
-          role: 'EMPLOYEE',
-          umsUserId: umsUser.id,
-        });
-
-        return {
-          data: {
-            organization: {
-              id: org.id,
-              name: org.name,
-              organizationType: org.organizationType,
-              description: org.description,
-            },
-            employee: {
-              id: employee.id,
-              employeeCode: employee.employeeCode,
-              name: employee.name,
-              email: employee.email,
-            },
-            role: 'EMPLOYEE',
-          }
-        };
-      });
-    } catch (err: any) {
-      if (err.code === 'P2002' || err.code === '23505' || (err.message && err.message.toLowerCase().includes('unique constraint'))) {
-        throw new ConflictException('User already has an active Workforce Employee record');
-      }
-      throw new InternalServerErrorException(`Failed to join organization: ${err.message || err.toString()}`);
-    }
-  }
 
   async getSettings(organizationId: string) {
     let settings = await db.orm.public.OrganizationSettings.where({ organizationId }).first();
@@ -261,7 +198,7 @@ export class OrganizationsService {
     return settings;
   }
 
-  async updateSettings(organizationId: string, payload: any) {
+  async updateSettings(organizationId: string, actorId: string, payload: any) {
     const settings = await this.getSettings(organizationId);
     
     // Only allow updating supported fields
@@ -273,6 +210,13 @@ export class OrganizationsService {
     if (payload.projectAssignmentPermission !== undefined) updates.projectAssignmentPermission = payload.projectAssignmentPermission;
 
     const updated = await db.orm.public.OrganizationSettings.where({ id: settings.id }).update(updates);
+    
+    if (Object.keys(updates).length > 0) {
+      await this.auditLogsService.logEvent(organizationId, actorId, 'ORGANIZATION_SETTINGS_UPDATED', 'OrganizationSettings', settings.id, {
+        updatedFields: Object.keys(updates)
+      });
+    }
+
     return updated;
   }
 }

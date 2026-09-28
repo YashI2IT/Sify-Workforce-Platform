@@ -31,6 +31,15 @@ export class ProjectsController {
     return this.projectsService.findOne(id, auth);
   }
 
+  @Get(':id/health')
+  @ApiOperation({ summary: 'Get factual project health indicators' })
+  @ApiParam({ name: 'id', description: 'Project UUID' })
+  @ApiResponse({ status: 200, description: 'Project health data' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
+  async getHealth(@Param('id') id: string, @GetAuthContext() auth: AuthenticatedContext) {
+    return this.projectsService.getProjectHealth(id, auth);
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create a new project' })
   @ApiBody({

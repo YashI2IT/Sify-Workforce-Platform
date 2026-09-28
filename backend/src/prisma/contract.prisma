@@ -76,9 +76,13 @@ model Employee {
   timesheetAudits TimesheetAudit[]
   assignedTasks  Task[]       @relation("TaskAssignee")
   createdTasks   Task[]       @relation("TaskCreator")
+  assignedTemplates TaskTemplate[] @relation("TemplateAssignee")
+  createdTemplates  TaskTemplate[] @relation("TemplateCreator")
   preference     UserPreference?
   workingTime    WorkingTime?
   auditLogs      AuditLog[]
+  taskComments   TaskComment[]
+  notifications  Notification[]
 
   @@unique([organizationId, employeeCode])
   @@index([organizationId])
@@ -97,11 +101,13 @@ model Project {
   endDate        DateTime?
   status         String
   isActive       Boolean      @default(true)
+  taskSequence   Int          @default(0)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @default(now())
 
   organization   Organization @relation(fields:[organizationId], references:[id])
   tasks          Task[]
+  taskTemplates  TaskTemplate[]
   activities     Activity[]
   employeeAssignments EmployeeProject[]
   timeEntries    TimeEntry[]
@@ -146,6 +152,9 @@ model Task {
   dueDate        DateTime?
   estimatedHours Float?
   status         String
+  ticketId       String       @unique
+  recurrence       String?    // e.g. DAILY, WEEKLY, MONTHLY
+  nextOccurrenceId String?    @unique
   isActive       Boolean      @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @default(now())
@@ -160,12 +169,41 @@ model Task {
   timeEntries    TimeEntry[]
   predecessors   TaskDependency[] @relation("TaskSuccessor")
   successors     TaskDependency[] @relation("TaskPredecessor")
+  comments       TaskComment[]
+
+  nextOccurrence   Task?      @relation("TaskRecurrence", fields: [nextOccurrenceId], references: [id])
+  previousOccurrence Task?    @relation("TaskRecurrence")
 
   @@unique([projectId, name])
   @@index([assigneeId])
   @@index([requirementId])
   @@index([parentTaskId])
+  @@index([projectId, isActive, status])  // Overdue task queries filter by all three
   @@map("task")
+}
+
+model TaskTemplate {
+  id             String       @id @default(uuid())
+  projectId      String
+  name           String
+  taskName       String
+  description    String?
+  priority       String       @default("MEDIUM")
+  estimatedHours Float?
+  assigneeId     String?
+  recurrence     String?
+  creatorId      String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now())
+
+  project        Project      @relation(fields:[projectId], references:[id])
+  assignee       Employee?    @relation("TemplateAssignee", fields:[assigneeId], references:[id])
+  creator        Employee?    @relation("TemplateCreator", fields:[creatorId], references:[id])
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("task_template")
 }
 
 model TaskDependency {
@@ -184,6 +222,43 @@ model TaskDependency {
   @@map("task_dependency")
 }
 
+model TaskComment {
+  id        String   @id @default(uuid())
+  taskId    String
+  authorId  String
+  comment   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author    Employee @relation(fields: [authorId], references: [id])
+
+  @@index([taskId])
+  @@index([authorId])
+  @@index([taskId, createdAt]) // Helps sorting comments by time
+  @@map("task_comment")
+}
+
+model Notification {
+  id                String    @id @default(uuid())
+  recipientId       String
+  type              String    // e.g., 'TASK_ASSIGNED', 'COMMENT_ADDED', 'TIMESHEET_APPROVED', 'TIMESHEET_REJECTED', 'TIMESHEET_RESUBMITTED'
+  title             String
+  message           String
+  relatedEntityType String?   // e.g., 'TASK', 'TIMESHEET'
+  relatedEntityId   String?
+  isRead            Boolean   @default(false)
+  readAt            DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now())
+
+  recipient         Employee  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, isRead])
+  @@index([createdAt])
+  @@map("notification")
+}
+
 model Activity {
   id             String       @id @default(uuid())
   projectId      String
@@ -197,6 +272,7 @@ model Activity {
   timeEntries    TimeEntry[]
 
   @@unique([projectId, name])
+  @@index([projectId])           // Activity lookups are always by projectId
   @@map("activity")
 }
 
@@ -252,6 +328,7 @@ model Timesheet {
 
   @@unique([employeeId, startDate])
   @@index([status])
+  @@index([employeeId, status])  // Pending approval queries filter by both
   @@map("timesheet")
 }
 
@@ -309,6 +386,7 @@ model EmployeeInvitation {
 
   @@index([organizationId])
   @@index([status])
+  @@index([organizationId, status])  // Dashboard pending invite count uses both
   @@map("employee_invitation")
 }
 
@@ -384,3 +462,4 @@ model AuditLog {
   @@index([resourceId])
   @@map("audit_log")
 }
+

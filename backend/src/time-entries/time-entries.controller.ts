@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Param, Body, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Param, Body, Query, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { TimeEntriesService } from './time-entries.service.js';
 import { createTimeEntrySchema } from './dto/create-time-entry.dto.js';
@@ -10,7 +10,7 @@ import { parsePagination } from '../common/pagination.dto.js';
 @ApiTags('Time Entries')
 @Controller()
 export class TimeEntriesController {
-  constructor(private readonly timeEntriesService: TimeEntriesService) {}
+  constructor(private readonly timeEntriesService: TimeEntriesService) { }
 
   @Post('time-entries')
   @ApiOperation({ summary: 'Create a new time entry' })
@@ -88,5 +88,14 @@ export class TimeEntriesController {
       throw new BadRequestException({ message: 'Validation failed', errors: result.error.issues });
     }
     return this.timeEntriesService.update(id, result.data, auth);
+  }
+
+  @Delete('time-entries/:id')
+  @ApiOperation({ summary: 'Delete a time entry' })
+  @ApiParam({ name: 'id', description: 'Time entry UUID' })
+  @ApiResponse({ status: 200, description: 'Time entry deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Time entry not found' })
+  async remove(@Param('id') id: string, @GetAuthContext() auth: AuthenticatedContext) {
+    return this.timeEntriesService.remove(id, auth);
   }
 }

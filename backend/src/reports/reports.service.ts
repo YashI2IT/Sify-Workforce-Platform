@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { db } from '../prisma/db.js';
 import type { AuthenticatedContext } from '../auth/authenticated-context.js';
 import { formatUtcMondayDateString } from '../common/date.utils.js';
@@ -62,8 +62,8 @@ export class ReportsService {
         throw new ForbiddenException('You are not authorized to view organization-wide report');
       }
 
-      const orgEmployees = await db.orm.public.Employee.where({ organizationId: auth.organizationId }).all();
-      const employeeIds = orgEmployees.map(e => e.id);
+      const orgEmployees = await db.orm.public.Employee.where({ organizationId: auth.organizationId }).select('id').all();
+      const employeeIds = orgEmployees.map((e: any) => e.id);
 
       if (employeeIds.length === 0) {
         return {
@@ -97,7 +97,23 @@ export class ReportsService {
       );
     }
 
-    // 4. In-Memory Aggregation
+    // 4. Batch pre-fetch all referenced Timesheets and Projects to avoid N+1 queries
+    const uniqueTimesheetIds = [...new Set(entries.map((e: any) => e.timesheetId))];
+    const uniqueProjectIds   = [...new Set(entries.map((e: any) => e.projectId))];
+
+    const [timesheets, projects] = await Promise.all([
+      uniqueTimesheetIds.length > 0
+        ? db.orm.public.Timesheet.where((t: any) => t.id.in(uniqueTimesheetIds)).all()
+        : Promise.resolve([]),
+      uniqueProjectIds.length > 0
+        ? db.orm.public.Project.where((p: any) => p.id.in(uniqueProjectIds)).all()
+        : Promise.resolve([]),
+    ]);
+
+    const timesheetMap = new Map(timesheets.map((t: any) => [t.id, t]));
+    const projectMap2  = new Map(projects.map((p: any) => [p.id, p]));
+
+    // 5. In-Memory Aggregation
     let totalHours = 0;
     const statusBreakdown = {
       APPROVED: 0,
@@ -110,8 +126,8 @@ export class ReportsService {
     const dailyMap = new Map<string, number>();
 
     for (const entry of entries) {
-      const timesheet = await db.orm.public.Timesheet.where({ id: entry.timesheetId }).first();
-      const project = await db.orm.public.Project.where({ id: entry.projectId }).first();
+      const timesheet = timesheetMap.get(entry.timesheetId);
+      const project   = projectMap2.get(entry.projectId);
       
       // Missing Timesheet Integrity Check
       if (!timesheet) {
@@ -185,14 +201,16 @@ export class ReportsService {
         totalTeamMembers: 0,
         managedTeamsCount: 0,
         managedTeams: [],
+        activeProjectsCount: 0,
+        projectStatusCounts: { ACTIVE: 0, IN_PROGRESS: 0, PLANNING: 0, ON_HOLD: 0, COMPLETED: 0 },
       };
     }
 
     const teamIds = managedTeams.map(t => t.id);
 
-    // Get all employees in these teams
-    const teamMembers = await db.orm.public.Employee.where(e => (e as any).teamId.in(teamIds)).all();
-    const memberIds = teamMembers.map(e => e.id);
+    // Get all employees in these teams (optimized select)
+    const teamMembers = await db.orm.public.Employee.where((e: any) => e.teamId.in(teamIds)).select('id', 'teamId').all();
+    const memberIds = teamMembers.map((e: any) => e.id);
 
     const managedTeamsList = managedTeams.map(t => ({
       id: t.id,
@@ -208,6 +226,8 @@ export class ReportsService {
         totalTeamMembers: 0,
         managedTeamsCount: managedTeams.length,
         managedTeams: managedTeamsList,
+        activeProjectsCount: 0,
+        projectStatusCounts: { ACTIVE: 0, IN_PROGRESS: 0, PLANNING: 0, ON_HOLD: 0, COMPLETED: 0 },
       };
     }
 
@@ -243,14 +263,94 @@ export class ReportsService {
       
     const teamWeeklyFinalizedHours = approvedResult?.total || 0;
 
+    // 4. Project Status Counts (Scoped to manager and team members)
+    const targetEmployeeIds = [...memberIds, auth.employeeId];
+    const assignments = await db.orm.public.EmployeeProject.where((a: any) => a.employeeId.in(targetEmployeeIds)).all();
+    const assignedProjectIds = assignments.map((a: any) => a.projectId);
+
+    let activeProjectsCount = 0;
+    const projectStatusCounts = { ACTIVE: 0, IN_PROGRESS: 0, PLANNING: 0, ON_HOLD: 0, COMPLETED: 0 };
+    
+    if (assignedProjectIds.length > 0) {
+      const projectAgg = await db.orm.public.Project
+        .where({ organizationId: auth.organizationId, isActive: true })
+        .where((p: any) => p.id.in(assignedProjectIds))
+        .groupBy('status')
+        .aggregate((a: any) => ({ count: a.count() }));
+        
+      projectAgg.forEach((r: any) => {
+        const c = Number(r.count);
+        if (r.status in projectStatusCounts) {
+          (projectStatusCounts as any)[r.status] = c;
+        }
+        if (r.status !== 'COMPLETED' && r.status !== 'ON_HOLD') {
+          activeProjectsCount += c;
+        }
+      });
+    }
+
     return {
       pendingApprovalsCount,
       teamWeeklyFinalizedHours,
-      missingDraftTimesheetCount,
       totalTeamMembers: memberIds.length,
       managedTeamsCount: managedTeams.length,
       managedTeams: managedTeamsList,
+      activeProjectsCount,
+      projectStatusCounts
     };
+  }
+
+  async getManagerOverdueTasks(auth: AuthenticatedContext) {
+    const managedTeams = await db.orm.public.Team.where({
+      organizationId: auth.organizationId,
+      managerId: auth.employeeId
+    }).all();
+
+    if (!managedTeams.length) {
+      return { totalOverdue: 0 };
+    }
+
+    const teamIds = managedTeams.map((t: any) => t.id);
+
+    // 2. Get team employees via direct reference
+    // Since we use the Team.employee relationship or Employee.teamId
+    const teamMembers = await db.orm.public.Employee.where(e => (e as any).teamId.in(teamIds)).all();
+    const employeeIds = teamMembers.map(e => e.id);
+    
+    if (!employeeIds.length) {
+      return { totalOverdue: 0 };
+    }
+
+    // 3. Get projects these employees are assigned to
+    const employeeProjects = await db.orm.public.EmployeeProject.where(ep => (ep as any).employeeId.in(employeeIds)).all();
+    const projectIds = [...new Set(employeeProjects.map(ep => ep.projectId))];
+
+    if (!projectIds.length) {
+      return { totalOverdue: 0 };
+    }
+
+    // 4. Get active projects
+    const allProjects = await db.orm.public.Project.where(p => (p as any).id.in(projectIds))
+      .where({ organizationId: auth.organizationId })
+      .all();
+      
+    const activeProjects = allProjects.filter((p: any) => p.status !== 'COMPLETED' && p.isActive !== false);
+    const activeProjectIds = activeProjects.map((p: any) => p.id);
+    
+    if (!activeProjectIds.length) {
+      return { totalOverdue: 0 };
+    }
+
+    // 5. Get overdue tasks
+    const allTasks = await db.orm.public.Task.where(t => (t as any).projectId.in(activeProjectIds))
+      .all();
+      
+    const tasks = allTasks.filter((t: any) => t.status !== 'DONE' && t.status !== 'COMPLETED' && t.isActive !== false);
+
+    const nowMs = Date.now();
+    const overdueCount = tasks.filter((t: any) => t.dueDate && new Date(String(t.dueDate)).getTime() < nowMs).length;
+
+    return { totalOverdue: overdueCount };
   }
 
   async getTeamUtilization(
@@ -426,6 +526,98 @@ export class ReportsService {
     };
   }
 
+  async getWorkload(
+    startDate: string,
+    endDate: string,
+    auth: AuthenticatedContext
+  ) {
+    if (!auth.roles.includes('ADMIN') && !auth.roles.includes('MANAGER')) {
+      throw new ForbiddenException('Only ADMIN and MANAGER roles can view workload data');
+    }
+
+    const orgId = auth.organizationId;
+    let targetEmployeeIds: string[] = [];
+    let employeeData = new Map<string, { id: string, name: string, code: string }>();
+
+    if (auth.roles.includes('ADMIN')) {
+      const orgEmployees = await db.orm.public.Employee.where({ organizationId: orgId }).select('id', 'name', 'employeeCode').all();
+      for (const e of orgEmployees) {
+        targetEmployeeIds.push(e.id);
+        employeeData.set(e.id, { id: e.id, name: e.name, code: e.employeeCode });
+      }
+    } else if (auth.roles.includes('MANAGER') && auth.employeeId) {
+      const managedTeams = await db.orm.public.Team.where({ organizationId: orgId, managerId: auth.employeeId }).all();
+      const teamIds = managedTeams.map(t => t.id);
+      if (teamIds.length > 0) {
+        const teamMembers = await db.orm.public.Employee.where(e => (e as any).teamId.in(teamIds)).select('id', 'name', 'employeeCode').all();
+        for (const e of teamMembers) {
+          targetEmployeeIds.push(e.id);
+          employeeData.set(e.id, { id: e.id, name: e.name, code: e.employeeCode });
+        }
+      }
+    }
+
+    if (targetEmployeeIds.length === 0) {
+      return [];
+    }
+
+    const MAX_SAFE_ROWS = 2500;
+    if (targetEmployeeIds.length > MAX_SAFE_ROWS) {
+      throw new BadRequestException(`Workload query exceeds safe limits. Narrow your filters. limit=${MAX_SAFE_ROWS}`);
+    }
+
+    const workingTimes = await db.orm.public.WorkingTime.where((wt: any) => wt.employeeId.in(targetEmployeeIds)).all();
+    const capacityByEmployee = new Map<string, number>();
+    for (const wt of workingTimes) {
+      if (wt.employeeId) {
+        const totalWeeklyHours = 
+          wt.monday + wt.tuesday + wt.wednesday + 
+          wt.thursday + wt.friday + wt.saturday + wt.sunday;
+        capacityByEmployee.set(wt.employeeId, totalWeeklyHours);
+      }
+    }
+
+    const orgWorkingTime = await db.orm.public.WorkingTime.where({ organizationId: orgId, employeeId: null }).first();
+    const defaultCapacity = orgWorkingTime 
+      ? (Number(orgWorkingTime.monday) + Number(orgWorkingTime.tuesday) + Number(orgWorkingTime.wednesday) + 
+         Number(orgWorkingTime.thursday) + Number(orgWorkingTime.friday) + Number(orgWorkingTime.saturday) + 
+         Number(orgWorkingTime.sunday))
+      : 40;
+
+    const timeEntries = await db.orm.public.TimeEntry.where(e => (e as any).employeeId.in(targetEmployeeIds))
+      .where(e => (e as any).date.gte(startDate))
+      .where(e => (e as any).date.lte(endDate))
+      .all();
+
+    const actualHoursByEmployee = new Map<string, number>();
+    for (const entry of timeEntries) {
+      actualHoursByEmployee.set(entry.employeeId, (actualHoursByEmployee.get(entry.employeeId) || 0) + Number(entry.hours));
+    }
+
+    const workloadList = [];
+    for (const empId of targetEmployeeIds) {
+      const empInfo = employeeData.get(empId);
+      // Fetch org-level default if employee doesn't have an override
+      const configuredCapacity = capacityByEmployee.has(empId) ? capacityByEmployee.get(empId)! : defaultCapacity;
+      const actualHours = actualHoursByEmployee.get(empId) || 0;
+      
+      const remainingCapacity = Math.max(0, configuredCapacity - actualHours);
+      const overCapacity = Math.max(0, actualHours - configuredCapacity);
+
+      workloadList.push({
+        employeeId: empId,
+        employeeName: empInfo?.name,
+        employeeCode: empInfo?.code,
+        configuredCapacity,
+        actualHours,
+        remainingCapacity,
+        overCapacity
+      });
+    }
+
+    return workloadList;
+  }
+
   async getProjectAnalysis(
     projectId: string,
     startDate: string,
@@ -497,6 +689,35 @@ export class ReportsService {
       hoursByTask,
       hoursByActivity,
       trend
+    };
+  }
+  async getAdminDashboard(auth: AuthenticatedContext) {
+    if (!auth.roles.includes('ADMIN')) {
+      throw new ForbiddenException('Only admins can access the admin dashboard');
+    }
+    const orgId = auth.organizationId;
+
+    const empAgg = await db.orm.public.Employee.where({ organizationId: orgId }).groupBy('isActive').aggregate((a: any) => ({ count: a.count() }));
+    let activeEmployees = 0; let inactiveEmployees = 0;
+    empAgg.forEach((r: any) => {
+      if (r.isActive) activeEmployees += Number(r.count);
+      else inactiveEmployees += Number(r.count);
+    });
+
+    const teamAgg = await db.orm.public.Team.where({ organizationId: orgId }).groupBy('managerId').aggregate((a: any) => ({ count: a.count() }));
+    let totalTeams = 0; let teamsWithoutManager = 0;
+    teamAgg.forEach((r: any) => {
+      const c = Number(r.count);
+      totalTeams += c;
+      if (!r.managerId) teamsWithoutManager += c;
+    });
+
+    return {
+      activeEmployees,
+      inactiveEmployees,
+      totalEmployees: activeEmployees + inactiveEmployees,
+      totalTeams,
+      teamsWithoutManager
     };
   }
 }

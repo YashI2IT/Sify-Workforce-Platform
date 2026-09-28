@@ -56,7 +56,7 @@ const OrgDefaultCard: React.FC = () => {
   const current: Record<DayKey, number> = orgWT ?? DEFAULT_SCHEDULE;
 
   return (
-    <div className="bg-white border border-slate-200/60 shadow-xs rounded-2xl overflow-hidden">
+    <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
       <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
         <div>
           <h2 className="text-base font-bold text-slate-900">Organization Default Schedule</h2>
@@ -196,7 +196,7 @@ const OverridesTable: React.FC = () => {
   };
 
   return (
-    <div className="bg-white border border-slate-200/60 shadow-xs rounded-2xl overflow-hidden">
+    <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
       <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
         <div>
           <h2 className="text-base font-bold text-slate-900">Employee Overrides</h2>
@@ -332,7 +332,7 @@ export const WorkingTimesConfig: React.FC = () => {
     <div className="flex-1 p-8 min-h-0 overflow-y-auto">
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <Clock className="w-6 h-6 text-indigo-500" />
             Working Times Configuration
           </h1>
@@ -347,3 +347,4 @@ export const WorkingTimesConfig: React.FC = () => {
     </div>
   );
 };
+

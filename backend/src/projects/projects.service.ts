@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { db } from '../prisma/db.js';
 import { CreateProjectDto, UpdateProjectDto } from './dto/create-project.dto.js';
 import { PaginatedResponse } from '../common/pagination.dto.js';
@@ -15,14 +15,16 @@ export class ProjectsService {
     const isAdmin = auth.roles && auth.roles.includes('ADMIN');
 
     if (isAdmin) {
-      const projects = await db.orm.public.Project.where({ organizationId, isActive: true })
-        .orderBy(m => m.createdAt.desc())
-        .limit(limit)
-        .offset(offset)
-        .all();
-        
-      const allCount = await db.orm.public.Project.where({ organizationId, isActive: true }).all();
-      const total = allCount.length;
+      const [projects, countResult] = await Promise.all([
+        db.orm.public.Project.where({ organizationId, isActive: true })
+          .orderBy(m => m.createdAt.desc())
+          .limit(limit)
+          .offset(offset)
+          .all(),
+        db.orm.public.Project.where({ organizationId, isActive: true })
+          .aggregate((a: any) => ({ count: a.count() })),
+      ]);
+      const total = Number((countResult as any)?.count ?? 0);
 
       return {
         data: projects,
@@ -35,19 +37,41 @@ export class ProjectsService {
       return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
     }
 
-    const assignments = await db.orm.public.EmployeeProject.where({ employeeId: auth.employeeId }).all();
+    let targetEmployeeIds = [auth.employeeId];
+    if (auth.roles && auth.roles.includes('MANAGER')) {
+      const managedTeams = await db.orm.public.Team.where({ organizationId, managerId: auth.employeeId }).all();
+      const teamIds = managedTeams.map(t => t.id);
+      if (teamIds.length > 0) {
+        const teamMembers = await db.orm.public.Employee.where(e => (e as any).teamId.in(teamIds)).all();
+        for (const emp of teamMembers) {
+          if (!targetEmployeeIds.includes(emp.id)) {
+            targetEmployeeIds.push(emp.id);
+          }
+        }
+      }
+    }
+
+    const assignments = await db.orm.public.EmployeeProject.where(a => (a as any).employeeId.in(targetEmployeeIds)).all();
     if (!assignments || assignments.length === 0) {
       return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
     }
 
     const assignedProjectIds = assignments.map((a: any) => a.projectId);
 
-    // Fetch matching active projects
-    const allMatching = await db.orm.public.Project.where({ organizationId, isActive: true }).all();
-    const assignedProjects = allMatching.filter((p: any) => assignedProjectIds.includes(p.id));
+    // Fetch matching active projects via DB
+    const [paginated, countResult] = await Promise.all([
+      db.orm.public.Project.where({ organizationId, isActive: true })
+        .where((p: any) => p.id.in(assignedProjectIds))
+        .orderBy((m: any) => m.createdAt.desc())
+        .limit(limit)
+        .offset(offset)
+        .all(),
+      db.orm.public.Project.where({ organizationId, isActive: true })
+        .where((p: any) => p.id.in(assignedProjectIds))
+        .aggregate((a: any) => ({ count: a.count() })),
+    ]);
 
-    const paginated = assignedProjects.slice(offset, offset + limit);
-    const total = assignedProjects.length;
+    const total = Number((countResult as any)?.count ?? 0);
 
     return {
       data: paginated,
@@ -66,13 +90,79 @@ export class ProjectsService {
       if (!auth.employeeId) {
         throw new NotFoundException('Project not found');
       }
-      const assignment = await db.orm.public.EmployeeProject.where({ projectId: id, employeeId: auth.employeeId }).first();
+      
+      let targetEmployeeIds = [auth.employeeId];
+      if (auth.roles.includes('MANAGER')) {
+        const managedTeams = await db.orm.public.Team.where({ organizationId: auth.organizationId, managerId: auth.employeeId }).all();
+        const teamIds = managedTeams.map(t => t.id);
+        if (teamIds.length > 0) {
+          const teamMembers = await db.orm.public.Employee.where(e => (e as any).teamId.in(teamIds)).all();
+          for (const emp of teamMembers) {
+            if (!targetEmployeeIds.includes(emp.id)) {
+              targetEmployeeIds.push(emp.id);
+            }
+          }
+        }
+      }
+      
+      const assignments = await db.orm.public.EmployeeProject.where({ projectId: id }).all();
+      const assignment = assignments.find(a => targetEmployeeIds.includes(a.employeeId));
+      
       if (!assignment) {
         throw new NotFoundException('Project not found');
       }
     }
 
     return project;
+  }
+
+  async getProjectHealth(id: string, auth: AuthenticatedContext) {
+    // 1. Verify project exists and user has access
+    await this.findOne(id, auth);
+    
+    // 2. We gather factual indicators:
+    const today = new Date().toISOString().split('T')[0];
+    const in3DaysDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const tasks = await db.orm.public.Task.where({ projectId: id, isActive: true }).all();
+    
+    const overdueTasks = tasks.filter((t: any) => t.status !== 'COMPLETED' && t.dueDate && t.dueDate.toString().split('T')[0] < today);
+    const blockedTasks = tasks.filter((t: any) => t.status === 'BLOCKED');
+    const dueSoonTasks = tasks.filter((t: any) => {
+      if (t.status === 'COMPLETED' || !t.dueDate) return false;
+      const dateStr = t.dueDate.toString().split('T')[0];
+      return dateStr >= today && dateStr <= in3DaysDate;
+    });
+    
+    // Fetch time entries to calculate actual hours
+    const timeEntries = await db.orm.public.TimeEntry.where({ projectId: id }).all();
+    const actualHoursByTask = new Map<string, number>();
+    for (const entry of timeEntries) {
+      if (entry.taskId) {
+        actualHoursByTask.set(entry.taskId, (actualHoursByTask.get(entry.taskId) || 0) + Number(entry.hours));
+      }
+    }
+    
+    const tasksExceedingEstimate = tasks.filter((t: any) => {
+      const actual = actualHoursByTask.get(t.id) || 0;
+      return t.estimatedHours && actual > t.estimatedHours;
+    });
+
+    return {
+      overdueTasksCount: overdueTasks.length,
+      blockedTasksCount: blockedTasks.length,
+      dueSoonTasksCount: dueSoonTasks.length,
+      tasksExceedingEstimateCount: tasksExceedingEstimate.length,
+      overdueTasks: overdueTasks.map((t: any) => ({ id: t.id, name: t.name, dueDate: t.dueDate })),
+      blockedTasks: blockedTasks.map((t: any) => ({ id: t.id, name: t.name })),
+      dueSoonTasks: dueSoonTasks.map((t: any) => ({ id: t.id, name: t.name, dueDate: t.dueDate })),
+      tasksExceedingEstimate: tasksExceedingEstimate.map((t: any) => ({
+        id: t.id, 
+        name: t.name, 
+        estimatedHours: t.estimatedHours,
+        actualHours: actualHoursByTask.get(t.id) || 0
+      }))
+    };
   }
 
   async create(createProjectDto: CreateProjectDto, auth: AuthenticatedContext) {
@@ -159,6 +249,16 @@ export class ProjectsService {
     if (status !== undefined) updateData.status = status;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (description !== undefined) updateData.description = description;
+
+    const finalStartDate = startDate !== undefined ? startDate : (project.startDate ? project.startDate.toString() : null);
+    const finalEndDate = endDate !== undefined ? endDate : (project.endDate ? project.endDate.toString() : null);
+
+    if (finalStartDate && finalEndDate) {
+      if (new Date(finalStartDate) > new Date(finalEndDate)) {
+        throw new BadRequestException('startDate must be before or equal to endDate');
+      }
+    }
+
     if (startDate !== undefined) updateData.startDate = startDate ? (globalThis as any).Temporal.Instant.from(new Date(startDate).toISOString()) : null;
     if (endDate !== undefined) updateData.endDate = endDate ? (globalThis as any).Temporal.Instant.from(new Date(endDate).toISOString()) : null;
 
@@ -202,7 +302,9 @@ export class ProjectsService {
   async createRequirement(projectId: string, data: any, auth: AuthenticatedContext) {
     const project = await db.orm.public.Project.where({ id: projectId, organizationId: auth.organizationId }).first();
     if (!project) throw new NotFoundException('Project not found');
-    if (!project.isActive) throw new ConflictException('Cannot add requirement to inactive project');
+    if (!project.isActive || project.status === 'COMPLETED' || project.status === 'ON_HOLD') {
+      throw new ConflictException('Cannot add requirement to inactive or completed/on-hold project');
+    }
 
     return db.orm.public.ProjectRequirement.create({
       projectId,
@@ -219,7 +321,9 @@ export class ProjectsService {
 
     const project = await db.orm.public.Project.where({ id: requirement.projectId, organizationId: auth.organizationId }).first();
     if (!project) throw new NotFoundException('Project not found or unauthorized');
-    if (!project.isActive) throw new ConflictException('Cannot update requirement of inactive project');
+    if (!project.isActive || project.status === 'COMPLETED' || project.status === 'ON_HOLD') {
+      throw new ConflictException('Cannot update requirement of inactive or completed/on-hold project');
+    }
 
     const updateData: any = {};
     if (data.title !== undefined) updateData.title = data.title;
@@ -235,7 +339,9 @@ export class ProjectsService {
   async createMilestone(projectId: string, data: any, auth: AuthenticatedContext) {
     const project = await db.orm.public.Project.where({ id: projectId, organizationId: auth.organizationId }).first();
     if (!project) throw new NotFoundException('Project not found');
-    if (!project.isActive) throw new ConflictException('Cannot add milestone to inactive project');
+    if (!project.isActive || project.status === 'COMPLETED' || project.status === 'ON_HOLD') {
+      throw new ConflictException('Cannot add milestone to inactive or completed/on-hold project');
+    }
 
     return db.orm.public.Milestone.create({
       projectId,
@@ -263,7 +369,9 @@ export class ProjectsService {
   async updateMilestone(projectId: string, milestoneId: string, data: any, auth: AuthenticatedContext) {
     const project = await db.orm.public.Project.where({ id: projectId, organizationId: auth.organizationId }).first();
     if (!project) throw new NotFoundException('Project not found');
-    if (!project.isActive) throw new ConflictException('Cannot update milestone of inactive project');
+    if (!project.isActive || project.status === 'COMPLETED' || project.status === 'ON_HOLD') {
+      throw new ConflictException('Cannot update milestone of inactive or completed/on-hold project');
+    }
 
     const milestone = await db.orm.public.Milestone.where({ id: milestoneId, projectId }).first();
     if (!milestone) throw new NotFoundException('Milestone not found');
@@ -280,7 +388,9 @@ export class ProjectsService {
   async deactivateMilestone(projectId: string, milestoneId: string, auth: AuthenticatedContext) {
     const project = await db.orm.public.Project.where({ id: projectId, organizationId: auth.organizationId }).first();
     if (!project) throw new NotFoundException('Project not found');
-    if (!project.isActive) throw new ConflictException('Cannot deactivate milestone of inactive project');
+    if (!project.isActive || project.status === 'COMPLETED' || project.status === 'ON_HOLD') {
+      throw new ConflictException('Cannot deactivate milestone of inactive or completed/on-hold project');
+    }
 
     const milestone = await db.orm.public.Milestone.where({ id: milestoneId, projectId }).first();
     if (!milestone) throw new NotFoundException('Milestone not found');

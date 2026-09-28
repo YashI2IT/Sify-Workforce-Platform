@@ -80,7 +80,7 @@ const AdminDashboardView = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-200/80">
         <div className="space-y-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
               Admin Dashboard
             </h1>
             
@@ -107,7 +107,7 @@ const AdminDashboardView = ({
 
           <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
             <Building className="w-4 h-4 text-slate-400 shrink-0" />
-            <span className="text-slate-950 font-bold font-display truncate">
+            <span className="text-slate-950 font-bold truncate">
               {orgSummary?.name || 'Sify Workforce Platform'}
             </span>
             <span className="text-slate-300">•</span>
@@ -182,7 +182,7 @@ const AdminDashboardView = ({
             </div>
             <div className="my-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                   {loading ? <span className="text-slate-300 font-mono">—</span> : activeEmployees}
                 </span>
                 <span className="text-xs text-slate-400 font-mono font-medium">members</span>
@@ -212,7 +212,7 @@ const AdminDashboardView = ({
             </div>
             <div className="my-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                   {loading ? <span className="text-slate-300 font-mono">—</span> : totalTeams}
                 </span>
                 <span className="text-xs text-slate-400 font-mono font-medium">teams</span>
@@ -242,7 +242,7 @@ const AdminDashboardView = ({
             </div>
             <div className="my-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                   {loading ? <span className="text-slate-300 font-mono">—</span> : activeProjectsCount}
                 </span>
                 <span className="text-xs text-slate-400 font-mono font-medium">initiatives</span>
@@ -285,7 +285,7 @@ const AdminDashboardView = ({
             </div>
             <div className="my-3">
               <div className="flex items-baseline gap-2">
-                <span className={`text-3xl font-extrabold tracking-tight font-display ${
+                <span className={`text-2xl font-bold tracking-tight ${
                   !loading && pendingActionsCount > 0 ? 'text-amber-950' : 'text-slate-950'
                 }`}>
                   {loading ? <span className="text-slate-300 font-mono">—</span> : pendingActionsCount}
@@ -309,7 +309,7 @@ const AdminDashboardView = ({
       </div>
 
       {/* 3. NEEDS ATTENTION */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden">
+      <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2.5">
             <span className="w-2 h-2 rounded-full bg-amber-500" />
@@ -336,7 +336,7 @@ const AdminDashboardView = ({
                 <Mail className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className={`text-2xl font-extrabold font-display ${
+                <span className={`text-2xl font-bold ${
                   pendingInvitationsCount > 0 ? 'text-amber-600' : 'text-slate-900'
                 }`}>
                   {loading ? '—' : pendingInvitationsCount}
@@ -368,7 +368,7 @@ const AdminDashboardView = ({
                 <UsersRound className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className={`text-2xl font-extrabold font-display ${
+                <span className={`text-2xl font-bold ${
                   teamsWithoutManager > 0 ? 'text-rose-600' : 'text-slate-900'
                 }`}>
                   {loading ? '—' : teamsWithoutManager}
@@ -400,7 +400,7 @@ const AdminDashboardView = ({
                 <Clock className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className={`text-2xl font-extrabold font-display ${
+                <span className={`text-2xl font-bold ${
                   pendingApprovalsCount > 0 ? 'text-amber-600' : 'text-slate-900'
                 }`}>
                   {loading ? '—' : pendingApprovalsCount}
@@ -432,7 +432,7 @@ const AdminDashboardView = ({
                 <AlertCircle className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className={`text-2xl font-extrabold font-display ${
+                <span className={`text-2xl font-bold ${
                   overdueTasksCount > 0 ? 'text-rose-600' : 'text-slate-900'
                 }`}>
                   {loading ? '—' : overdueTasksCount}
@@ -528,7 +528,7 @@ const AdminDashboardView = ({
                 <span className="text-[11px] font-bold text-emerald-800 font-mono uppercase">Active</span>
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
               </div>
-              <span className="text-2xl font-extrabold text-slate-900 font-display mt-1 block">
+              <span className="text-2xl font-bold text-slate-900 mt-1 block">
                 {projectStatusCounts.ACTIVE}
               </span>
               <span className="text-[11px] text-slate-400 font-mono">Live execution</span>
@@ -539,7 +539,7 @@ const AdminDashboardView = ({
                 <span className="text-[11px] font-bold text-blue-800 font-mono uppercase">In Progress</span>
                 <span className="w-2 h-2 rounded-full bg-blue-600" />
               </div>
-              <span className="text-2xl font-extrabold text-slate-900 font-display mt-1 block">
+              <span className="text-2xl font-bold text-slate-900 mt-1 block">
                 {projectStatusCounts.IN_PROGRESS}
               </span>
               <span className="text-[11px] text-slate-400 font-mono">Sprint underway</span>
@@ -550,7 +550,7 @@ const AdminDashboardView = ({
                 <span className="text-[11px] font-bold text-amber-800 font-mono uppercase">Planning</span>
                 <span className="w-2 h-2 rounded-full bg-amber-500" />
               </div>
-              <span className="text-2xl font-extrabold text-slate-900 font-display mt-1 block">
+              <span className="text-2xl font-bold text-slate-900 mt-1 block">
                 {projectStatusCounts.PLANNING}
               </span>
               <span className="text-[11px] text-slate-400 font-mono">Scoping & backlog</span>
@@ -561,7 +561,7 @@ const AdminDashboardView = ({
                 <span className="text-[11px] font-bold text-slate-700 font-mono uppercase">On Hold</span>
                 <span className="w-2 h-2 rounded-full bg-slate-400" />
               </div>
-              <span className="text-2xl font-extrabold text-slate-900 font-display mt-1 block">
+              <span className="text-2xl font-bold text-slate-900 mt-1 block">
                 {projectStatusCounts.ON_HOLD}
               </span>
               <span className="text-[11px] text-slate-400 font-mono">Paused initiatives</span>
@@ -572,7 +572,7 @@ const AdminDashboardView = ({
                 <span className="text-[11px] font-bold text-purple-800 font-mono uppercase">Completed</span>
                 <span className="w-2 h-2 rounded-full bg-purple-500" />
               </div>
-              <span className="text-2xl font-extrabold text-slate-900 font-display mt-1 block">
+              <span className="text-2xl font-bold text-slate-900 mt-1 block">
                 {projectStatusCounts.COMPLETED}
               </span>
               <span className="text-[11px] text-slate-400 font-mono">Delivered projects</span>
@@ -582,7 +582,7 @@ const AdminDashboardView = ({
       </div>
 
       {/* 5. RECENT ACTIVITY */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden">
+      <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2.5">
             <span className="w-2 h-2 rounded-full bg-slate-950" />
@@ -599,12 +599,537 @@ const AdminDashboardView = ({
           <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3 border border-slate-200/80">
             <Clock className="w-6 h-6" />
           </div>
-          <h3 className="text-sm font-bold text-slate-900 font-display">
+          <h3 className="text-sm font-bold text-slate-900 ">
             Organization activity will appear here once system activity tracking is enabled.
           </h3>
           <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
             System-wide operational audit ledger and event streaming will automatically populate security, workforce, and governance actions as they occur.
           </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface WorkingTimeConfig {
+  monday: number;
+  tuesday: number;
+  wednesday: number;
+  thursday: number;
+  friday: number;
+  saturday: number;
+  sunday: number;
+}
+
+const DAY_LABELS: { key: keyof WorkingTimeConfig; label: string }[] = [
+  { key: 'monday', label: 'Mon' },
+  { key: 'tuesday', label: 'Tue' },
+  { key: 'wednesday', label: 'Wed' },
+  { key: 'thursday', label: 'Thu' },
+  { key: 'friday', label: 'Fri' },
+  { key: 'saturday', label: 'Sat' },
+  { key: 'sunday', label: 'Sun' },
+];
+
+interface TimesheetStatusCounts {
+  DRAFT: number;
+  SUBMITTED: number;
+  APPROVED: number;
+  REJECTED: number;
+}
+
+interface ManagerDashboardViewProps {
+  employee: any;
+  loading: boolean;
+  fetchDashboardData: () => void;
+  getGreeting: () => string;
+  managerTeams: any[];
+  managerProjects: any[];
+  approvalsCount: number;
+  workingTimeConfig: WorkingTimeConfig | null;
+  dashboardError?: string | null;
+  managerReport: { 
+    totalTeamMembers: number; 
+    managedTeamsCount: number;
+    activeProjectsCount?: number;
+    projectStatusCounts?: any;
+  } | null;
+  managerTimesheetStatus: TimesheetStatusCounts | null;
+  managerOverdueTasks: number;
+}
+
+const StatSkeleton = () => (
+  <span className="inline-block w-10 h-7 bg-slate-200 rounded animate-pulse" />
+);
+
+const ManagerDashboardView = ({
+  employee,
+  loading,
+  fetchDashboardData,
+  getGreeting,
+  managerTeams,
+  managerProjects,
+  approvalsCount,
+  workingTimeConfig,
+  dashboardError,
+  managerReport,
+  managerTimesheetStatus,
+  managerOverdueTasks,
+}: ManagerDashboardViewProps) => {
+
+  // ── Workforce Standard ──────────────────────────────────────────────────────
+  const wtWeeklyHours = workingTimeConfig
+    ? DAY_LABELS.reduce((sum, d) => sum + (Number(workingTimeConfig[d.key]) || 0), 0)
+    : 0;
+  // ── Team Snapshot ───────────────────────────────────────────────────────────
+  const teamMembersCount = managerReport?.totalTeamMembers
+    ?? managerTeams.reduce((acc, t) => acc + (t.memberCount || 0), 0);
+  // ── Project Status ──────────────────────────────────────────────────────────
+  const activeProjectsCount = managerReport?.activeProjectsCount ?? managerProjects.filter(p => p.isActive !== false).length;
+  
+  const projectStatusCounts = managerReport?.projectStatusCounts ?? {
+    ACTIVE:      managerProjects.filter(p => p.status === 'ACTIVE').length,
+    IN_PROGRESS: managerProjects.filter(p => p.status === 'IN_PROGRESS').length,
+    PLANNING:    managerProjects.filter(p => p.status === 'PLANNING').length,
+    ON_HOLD:     managerProjects.filter(p => p.status === 'ON_HOLD').length,
+    COMPLETED:   managerProjects.filter(p => p.status === 'COMPLETED').length,
+  };
+
+  // ── Team Timesheet Status totals ────────────────────────────────────────────
+  const tsTotal = managerTimesheetStatus
+    ? Object.values(managerTimesheetStatus).reduce((a, b) => a + b, 0)
+    : 0;
+
+  return (
+    <div className="space-y-7 animate-fadeIn">
+      {/* Error Banner */}
+      {dashboardError && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{dashboardError}</span>
+          </div>
+          <button
+            onClick={() => fetchDashboardData()}
+            className="text-amber-900 font-semibold hover:underline cursor-pointer ml-3 shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* ── 1. Header ────────────────────────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
+              {getGreeting()}, {employee?.name?.split(' ')[0]}
+            </h1>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {employee?.roles?.map((role: string) => (
+                <span
+                  key={role}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold tracking-wider uppercase font-mono ${
+                    role === 'MANAGER'
+                      ? 'bg-blue-900 text-white shadow-2xs'
+                      : 'bg-slate-100 text-slate-800 border border-slate-200/90'
+                  }`}
+                >
+                  {role === 'MANAGER' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />}
+                  {role}
+                </span>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-500">
+            Team control center — approvals, workforce health, and project status.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 shadow-2xs text-xs font-semibold text-slate-700 font-mono">
+            <CalendarDays className="w-4 h-4 text-slate-400" />
+            <span>
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+              })}
+            </span>
+          </div>
+          <button
+            onClick={() => fetchDashboardData()}
+            disabled={loading}
+            className="inline-flex items-center gap-2 p-2.5 sm:px-3.5 sm:py-2 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 text-slate-600 hover:text-slate-950 transition-all shadow-2xs cursor-pointer disabled:opacity-50 text-xs font-semibold font-mono"
+            title="Refresh dashboard metrics"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-slate-950' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
+        </div>
+      </div>
+
+
+
+      {/* ── 3. Team Snapshot ─────────────────────────────────────────────────── */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-blue-600" />
+          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">
+            Team Snapshot
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {/* Team Members */}
+          <Link to="/teams" className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all group">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Team Members</span>
+              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-slate-950 group-hover:text-white transition-colors">
+                <Users className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="my-3">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+                {loading ? <StatSkeleton /> : teamMembersCount}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 font-mono">Total managed members</p>
+          </Link>
+
+          {/* Active Members */}
+          <Link to="/employees" className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all group">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Active Members</span>
+              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-slate-950 group-hover:text-white transition-colors">
+                <UsersRound className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="my-3">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+                {loading ? <StatSkeleton /> : teamMembersCount}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 font-mono">Active in teams</p>
+          </Link>
+
+          {/* Active Projects */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Active Projects</span>
+              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
+                <Briefcase className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="my-3">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+                {loading ? <StatSkeleton /> : activeProjectsCount}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 font-mono">Assigned to you</p>
+          </div>
+
+          {/* Pending Timesheets */}
+          <Link to="/approvals" className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all group">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Pending Review</span>
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                approvalsCount > 0
+                  ? 'bg-amber-100 text-amber-700 group-hover:bg-amber-600 group-hover:text-white'
+                  : 'bg-slate-100 text-slate-600 group-hover:bg-slate-950 group-hover:text-white'
+              }`}>
+                <Clock className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="my-3">
+              <span className={`text-2xl font-bold tracking-tight ${
+                approvalsCount > 0 ? 'text-amber-600' : 'text-slate-950'
+              }`}>
+                {loading ? <StatSkeleton /> : approvalsCount}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 font-mono">Timesheets to approve</p>
+          </Link>
+        </div>
+      </div>
+
+      {/* ── 4. Needs Attention ───────────────────────────────────────────────── */}
+      <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <h2 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
+              Needs Attention
+            </h2>
+          </div>
+          <span className="text-[11px] font-mono text-slate-400 uppercase font-semibold">Priority Queue</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+          {/* A. Pending Timesheet Approvals */}
+          <Link
+            to="/approvals"
+            className="p-5 hover:bg-slate-50/70 transition-colors flex flex-col justify-between group cursor-pointer"
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                  Pending Approvals
+                </span>
+                <Clock className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className={`text-2xl font-bold ${
+                  loading ? '' : approvalsCount > 0 ? 'text-amber-600' : 'text-slate-900'
+                }`}>
+                  {loading ? <StatSkeleton /> : approvalsCount}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Submitted timesheets awaiting your review</p>
+              {!loading && approvalsCount === 0 && (
+                <p className="text-xs text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> You're all caught up.
+                </p>
+              )}
+            </div>
+            <div className="mt-4 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-600 group-hover:text-slate-900">
+              <span>Approval Queue</span>
+              <span className="font-semibold flex items-center gap-1 font-mono text-[11px]">
+                Open <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </span>
+            </div>
+          </Link>
+
+          {/* B. Overdue Tasks */}
+          <div className="p-5 flex flex-col justify-between hover:bg-slate-50/70 transition-colors">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                  Overdue Tasks
+                </span>
+                <AlertCircle className="w-4 h-4 text-slate-400" />
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className={`text-2xl font-bold ${
+                  loading ? '' : managerOverdueTasks > 0 ? 'text-rose-600' : 'text-slate-900'
+                }`}>
+                  {loading ? <StatSkeleton /> : managerOverdueTasks}
+                </span>
+              </div>
+              {!loading && managerOverdueTasks > 0 && (
+                <p className="text-xs text-rose-600 mt-1">Tasks past due date in your assigned projects</p>
+              )}
+              {!loading && managerOverdueTasks === 0 && (
+                <p className="text-xs text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> No overdue work.
+                </p>
+              )}
+            </div>
+            {!loading && managerProjects.length > 0 && (
+              <div className="mt-4 pt-2 border-t border-slate-100">
+                <Link
+                  to="/projects"
+                  className="text-[11px] font-mono font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1"
+                >
+                  View Projects <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── 5. Team & Project Health ─────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-7 items-start">
+
+        {/* A. Project Status */}
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-600" />
+              <h3 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
+                Project Status
+              </h3>
+            </div>
+            <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
+              {loading ? '—' : managerProjects.length + ' total'}
+            </span>
+          </div>
+
+          {!loading && managerProjects.length === 0 ? (
+            <div className="py-6 text-center text-slate-400">
+              <Briefcase className="w-6 h-6 mx-auto mb-2 text-slate-300" />
+              <p className="text-xs">No projects assigned to you.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Active', count: projectStatusCounts.ACTIVE, color: 'emerald' },
+                { label: 'In Progress', count: projectStatusCounts.IN_PROGRESS, color: 'blue' },
+                { label: 'Completed', count: projectStatusCounts.COMPLETED, color: 'purple' },
+                { label: 'On Hold / Plan', count: projectStatusCounts.ON_HOLD + projectStatusCounts.PLANNING, color: 'slate' },
+              ].map(({ label, count, color }) => (
+                <div key={label} className="p-3 rounded-xl border border-slate-200/70 bg-slate-50/50">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[11px] font-bold text-${color}-800 font-mono uppercase`}>{label}</span>
+                    <span className={`w-2 h-2 rounded-full bg-${color}-500`} />
+                  </div>
+                  <span className="text-2xl font-bold text-slate-900 mt-1 block">
+                    {loading ? '—' : count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* B. Team Timesheet Status */}
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4 flex flex-col">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-slate-950" />
+              <h3 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
+                Team Timesheet Status
+              </h3>
+            </div>
+            <Link
+              to="/approvals"
+              className="text-[11px] font-mono font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-0.5"
+            >
+              Review <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="space-y-2 py-2">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-10 bg-slate-100 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : managerTimesheetStatus === null || tsTotal === 0 ? (
+            <div className="flex-1 flex flex-col justify-center items-center py-8 text-center text-slate-500">
+              <CheckCircle2 className="w-8 h-8 mx-auto mb-3 text-slate-300" />
+              <p className="text-sm font-bold text-slate-900 ">All caught up</p>
+              <p className="text-xs mt-1 max-w-[200px] mx-auto">
+                No timesheet activity in the current period.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {([
+                { key: 'SUBMITTED', label: 'Submitted — Awaiting Approval', color: 'bg-amber-500', textColor: 'text-amber-700' },
+                { key: 'APPROVED',  label: 'Approved',                       color: 'bg-emerald-500', textColor: 'text-emerald-700' },
+                { key: 'DRAFT',     label: 'Draft — Not Yet Submitted',      color: 'bg-slate-400', textColor: 'text-slate-600' },
+                { key: 'REJECTED',  label: 'Rejected — Needs Resubmission',  color: 'bg-rose-500', textColor: 'text-rose-700' },
+              ] as const).map(({ key, color, textColor }) => {
+                const count = managerTimesheetStatus[key as keyof TimesheetStatusCounts];
+                const pct = tsTotal > 0 ? Math.round((count / tsTotal) * 100) : 0;
+                return (
+                  <div key={key} className="flex items-center gap-3">
+                    <div className="w-20 shrink-0">
+                      <span className={`text-[10px] font-mono font-bold uppercase ${textColor}`}>{key}</span>
+                    </div>
+                    <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <div
+                        className={`h-2 rounded-full transition-all ${color}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-slate-900 w-6 text-right font-mono">{count}</span>
+                  </div>
+                );
+              })}
+              <p className="text-[10px] text-slate-400 font-mono pt-1">
+                Based on current team utilization report (last 30 days).
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── 6. Quick Actions ─────────────────────────────────────────────────── */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-slate-400" />
+          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">
+            Quick Actions
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            { to: '/approvals',             icon: CheckCircle2,  label: 'Open Approvals',         sub: 'Review submitted timesheets' },
+            { to: '/reports/team',          icon: TrendingUp,    label: 'Team Utilization',        sub: 'Hours by member & project' },
+            { to: '/reports/employee',      icon: FileText,      label: 'Employee Time Summary',   sub: 'Per-employee breakdown' },
+          ].map(({ to, icon: Icon, label, sub }) => (
+            <Link
+              key={to}
+              to={to}
+              className="flex items-center gap-3.5 p-4 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl hover:shadow-xs hover:border-slate-300 transition-all group"
+            >
+              <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-slate-950 group-hover:text-white transition-colors shrink-0">
+                <Icon className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-900 group-hover:text-slate-950 font-mono uppercase tracking-wide truncate">{label}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5 truncate">{sub}</p>
+              </div>
+              <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-slate-600 ml-auto shrink-0 transition-colors" />
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* ── 7. Bottom Section (Recent Activity + Workforce Standard) ───────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-7 items-start">
+        {/* Recent Activity (truthful empty state) */}
+        <div className="lg:col-span-2 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden h-full flex flex-col">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2 h-2 rounded-full bg-slate-950" />
+              <h2 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
+                Recent Activity
+              </h2>
+            </div>
+            <span className="text-[11px] font-mono text-slate-400 uppercase font-semibold">
+              Team Audit Stream
+            </span>
+          </div>
+          <div className="py-10 px-6 text-center flex-1 flex flex-col justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3 border border-slate-200/80">
+              <Clock className="w-5 h-5" />
+            </div>
+            <p className="text-sm font-bold text-slate-900 ">No recent team activity</p>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+              A team-scoped activity stream is not yet available. Timesheet and task events will appear here when the audit stream is enabled.
+            </p>
+          </div>
+        </div>
+
+        {/* Workforce Standard (Small Card - Dark Theme) */}
+        <div className="bg-slate-950 border border-slate-800 rounded-2xl shadow-2xs overflow-hidden flex flex-col h-full">
+          <div className="p-5 flex flex-col h-full relative">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[11px] font-bold text-[#27F087] uppercase tracking-widest font-mono">
+                WORKFORCE STANDARD
+              </h2>
+              <span className="w-2 h-2 rounded-full bg-[#27F087] absolute top-5 right-5" />
+            </div>
+            
+            <h3 className="text-xl font-bold text-white mb-2 tracking-tight">
+              {wtWeeklyHours}h Weekly Baseline
+            </h3>
+            
+            <p className="text-sm text-slate-400 leading-relaxed mb-6">
+              Timesheets close every Sunday at 23:59. Ensure daily entries are attributed to accurate deliverables.
+            </p>
+            
+            <div className="mt-auto pt-4 border-t border-slate-800 flex items-center justify-between font-mono text-xs">
+              <span className="text-slate-500">
+                Current Status: Active
+              </span>
+              <Link to="/timesheets" className="text-[#27F087] font-semibold flex items-center gap-1 hover:text-[#27F087]/80 transition-colors">
+                Cycle Guide &rarr;
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -621,6 +1146,14 @@ export const Dashboard = () => {
   const [recentEntries, setRecentEntries] = useState<any[]>([]);
   const [dailyHoursMap, setDailyHoursMap] = useState<Record<string, number>>({});
   
+  // Manager Dashboard State
+  const [managerTeams, setManagerTeams] = useState<any[]>([]);
+  const [managerProjects, setManagerProjects] = useState<any[]>([]);
+  const [workingTimeConfig, setWorkingTimeConfig] = useState<WorkingTimeConfig | null>(null);
+  const [managerReport, setManagerReport] = useState<any>(null);
+  const [managerTimesheetStatus, setManagerTimesheetStatus] = useState<any>(null);
+  const [managerOverdueTasks, setManagerOverdueTasks] = useState(0);
+
   // Admin Dashboard State
   const [orgSummary, setOrgSummary] = useState<any>(null);
   const [employeesData, setEmployeesData] = useState<any>(null);
@@ -632,6 +1165,7 @@ export const Dashboard = () => {
   const [teamCount, setTeamCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [adminDashboardData, setAdminDashboardData] = useState<any>(null);
 
   const roleAdmin = Boolean(employee?.roles?.includes('ADMIN') || employee?.role === 'ADMIN');
   const roleManager = Boolean(employee?.roles?.includes('MANAGER') || employee?.role === 'MANAGER');
@@ -675,21 +1209,40 @@ export const Dashboard = () => {
     setLoading(true);
     try {
       const promises: Promise<any>[] = [];
-      
+      const thisWeekStart = getThisMonday();
+      const monDate = new Date(thisWeekStart + 'T00:00:00');
+      const sunDate = new Date(monDate);
+      sunDate.setDate(sunDate.getDate() + 6);
+      const yEnd = sunDate.getFullYear();
+      const mEnd = String(sunDate.getMonth() + 1).padStart(2, '0');
+      const dEnd = String(sunDate.getDate()).padStart(2, '0');
+      const thisWeekEnd = `${yEnd}-${mEnd}-${dEnd}`;
+
       if (roleEmployee) {
         promises.push(
           apiClient(`/employees/${employee.id}/projects`),
           apiClient(`/timesheets/my-timesheets`),
-          apiClient(`/employees/${employee.id}/time-entries?limit=100`)
+          apiClient(`/employees/${employee.id}/time-entries?limit=100`),
+          apiClient(`/reports/employee-summary?targetEmployeeId=${employee.id}&startDate=${thisWeekStart}&endDate=${thisWeekEnd}`)
         );
       } else {
-        promises.push(Promise.resolve([]), Promise.resolve([]), Promise.resolve([]));
+        promises.push(Promise.resolve([]), Promise.resolve([]), Promise.resolve([]), Promise.resolve(null));
       }
 
       if (roleManager) {
-        promises.push(apiClient(`/timesheets/approvals`));
+        promises.push(
+          apiClient(`/timesheets/approvals`),
+          apiClient(`/teams?limit=100`),
+          apiClient(`/projects`),
+          apiClient(`/working-times`),
+          apiClient(`/reports/manager-dashboard`),
+          apiClient(`/reports/team-utilization`),
+          apiClient(`/reports/manager-overdue-tasks`)
+        );
       } else {
-        promises.push(Promise.resolve([]));
+        promises.push(
+          Promise.resolve([]), Promise.resolve([]), Promise.resolve([]), Promise.resolve(null), Promise.resolve(null), Promise.resolve(null), Promise.resolve(null)
+        );
       }
 
       if (roleAdmin) {
@@ -699,7 +1252,8 @@ export const Dashboard = () => {
           apiClient(`/teams?limit=100`),
           apiClient(`/projects`),
           apiClient(`/employee-invitations`),
-          apiClient(`/timesheets/approvals`)
+          apiClient(`/timesheets/approvals`),
+          apiClient(`/reports/admin-dashboard`)
         );
       } else {
         promises.push(
@@ -708,7 +1262,8 @@ export const Dashboard = () => {
           Promise.resolve(null),
           Promise.resolve([]),
           Promise.resolve([]),
-          Promise.resolve([])
+          Promise.resolve([]),
+          Promise.resolve(null)
         );
       }
 
@@ -728,13 +1283,21 @@ export const Dashboard = () => {
       const projects = extract(0, []);
       const timesheets = extract(1, []);
       const entries = extract(2, []);
-      const approvals = extract(3, []);
-      const org = extract(4, null);
-      const employeesList = extract(5, null);
-      const teamsList = extract(6, null);
-      const projectsList = extract(7, []);
-      const invitationsList = extract(8, []);
-      const approvalsList = extract(9, []);
+      const employeeSummaryData = extract(3, null);
+      const approvals = extract(4, []);
+      const managerTeamsList = extract(5, []);
+      const managerProjectsList = extract(6, []);
+      const managerWorkingTime = extract(7, null);
+      const mgrDashboardReport = extract(8, null);
+      const mgrTeamUtilization = extract(9, null);
+      const mgrOverdueTasksReq = extract(10, null);
+      const org = extract(11, null);
+      const employeesList = extract(12, null);
+      const teamsList = extract(13, null);
+      const projectsList = extract(14, []);
+      const invitationsList = extract(15, []);
+      const approvalsList = extract(16, []);
+      const adminDashboardReq = extract(17, null);
 
       if (hasPartialError) {
         setDashboardError("Some dashboard metrics could not be loaded. Please refresh.");
@@ -772,9 +1335,24 @@ export const Dashboard = () => {
           }
         });
         
-        setWeeklyHours(wHours);
-        setTodayHours(tHours);
-        setDailyHoursMap(dMap);
+        // Use the native backend report for correct weekly totals, overriding the paginated local sum
+        if (employeeSummaryData) {
+          setWeeklyHours(employeeSummaryData.totalHours || 0);
+          
+          // Get today's hours from the backend's dailyTotals map
+          const todayItem = employeeSummaryData.dailyTotals?.find((d: any) => d.date === todayStr);
+          setTodayHours(todayItem ? todayItem.hours : 0);
+          
+          const newDMap: Record<string, number> = {};
+          employeeSummaryData.dailyTotals?.forEach((d: any) => {
+            newDMap[d.date] = d.hours;
+          });
+          setDailyHoursMap(newDMap);
+        } else {
+          setWeeklyHours(wHours);
+          setTodayHours(tHours);
+          setDailyHoursMap(dMap);
+        }
         
         const currentTs = tsArr.find((ts: any) => {
           if (!ts?.startDate) return false;
@@ -795,6 +1373,31 @@ export const Dashboard = () => {
       if (roleManager) {
         const appArr = Array.isArray(approvals) ? approvals : (approvals?.data ?? []);
         setApprovalsCount(appArr.length);
+        const mTeams = Array.isArray(managerTeamsList) ? managerTeamsList : (managerTeamsList?.data ?? []);
+        setManagerTeams(mTeams);
+        const mProjects = Array.isArray(managerProjectsList) ? managerProjectsList : (managerProjectsList?.data ?? []);
+        setManagerProjects(mProjects);
+        if (managerWorkingTime && typeof managerWorkingTime === 'object' && 'monday' in managerWorkingTime) {
+          setWorkingTimeConfig(managerWorkingTime as WorkingTimeConfig);
+        } else {
+          setWorkingTimeConfig(null);
+        }
+        
+        if (mgrDashboardReport) setManagerReport(mgrDashboardReport);
+        
+        if (mgrTeamUtilization && mgrTeamUtilization.data) {
+          const breakdown = { DRAFT: 0, SUBMITTED: 0, APPROVED: 0, REJECTED: 0 };
+          mgrTeamUtilization.data.forEach((emp: any) => {
+            if (emp.statusBreakdown) {
+               breakdown.DRAFT += emp.statusBreakdown.DRAFT || 0;
+               breakdown.SUBMITTED += emp.statusBreakdown.SUBMITTED || 0;
+               breakdown.APPROVED += emp.statusBreakdown.APPROVED || 0;
+               breakdown.REJECTED += emp.statusBreakdown.REJECTED || 0;
+            }
+          });
+          setManagerTimesheetStatus(breakdown);
+        }
+        setManagerOverdueTasks(mgrOverdueTasksReq?.totalOverdue || 0);
       }
 
       if (roleAdmin) {
@@ -813,6 +1416,12 @@ export const Dashboard = () => {
         const aList = Array.isArray(approvalsList) ? approvalsList : (approvalsList?.data ?? []);
         const aCount = approvalsList?.meta?.total !== undefined ? approvalsList.meta.total : aList.length;
         setApprovalsCount(aCount);
+
+        if (adminDashboardReq) {
+          setEmpCount(adminDashboardReq.totalEmployees || 0);
+          setTeamCount(adminDashboardReq.totalTeams || 0);
+          setAdminDashboardData(adminDashboardReq);
+        }
 
         // Derive real overdue active tasks across active projects
         const activeProjects = pList.filter((p: any) => p.isActive !== false && p.status !== 'COMPLETED');
@@ -878,7 +1487,7 @@ export const Dashboard = () => {
           <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4 border border-rose-100">
             <AlertCircle className="w-7 h-7" />
           </div>
-          <h2 className="text-lg font-bold text-slate-900 font-display">Connection Interrupted</h2>
+          <h2 className="text-lg font-bold text-slate-900 ">Connection Interrupted</h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1.5 max-w-md">
             {empError}
           </p>
@@ -896,7 +1505,7 @@ export const Dashboard = () => {
         <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center mb-4 border border-slate-200">
           <UsersRound className="w-7 h-7" />
         </div>
-        <h2 className="text-lg font-bold text-slate-900 font-display">No User Profile Selected</h2>
+        <h2 className="text-lg font-bold text-slate-900 ">No User Profile Selected</h2>
         <p className="text-xs sm:text-sm text-slate-500 mt-1.5 max-w-md">
           Please select an authenticated employee context to access your operational dashboard.
         </p>
@@ -910,12 +1519,18 @@ export const Dashboard = () => {
   const circleOffset = circleCircumference - (circleCircumference * (dailyTargetPct / 100));
 
   const employeeList = Array.isArray(employeesData) ? employeesData : (employeesData?.data ?? []);
-  const totalEmployees = employeesData?.meta?.total ?? (employeeList.length > 0 ? employeeList.length : empCount);
-  const activeEmployees = employeeList.length > 0 ? employeeList.filter((e: any) => e.isActive !== false).length : totalEmployees;
-  const inactiveEmployees = Math.max(0, totalEmployees - activeEmployees);
+  
+  // Try to use true server counts from meta or the new admin API
+  const totalEmployees = empCount > 0 ? empCount : (employeesData?.meta?.total ?? (employeeList.length > 0 ? employeeList.length : 0));
+  
+  // Use active/inactive from employeeList if not provided by backend? Wait, if we use the backend, we should have it in state.
+  // We can just compute it directly if available, else fallback
+  const activeEmployees = adminDashboardData?.activeEmployees ?? (employeeList.length > 0 ? employeeList.filter((e: any) => e.isActive !== false).length : totalEmployees);
+  const inactiveEmployees = adminDashboardData?.inactiveEmployees ?? Math.max(0, totalEmployees - activeEmployees);
+  
   const teamList = Array.isArray(teamsData) ? teamsData : (teamsData?.data ?? []);
-  const totalTeams = teamsData?.meta?.total ?? (teamList.length > 0 ? teamList.length : teamCount);
-  const teamsWithoutManager = teamList.filter((t: any) => !t.managerId).length;
+  const totalTeams = teamCount > 0 ? teamCount : (teamsData?.meta?.total ?? (teamList.length > 0 ? teamList.length : 0));
+  const teamsWithoutManager = adminDashboardData?.teamsWithoutManager ?? teamList.filter((t: any) => !t.managerId).length;
   const activeProjectsCount = projectsData.filter((p: any) => p.isActive !== false).length;
   const projectStatusCounts = {
     ACTIVE: projectsData.filter((p: any) => p.status === 'ACTIVE').length,
@@ -951,13 +1566,28 @@ export const Dashboard = () => {
           pendingActionsCount={pendingActionsCount}
           getGreeting={getGreeting}
         />
+      ) : roleManager ? (
+        <ManagerDashboardView
+          employee={employee}
+          loading={loading}
+          fetchDashboardData={fetchDashboardData}
+          getGreeting={getGreeting}
+          managerTeams={managerTeams}
+          managerProjects={managerProjects}
+          approvalsCount={approvalsCount}
+          workingTimeConfig={workingTimeConfig}
+          dashboardError={dashboardError}
+          managerReport={managerReport}
+          managerTimesheetStatus={managerTimesheetStatus}
+          managerOverdueTasks={managerOverdueTasks}
+        />
       ) : (
         <>
           {/* Executive Command Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
         <div className="space-y-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
               {getGreeting()}, {employee?.name?.split(' ')[0]}
             </h1>
             
@@ -1044,7 +1674,7 @@ export const Dashboard = () => {
               <div className="my-3 flex items-end justify-between gap-3">
                 <div>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                    <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                       {loading ? <span className="text-slate-300 font-mono">—</span> : weeklyHours.toFixed(1)}
                     </span>
                     <span className="text-xs text-slate-400 font-mono font-semibold">hrs</span>
@@ -1098,7 +1728,7 @@ export const Dashboard = () => {
               <div className="my-3 flex items-center justify-between gap-3">
                 <div>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                    <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                       {loading ? <span className="text-slate-300 font-mono">—</span> : todayHours.toFixed(1)}
                     </span>
                     <span className="text-xs text-slate-400 font-mono font-semibold">hrs</span>
@@ -1205,7 +1835,7 @@ export const Dashboard = () => {
 
             <div className="my-3">
               <div className="flex items-baseline gap-2">
-                <span className={`text-3xl font-extrabold tracking-tight font-display ${
+                <span className={`text-2xl font-bold tracking-tight ${
                   !loading && approvalsCount > 0 ? 'text-rose-900' : 'text-slate-950'
                 }`}>
                   {loading ? <span className="text-slate-300 font-mono">—</span> : approvalsCount}
@@ -1251,7 +1881,7 @@ export const Dashboard = () => {
 
               <div className="my-3">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                  <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                     {loading ? <span className="text-slate-300 font-mono">—</span> : empCount}
                   </span>
                   <span className="text-xs text-slate-400 font-mono font-medium">employees</span>
@@ -1282,7 +1912,7 @@ export const Dashboard = () => {
 
               <div className="my-3">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                  <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                     {loading ? <span className="text-slate-300 font-mono">—</span> : teamCount}
                   </span>
                   <span className="text-xs text-slate-400 font-mono font-medium">teams</span>
@@ -1312,7 +1942,7 @@ export const Dashboard = () => {
               </div>
 
               <div className="my-3">
-                <h3 className="text-xl font-bold text-slate-950 truncate font-display" title={orgSummary?.name}>
+                <h3 className="text-xl font-bold text-slate-950 truncate " title={orgSummary?.name}>
                   {loading ? <span className="text-slate-300 font-mono">—</span> : (orgSummary?.name || 'Sify Organization')}
                 </h3>
                 <p className="text-[11px] text-slate-500 font-medium mt-1 font-mono">
@@ -1515,7 +2145,7 @@ export const Dashboard = () => {
                     <circle cx="44" cy="44" r="10" fill="#0F172A" />
                     <path d="M44 39v6l3 2" stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <p className="text-sm font-bold text-slate-900 font-display">No time entries recorded yet</p>
+                  <p className="text-sm font-bold text-slate-900 ">No time entries recorded yet</p>
                   <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
                     Record your project task hours to establish your daily ledger and weekly timesheets.
                   </p>
@@ -1777,7 +2407,7 @@ export const Dashboard = () => {
               <span className="w-2 h-2 rounded-full bg-[#27F087] animate-pulse" />
             </div>
             <div>
-              <h4 className="text-base font-bold font-display text-white">40h Weekly Baseline</h4>
+              <h4 className="text-base font-bold text-white">40h Weekly Baseline</h4>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                 Timesheets close every Sunday at 23:59. Ensure daily entries are attributed to accurate deliverables.
               </p>
@@ -1796,3 +2426,6 @@ export const Dashboard = () => {
     </div>
   );
 };
+
+
+

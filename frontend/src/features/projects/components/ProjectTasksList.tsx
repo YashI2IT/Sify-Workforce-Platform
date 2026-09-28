@@ -52,6 +52,7 @@ export const ProjectTasksList = ({
             <div className="flex items-center gap-1.5 flex-wrap">
               {children.length > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
               <span className={['font-semibold text-slate-900 font-display truncate', depth > 0 ? 'text-xs' : 'text-sm'].join(' ')}>
+                <span className="text-slate-400 font-mono mr-1.5 font-normal text-xs">{t.ticketId}</span>
                 {t.name}
               </span>
               {!t.isActive && (

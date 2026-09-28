@@ -181,12 +181,10 @@ export class WorkingTimesService {
   }
 
   // ---------------------------------------------------------------------------
-  // API: Upsert employee override (ADMIN only)
+  // API: Upsert employee override (ADMIN/MANAGER)
   // ---------------------------------------------------------------------------
   async upsertOverride(targetEmployeeId: string, auth: AuthenticatedContext, body: WorkingTimeConfig) {
-    if (!auth.roles.includes('ADMIN')) {
-      throw new ForbiddenException('Only ADMIN can create employee working-time overrides');
-    }
+    await this.assertCanManageEmployeeOverride(targetEmployeeId, auth);
 
     const emp = await db.orm.public.Employee
       .where({ id: targetEmployeeId, organizationId: auth.organizationId })
@@ -212,12 +210,10 @@ export class WorkingTimesService {
   }
 
   // ---------------------------------------------------------------------------
-  // API: Delete/deactivate employee override (ADMIN only)
+  // API: Delete/deactivate employee override (ADMIN/MANAGER)
   // ---------------------------------------------------------------------------
   async deleteOverride(targetEmployeeId: string, auth: AuthenticatedContext) {
-    if (!auth.roles.includes('ADMIN')) {
-      throw new ForbiddenException('Only ADMIN can remove employee working-time overrides');
-    }
+    await this.assertCanManageEmployeeOverride(targetEmployeeId, auth);
 
     const row = await db.orm.public.WorkingTime
       .where({ organizationId: auth.organizationId, employeeId: targetEmployeeId })
@@ -261,5 +257,25 @@ export class WorkingTimesService {
     }
 
     throw new ForbiddenException('Access denied');
+  }
+
+  private async assertCanManageEmployeeOverride(targetEmployeeId: string, auth: AuthenticatedContext) {
+    const emp = await db.orm.public.Employee
+      .where({ id: targetEmployeeId, organizationId: auth.organizationId })
+      .first();
+    if (!emp) throw new NotFoundException('Employee not found in your organization');
+
+    if (auth.roles.includes('ADMIN')) return;
+
+    if (auth.roles.includes('MANAGER')) {
+      if (!emp.teamId) throw new ForbiddenException('Employee is not assigned to a team');
+      const team = await db.orm.public.Team.where({
+        id: emp.teamId, organizationId: auth.organizationId, managerId: auth.employeeId,
+      }).first();
+      if (!team) throw new ForbiddenException('You are not the manager of this employee\'s team');
+      return;
+    }
+
+    throw new ForbiddenException('Only ADMIN or the employee\'s MANAGER can manage working time overrides');
   }
 }

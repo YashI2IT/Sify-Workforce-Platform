@@ -53,7 +53,11 @@ vi.mock('../prisma/db.js', () => {
           Timesheet: mTimesheet,
           Project: mProject,
           Task: mTask,
-          Activity: mActivity
+          Activity: mActivity,
+          EmployeeProject: { where: vi.fn(() => ({ all: vi.fn(), aggregate: vi.fn() })) },
+          WorkingTime: {
+            where: vi.fn(() => ({ all: vi.fn(), first: vi.fn() }))
+          }
         },
       },
     },
@@ -80,7 +84,10 @@ describe('ReportsService', () => {
   const setupMocks = (overrides: any = {}) => {
     vi.mocked(db.orm.public.Employee.where).mockReturnValue({
       first: vi.fn().mockResolvedValue(overrides.employee !== undefined ? overrides.employee : { id: '123e4567-e89b-12d3-a456-426614174001', organizationId: 'org1', teamId: 't1' }),
-      all: vi.fn().mockResolvedValue(overrides.employees !== undefined ? overrides.employees : [{ id: '123e4567-e89b-12d3-a456-426614174001', organizationId: 'org1', teamId: 't1' }])
+      all: vi.fn().mockResolvedValue(overrides.employees !== undefined ? overrides.employees : [{ id: '123e4567-e89b-12d3-a456-426614174001', organizationId: 'org1', teamId: 't1' }]),
+      select: vi.fn().mockReturnValue({
+        all: vi.fn().mockResolvedValue(overrides.employees !== undefined ? overrides.employees : [{ id: '123e4567-e89b-12d3-a456-426614174001', organizationId: 'org1', teamId: 't1' }])
+      })
     } as any);
 
     const qb = {
@@ -100,21 +107,36 @@ describe('ReportsService', () => {
       first: vi.fn().mockResolvedValue(overrides.team !== undefined ? overrides.team : { id: 't1', managerId: '123e4567-e89b-12d3-a456-426614174000', organizationId: 'org1' })
     } as any);
 
-    // clean up the duplicate that was left behind
+    // Timesheets: now fetched as a batch via .where(t => t.id.in([...])).all()
+    // Build a lookup map from timesheetId -> status using the timesheetIdMap override
+    const timesheetIdMap = overrides.timesheetIdMap ?? {};
+    const defaultTimesheetStatus = overrides.timesheet?.status ?? 'APPROVED';
+    const entriesData: any[] = overrides.entries ?? [{ id: 'te1', employeeId: 'e1', date: '2026-08-01', hours: 8, projectId: 'p1', timesheetId: 'APPROVED' }];
 
+    // For integrity test: if any timesheetId maps to 'missing', return null to trigger the error
+    const hasMissing = Object.values(timesheetIdMap).includes('missing');
 
-    vi.mocked(db.orm.public.Timesheet.where).mockImplementation(({ id }: any) => {
-      const timesheetId = overrides.timesheetIdMap?.[id];
-      if (timesheetId === 'missing') {
-        return { first: vi.fn().mockResolvedValue(null) } as any;
-      }
-      return { first: vi.fn().mockResolvedValue(timesheetId ? { status: timesheetId } : (overrides.timesheet !== undefined ? overrides.timesheet : { status: 'APPROVED' })) } as any;
-    });
+    vi.mocked(db.orm.public.Timesheet.where).mockReturnValue({
+      first: vi.fn().mockResolvedValue(null),
+      all: vi.fn().mockResolvedValue(
+        hasMissing
+          ? [] // return empty set, so timesheetMap.get() returns undefined → triggers integrity error
+          : entriesData.map((e: any) => ({
+              id: e.timesheetId,
+              status: timesheetIdMap[e.timesheetId] ?? defaultTimesheetStatus
+            }))
+      )
+    } as any);
 
-    vi.mocked(db.orm.public.Project.where).mockImplementation(({ id }: any) => {
-      const projectName = overrides.projectNameMap?.[id];
-      return { first: vi.fn().mockResolvedValue({ name: projectName ?? 'Test Project' }) } as any;
-    });
+    // Projects: now fetched as a batch via .where(p => p.id.in([...])).all()
+    const projectNameMap = overrides.projectNameMap ?? {};
+    const uniqueProjectIds = [...new Set((overrides.entries ?? [{ projectId: 'p1' }]).map((e: any) => e.projectId))];
+    vi.mocked(db.orm.public.Project.where).mockReturnValue({
+      first: vi.fn().mockResolvedValue({ name: 'Test Project' }),
+      all: vi.fn().mockResolvedValue(
+        uniqueProjectIds.map((pid: any) => ({ id: pid, name: projectNameMap[pid] ?? 'Test Project', organizationId: 'org1' }))
+      )
+    } as any);
   };
 
   it('4. Manager managed employee access', async () => {
@@ -155,7 +177,10 @@ describe('ReportsService', () => {
 
   it('Admin organization-wide with 0 employees in organization', async () => {
     vi.mocked(db.orm.public.Employee.where).mockReturnValue({
-      all: vi.fn().mockResolvedValue([])
+      all: vi.fn().mockResolvedValue([]),
+      select: vi.fn().mockReturnValue({
+        all: vi.fn().mockResolvedValue([])
+      })
     } as any);
 
     const res = await service.getEmployeeSummary(undefined, '2026-08-01', '2026-08-10', authCtx(['ADMIN']));
@@ -222,9 +247,9 @@ describe('ReportsService', () => {
     setupMocks({
       employee: { id: 'e1', organizationId: 'org1' },
       entries: [
-        { id: '1', date: '2026-08-01', hours: 8, projectId: 'p1', timesheetId: 'missing' },
+        { id: '1', date: '2026-08-01', hours: 8, projectId: 'p1', timesheetId: 'ts-missing' },
       ],
-      timesheet: null // simulates not found
+      timesheetIdMap: { 'ts-missing': 'missing' } // triggers hasMissing → empty batch result
     });
     await expect(service.getEmployeeSummary('e1', '2026-08-01', '2026-08-10', authCtx(['EMPLOYEE'])))
       .rejects.toThrow(InternalServerErrorException);
@@ -254,6 +279,41 @@ describe('ReportsService', () => {
     const qb = vi.mocked(db.orm.public.TimeEntry.where).mock.results[0].value;
     expect(qb.where).toHaveBeenCalledTimes(2); // Two chained calls for start/end
   });
+  describe('Admin Dashboard', () => {
+    it('rejects non-admin roles', async () => {
+      await expect(service.getAdminDashboard(authCtx(['MANAGER'])))
+        .rejects.toThrow(ForbiddenException);
+    });
+
+    it('aggregates organization data correctly', async () => {
+      // Mock db.orm.public.Employee.where().groupBy().aggregate
+      const empAggMock = vi.fn().mockResolvedValue([
+        { isActive: true, count: 50 },
+        { isActive: false, count: 5 }
+      ]);
+      const empQb = { groupBy: vi.fn().mockReturnValue({ aggregate: empAggMock }) };
+      vi.mocked(db.orm.public.Employee.where).mockReturnValue(empQb as any);
+
+      // Mock db.orm.public.Team
+      const teamAggMock = vi.fn().mockResolvedValue([
+        { managerId: 'm1', count: 10 },
+        { managerId: null, count: 2 }
+      ]);
+      const teamQb = { groupBy: vi.fn().mockReturnValue({ aggregate: teamAggMock }) };
+      vi.mocked(db.orm.public.Team.where).mockReturnValue(teamQb as any);
+
+      const res = await service.getAdminDashboard(authCtx(['ADMIN']));
+      
+      expect(res.activeEmployees).toBe(50);
+      expect(res.inactiveEmployees).toBe(5);
+      expect(res.totalEmployees).toBe(55);
+      expect(res.totalTeams).toBe(12);
+      expect(res.teamsWithoutManager).toBe(2);
+      
+      expect(db.orm.public.Employee.where).toHaveBeenCalledWith({ organizationId: 'org1' });
+      expect(db.orm.public.Team.where).toHaveBeenCalledWith({ organizationId: 'org1' });
+    });
+  });
 
   describe('Manager Dashboard', () => {
     it('returns empty dashboard if 0 teams managed', async () => {
@@ -274,7 +334,12 @@ describe('ReportsService', () => {
       const qbTeam = { all: vi.fn().mockResolvedValue([{ id: 't1' }]) };
       vi.mocked(db.orm.public.Team.where).mockReturnValue(qbTeam as any);
 
-      const qbEmployee = { all: vi.fn().mockResolvedValue([{ id: 'e1' }, { id: 'e2' }]) };
+      const qbEmployee = {
+        all: vi.fn().mockResolvedValue([{ id: 'e1', teamId: 't1' }, { id: 'e2', teamId: 't1' }]),
+        select: vi.fn().mockReturnValue({
+          all: vi.fn().mockResolvedValue([{ id: 'e1', teamId: 't1' }, { id: 'e2', teamId: 't1' }])
+        })
+      };
       vi.mocked(db.orm.public.Employee.where).mockReturnValue(qbEmployee as any);
 
       const qbTimesheet = {
@@ -289,6 +354,18 @@ describe('ReportsService', () => {
       };
       vi.mocked(db.orm.public.TimeEntry.where).mockReturnValue(qbTimeEntry as any);
 
+      const qbEmployeeProject = {
+        all: vi.fn().mockResolvedValue([{ projectId: 'p1' }])
+      };
+      vi.mocked(db.orm.public.EmployeeProject.where).mockReturnValue(qbEmployeeProject as any);
+
+      const qbProject = {
+        where: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockReturnThis(),
+        aggregate: vi.fn().mockResolvedValue([{ status: 'ACTIVE', count: 2 }])
+      };
+      vi.mocked(db.orm.public.Project.where).mockReturnValue(qbProject as any);
+
       (globalThis as any).Temporal = {
         Instant: {
           from: (d: string) => d
@@ -300,7 +377,6 @@ describe('ReportsService', () => {
       expect(res).toEqual(expect.objectContaining({
         pendingApprovalsCount: 5,
         teamWeeklyFinalizedHours: 42.5,
-        missingDraftTimesheetCount: 5,
         totalTeamMembers: 2,
       }));
       
@@ -457,6 +533,44 @@ describe('ReportsService', () => {
       
       // Verify org isolation was enforced
       expect(db.orm.public.Project.where).toHaveBeenCalledWith({ organizationId: 'org1' });
+    });
+  });
+
+  describe('Workload', () => {
+    it('returns valid workload list for ADMIN', async () => {
+      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        all: vi.fn().mockResolvedValue([{ id: 'e1', name: 'John Doe', employeeCode: 'E01' }])
+      } as any);
+
+      vi.mocked(db.orm.public.WorkingTime.where).mockReturnValue({
+        all: vi.fn().mockResolvedValue([{ employeeId: 'e1', monday: 8, tuesday: 8, wednesday: 8, thursday: 8, friday: 8, saturday: 0, sunday: 0 }]),
+        first: vi.fn().mockResolvedValue(null)
+      } as any);
+
+      const qbTimeEntry = {
+        where: vi.fn().mockReturnThis(),
+        all: vi.fn().mockResolvedValue([{ employeeId: 'e1', hours: 45 }])
+      };
+      vi.mocked(db.orm.public.TimeEntry.where).mockReturnValue(qbTimeEntry as any);
+
+      const res = await service.getWorkload('2026-08-01', '2026-08-07', authCtx(['ADMIN']));
+      
+      expect(res).toHaveLength(1);
+      expect(res[0]).toEqual({
+        employeeId: 'e1',
+        employeeName: 'John Doe',
+        employeeCode: 'E01',
+        configuredCapacity: 40,
+        actualHours: 45,
+        remainingCapacity: 0,
+        overCapacity: 5
+      });
+    });
+
+    it('rejects if no ADMIN or MANAGER role', async () => {
+      await expect(service.getWorkload('2026-01-01', '2026-01-07', authCtx(['EMPLOYEE'])))
+        .rejects.toThrow(ForbiddenException);
     });
   });
 

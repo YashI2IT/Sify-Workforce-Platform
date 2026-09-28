@@ -256,7 +256,7 @@ export const OrganizationSettings = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-200/80">
         <div className="space-y-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
               Organization Settings
             </h1>
           </div>
@@ -416,3 +416,4 @@ export const OrganizationSettings = () => {
     </div>
   );
 };
+

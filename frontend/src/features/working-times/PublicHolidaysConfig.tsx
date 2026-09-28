@@ -39,7 +39,7 @@ export const PublicHolidaysConfig = () => {
     try {
       const payload = {
         name: formData.name,
-        date: new Date(formData.date).toISOString(),
+        date: formData.date,
         isActive: formData.isActive
       };
 
@@ -87,7 +87,7 @@ export const PublicHolidaysConfig = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
               <Calendar className="w-6 h-6 text-emerald-500" />
               Public Holidays
             </h1>
@@ -126,7 +126,7 @@ export const PublicHolidaysConfig = () => {
         {isLoading ? (
           <div className="text-center py-12 text-slate-500">Loading...</div>
         ) : (
-          <div className="bg-white border border-slate-200/60 shadow-xs rounded-2xl overflow-hidden">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200/80">
@@ -257,3 +257,4 @@ export const PublicHolidaysConfig = () => {
     </div>
   );
 };
+

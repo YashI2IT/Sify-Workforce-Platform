@@ -109,7 +109,7 @@ export const EmployeeSummary = () => {
               </div>
               <div className="my-2.5">
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                  <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                     {totalHrs}
                   </span>
                   <span className="text-xs text-slate-400 font-mono font-medium">hrs</span>
@@ -131,7 +131,7 @@ export const EmployeeSummary = () => {
               </div>
               <div className="my-2.5">
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                  <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                     {data.dailyTotals?.length || 0}
                   </span>
                   <span className="text-xs text-slate-400 font-mono font-medium">days</span>
@@ -156,7 +156,7 @@ export const EmployeeSummary = () => {
               </div>
               <div className="my-2.5">
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                  <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                     {data.projectBreakdown?.length || 0}
                   </span>
                   <span className="text-xs text-slate-400 font-mono font-medium">initiatives</span>
@@ -181,7 +181,7 @@ export const EmployeeSummary = () => {
               </div>
               <div className="my-2.5">
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                  <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                     {approvalRate}%
                   </span>
                   <span className="text-xs text-slate-400 font-mono font-medium">approved</span>
@@ -209,7 +209,7 @@ export const EmployeeSummary = () => {
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   <span className="text-xs font-bold font-mono text-emerald-800">Approved</span>
                 </div>
-                <p className="text-2xl font-extrabold font-mono text-emerald-700">{data.statusBreakdown?.APPROVED || 0}h</p>
+                <p className="text-2xl font-bold font-mono text-emerald-700">{data.statusBreakdown?.APPROVED || 0}h</p>
               </div>
 
               {/* Submitted */}
@@ -218,7 +218,7 @@ export const EmployeeSummary = () => {
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                   <span className="text-xs font-bold font-mono text-amber-800">Submitted</span>
                 </div>
-                <p className="text-2xl font-extrabold font-mono text-amber-700">{data.statusBreakdown?.SUBMITTED || 0}h</p>
+                <p className="text-2xl font-bold font-mono text-amber-700">{data.statusBreakdown?.SUBMITTED || 0}h</p>
               </div>
 
               {/* Draft */}
@@ -227,7 +227,7 @@ export const EmployeeSummary = () => {
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                   <span className="text-xs font-bold font-mono text-slate-700">Draft</span>
                 </div>
-                <p className="text-2xl font-extrabold font-mono text-slate-800">{data.statusBreakdown?.DRAFT || 0}h</p>
+                <p className="text-2xl font-bold font-mono text-slate-800">{data.statusBreakdown?.DRAFT || 0}h</p>
               </div>
 
               {/* Rejected */}
@@ -236,7 +236,7 @@ export const EmployeeSummary = () => {
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                   <span className="text-xs font-bold font-mono text-rose-800">Rejected</span>
                 </div>
-                <p className="text-2xl font-extrabold font-mono text-rose-700">{data.statusBreakdown?.REJECTED || 0}h</p>
+                <p className="text-2xl font-bold font-mono text-rose-700">{data.statusBreakdown?.REJECTED || 0}h</p>
               </div>
             </div>
           </div>
@@ -244,7 +244,7 @@ export const EmployeeSummary = () => {
           {/* Project Breakdown Ledger */}
           <div className="space-y-3.5">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900 font-display">Project Breakdown</h3>
+              <h3 className="text-base font-bold text-slate-900 ">Project Breakdown</h3>
               <span className="text-xs font-mono font-medium text-slate-500">
                 {data.projectBreakdown?.length || 0} initiatives
               </span>
@@ -305,3 +305,6 @@ export const EmployeeSummary = () => {
     </ReportLayout>
   );
 };
+
+
+

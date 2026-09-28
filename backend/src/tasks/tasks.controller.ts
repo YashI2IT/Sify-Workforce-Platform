@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Param, Body, BadRequestException 
 import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { TasksService } from './tasks.service.js';
 import { createTaskSchema, updateTaskSchema } from './dto/create-task.dto.js';
+import { createCommentSchema, updateCommentSchema } from './dto/task-comment.dto.js';
 import { GetAuthContext } from '../auth/auth-context.decorator.js';
 import type { AuthenticatedContext } from '../auth/authenticated-context.js';
 import { Roles } from '../auth/roles.decorator.js';
@@ -21,7 +22,7 @@ export class TasksController {
   }
 
   @Post('projects/:projectId/tasks')
-  @Roles('ADMIN')
+  // @Roles omitted to allow Admin, Manager, and Employee (Service handles fine-grained RBAC)
   @ApiOperation({ summary: 'Create a new task under a project' })
   @ApiParam({ name: 'projectId', description: 'Project UUID' })
   @ApiBody({
@@ -71,7 +72,7 @@ export class TasksController {
   }
 
   @Patch('tasks/:id')
-  @Roles('ADMIN')
+  // @Roles omitted to allow Admin, Manager, and Employee (Service handles fine-grained RBAC)
   @ApiOperation({ summary: 'Update an existing task' })
   @ApiParam({ name: 'id', description: 'Task UUID' })
   @ApiBody({
@@ -120,7 +121,7 @@ export class TasksController {
   }
 
   @Post('tasks/:id/dependencies')
-  @Roles('ADMIN')
+  // @Roles omitted to allow fine-grained service RBAC
   @ApiOperation({ summary: 'Create task dependency' })
   @ApiParam({ name: 'id', description: 'Predecessor Task UUID' })
   @ApiBody({ schema: { type: 'object', required: ['successorId'], properties: { successorId: { type: 'string' } } } })
@@ -130,7 +131,7 @@ export class TasksController {
   }
 
   @Delete('tasks/:id/dependencies/:successorId')
-  @Roles('ADMIN')
+  // @Roles omitted to allow fine-grained service RBAC
   @ApiOperation({ summary: 'Delete task dependency' })
   @ApiParam({ name: 'id', description: 'Predecessor Task UUID' })
   @ApiParam({ name: 'successorId', description: 'Successor Task UUID' })
@@ -140,5 +141,75 @@ export class TasksController {
     @GetAuthContext() auth: AuthenticatedContext
   ) {
     return this.tasksService.removeDependency(id, successorId, auth);
+  }
+
+  // --- Task Comments ---
+
+  @Get('projects/:projectId/tasks/:taskId/comments')
+  @ApiOperation({ summary: 'Get comments for a task' })
+  @ApiParam({ name: 'projectId', description: 'Project UUID' })
+  @ApiParam({ name: 'taskId', description: 'Task UUID' })
+  async getComments(
+    @Param('taskId') taskId: string,
+    @GetAuthContext() auth: AuthenticatedContext
+  ) {
+    return await this.tasksService.getComments(taskId, auth);
+  }
+
+  @Post('projects/:projectId/tasks/:taskId/comments')
+  @ApiOperation({ summary: 'Add a comment to a task' })
+  @ApiParam({ name: 'projectId', description: 'Project UUID' })
+  @ApiParam({ name: 'taskId', description: 'Task UUID' })
+  @ApiBody({ schema: { type: 'object', required: ['comment'], properties: { comment: { type: 'string' } } } })
+  async addComment(
+    @Param('taskId') taskId: string,
+    @Body() body: any,
+    @GetAuthContext() auth: AuthenticatedContext
+  ) {
+    try {
+      const validatedData = createCommentSchema.parse(body);
+      return await this.tasksService.addComment(taskId, validatedData.comment, auth);
+    } catch (error: any) {
+      if (error?.name === 'ZodError') {
+        throw new BadRequestException({ message: 'Validation failed', errors: error.errors });
+      }
+      throw error;
+    }
+  }
+
+  @Patch('projects/:projectId/tasks/:taskId/comments/:commentId')
+  @ApiOperation({ summary: 'Edit a task comment' })
+  @ApiParam({ name: 'projectId', description: 'Project UUID' })
+  @ApiParam({ name: 'taskId', description: 'Task UUID' })
+  @ApiParam({ name: 'commentId', description: 'Comment UUID' })
+  @ApiBody({ schema: { type: 'object', required: ['comment'], properties: { comment: { type: 'string' } } } })
+  async editComment(
+    @Param('taskId') taskId: string,
+    @Param('commentId') commentId: string,
+    @Body() body: any,
+    @GetAuthContext() auth: AuthenticatedContext
+  ) {
+    try {
+      const validatedData = updateCommentSchema.parse(body);
+      return await this.tasksService.editComment(taskId, commentId, validatedData.comment, auth);
+    } catch (error: any) {
+      if (error?.name === 'ZodError') {
+        throw new BadRequestException({ message: 'Validation failed', errors: error.errors });
+      }
+      throw error;
+    }
+  }
+
+  @Delete('projects/:projectId/tasks/:taskId/comments/:commentId')
+  @ApiOperation({ summary: 'Delete a task comment' })
+  @ApiParam({ name: 'projectId', description: 'Project UUID' })
+  @ApiParam({ name: 'taskId', description: 'Task UUID' })
+  @ApiParam({ name: 'commentId', description: 'Comment UUID' })
+  async deleteComment(
+    @Param('taskId') taskId: string,
+    @Param('commentId') commentId: string,
+    @GetAuthContext() auth: AuthenticatedContext
+  ) {
+    return await this.tasksService.deleteComment(taskId, commentId, auth);
   }
 }

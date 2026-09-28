@@ -42,7 +42,7 @@ const customBaseQuery = async (args: any) => {
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: customBaseQuery,
-  tagTypes: ['Organization', 'OrganizationSettings', 'Employee', 'Team', 'Project', 'Task', 'Activity', 'Requirement', 'ProjectEmployee', 'TimeEntry', 'Timesheet', 'Report', 'Milestone', 'TaskDependency', 'WorkingTime', 'PublicHoliday', 'UserPreference', 'AuditLog'],
+  tagTypes: ['Organization', 'OrganizationSettings', 'Employee', 'Team', 'Project', 'Task', 'TaskComment', 'TaskTemplate', 'Activity', 'Requirement', 'ProjectEmployee', 'TimeEntry', 'Timesheet', 'Report', 'Milestone', 'TaskDependency', 'WorkingTime', 'PublicHoliday', 'UserPreference', 'AuditLog', 'Notification'],
   endpoints: (builder) => ({
     // ==========================================
     // EMPLOYEES
@@ -111,16 +111,8 @@ export const apiSlice = createApi({
       query: (params) => ({ url: '/audit-logs', params }),
       providesTags: ['AuditLog'],
     }),
-    getAvailableOrganizations: builder.query<Array<{ id: string; name: string; organizationType: string }>, void>({
-      query: () => '/organizations/available',
-      providesTags: ['Organization'],
-    }),
     createOrganization: builder.mutation<any, { name: string; organizationType: string; description?: string }>({
       query: (body) => ({ url: '/organizations', method: 'POST', body }),
-      invalidatesTags: ['Organization', 'Employee'],
-    }),
-    joinOrganization: builder.mutation<any, string>({
-      query: (id) => ({ url: `/organizations/${id}/join`, method: 'POST' }),
       invalidatesTags: ['Organization', 'Employee'],
     }),
     getMyInvitations: builder.query<any[], void>({
@@ -174,6 +166,10 @@ export const apiSlice = createApi({
       query: (id) => `/projects/${id}`,
       providesTags: (_result, _error, id) => [{ type: 'Project', id }],
     }),
+    getProjectHealth: builder.query<any, string>({
+      query: (id) => `/projects/${id}/health`,
+      providesTags: (_result, _error, id) => [{ type: 'Project', id }, { type: 'Task', id }, { type: 'TimeEntry', id }],
+    }),
     createProject: builder.mutation<any, any>({
       query: (body) => ({ url: '/projects', method: 'POST', body }),
       invalidatesTags: ['Project'],
@@ -197,6 +193,25 @@ export const apiSlice = createApi({
     createProjectTask: builder.mutation<any, { projectId: string; data: any }>({
       query: ({ projectId, data }) => ({ url: `/projects/${projectId}/tasks`, method: 'POST', body: data }),
       invalidatesTags: (_result, _error, { projectId }) => [{ type: 'Task', id: projectId }],
+    }),
+    getProjectTaskTemplates: builder.query<any, string>({
+      query: (projectId) => `/projects/${projectId}/task-templates`,
+      providesTags: (_result, _error, projectId) => [{ type: 'TaskTemplate', id: projectId }],
+    }),
+    createTaskTemplate: builder.mutation<any, { projectId: string; data: any }>({
+      query: ({ projectId, data }) => ({
+        url: `/projects/${projectId}/task-templates`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: (_result, _error, { projectId }) => [{ type: 'TaskTemplate', id: projectId }],
+    }),
+    deleteTaskTemplate: builder.mutation<any, { projectId: string; templateId: string }>({
+      query: ({ projectId, templateId }) => ({
+        url: `/projects/${projectId}/task-templates/${templateId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, { projectId }) => [{ type: 'TaskTemplate', id: projectId }],
     }),
     updateProjectTask: builder.mutation<any, { projectId: string; taskId: string; data: any }>({
       // Backend exposes PATCH /tasks/:id (not nested under project)
@@ -238,6 +253,35 @@ export const apiSlice = createApi({
         { type: 'TaskDependency', id: taskId },
         { type: 'Task', id: projectId },
       ],
+    }),
+
+    // --- Task Comments ---
+    getTaskComments: builder.query<any, { projectId: string; taskId: string }>({
+      query: ({ projectId, taskId }) => `/projects/${projectId}/tasks/${taskId}/comments`,
+      providesTags: (_result, _error, { taskId }) => [{ type: 'TaskComment', id: taskId }],
+    }),
+    createTaskComment: builder.mutation<any, { projectId: string; taskId: string; comment: string }>({
+      query: ({ projectId, taskId, comment }) => ({
+        url: `/projects/${projectId}/tasks/${taskId}/comments`,
+        method: 'POST',
+        body: { comment },
+      }),
+      invalidatesTags: (_result, _error, { taskId }) => [{ type: 'TaskComment', id: taskId }],
+    }),
+    updateTaskComment: builder.mutation<any, { projectId: string; taskId: string; commentId: string; comment: string }>({
+      query: ({ projectId, taskId, commentId, comment }) => ({
+        url: `/projects/${projectId}/tasks/${taskId}/comments/${commentId}`,
+        method: 'PATCH',
+        body: { comment },
+      }),
+      invalidatesTags: (_result, _error, { taskId }) => [{ type: 'TaskComment', id: taskId }],
+    }),
+    deleteTaskComment: builder.mutation<any, { projectId: string; taskId: string; commentId: string }>({
+      query: ({ projectId, taskId, commentId }) => ({
+        url: `/projects/${projectId}/tasks/${taskId}/comments/${commentId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, { taskId }) => [{ type: 'TaskComment', id: taskId }],
     }),
 
     // ==========================================
@@ -392,6 +436,10 @@ export const apiSlice = createApi({
       query: (params) => ({ url: '/reports/manager-dashboard', params }),
       providesTags: ['Report'],
     }),
+    getWorkloadReport: builder.query<any, { startDate: string; endDate: string }>({
+      query: (params) => ({ url: '/reports/workload', params }),
+      providesTags: ['Report', 'WorkingTime', 'TimeEntry'],
+    }),
     getTeamUtilizationReport: builder.query<any, { startDate: string; endDate: string; teamId?: string }>({
       query: (params) => ({ url: '/reports/team-utilization', params }),
       providesTags: ['Report'],
@@ -476,6 +524,28 @@ export const apiSlice = createApi({
       query: (data) => ({ url: '/user-preferences', method: 'PUT', body: data }),
       invalidatesTags: ['UserPreference'],
     }),
+
+    // ==========================================
+    // NOTIFICATIONS
+    // ==========================================
+    getMyNotifications: builder.query<any[], void>({
+      query: () => '/notifications',
+      providesTags: ['Notification'],
+    }),
+    markNotificationAsRead: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/notifications/${id}/read`,
+        method: 'PATCH',
+      }),
+      invalidatesTags: ['Notification'],
+    }),
+    markAllNotificationsAsRead: builder.mutation<void, void>({
+      query: () => ({
+        url: '/notifications/mark-all-read',
+        method: 'PATCH',
+      }),
+      invalidatesTags: ['Notification'],
+    }),
   }),
 });
 
@@ -497,6 +567,7 @@ export const {
 
   useGetProjectsQuery,
   useGetProjectDetailsQuery,
+  useGetProjectHealthQuery,
   useCreateProjectMutation,
   useUpdateProjectMutation,
 
@@ -507,10 +578,19 @@ export const {
   useGetProjectTasksQuery,
   useGetTaskByIdQuery,
   useCreateProjectTaskMutation,
+  useGetProjectTaskTemplatesQuery,
+  useCreateTaskTemplateMutation,
+  useDeleteTaskTemplateMutation,
   useUpdateProjectTaskMutation,
   useGetTaskDependenciesQuery,
   useCreateTaskDependencyMutation,
   useDeleteTaskDependencyMutation,
+
+  // Task Comments
+  useGetTaskCommentsQuery,
+  useCreateTaskCommentMutation,
+  useUpdateTaskCommentMutation,
+  useDeleteTaskCommentMutation,
 
   useGetProjectActivitiesQuery,
   useCreateProjectActivityMutation,
@@ -546,6 +626,7 @@ export const {
   // Reports
   useGetEmployeeSummaryReportQuery,
   useGetManagerDashboardReportQuery,
+  useGetWorkloadReportQuery,
   useGetTeamUtilizationReportQuery,
   useGetProjectHoursReportQuery,
   useGetProjectAnalysisReportQuery,
@@ -575,13 +656,16 @@ export const {
   useUpdateCurrentOrganizationMutation,
   useGetOrganizationSetupStatusQuery,
   useCompleteOrganizationSetupMutation,
-  useGetAvailableOrganizationsQuery,
   useCreateOrganizationMutation,
-  useJoinOrganizationMutation,
   useGetMyInvitationsQuery,
   useAcceptInvitationMutation,
   useDeclineInvitationMutation,
   useGetOrganizationSettingsQuery,
   useUpdateOrganizationSettingsMutation,
   useGetAuditLogsQuery,
+
+  // Notifications
+  useGetMyNotificationsQuery,
+  useMarkNotificationAsReadMutation,
+  useMarkAllNotificationsAsReadMutation,
 } = apiSlice;

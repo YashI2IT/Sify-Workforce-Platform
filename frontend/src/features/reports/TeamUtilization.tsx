@@ -68,7 +68,7 @@ export const TeamUtilization = () => {
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-slate-900 font-display">Member Utilization Breakdown</h3>
+              <h3 className="text-base font-bold text-slate-900 ">Member Utilization Breakdown</h3>
               <p className="text-xs text-slate-500 font-mono mt-0.5">Aggregated weekly allocations across reporting personnel</p>
             </div>
             <div className="flex items-center gap-2 bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full text-xs font-mono font-semibold border border-slate-200/80 shadow-2xs">
@@ -106,7 +106,7 @@ export const TeamUtilization = () => {
                               <div className="w-8 h-8 rounded-xl bg-slate-950 text-white font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-slate-800 shadow-2xs">
                                 {getInitials(member.name)}
                               </div>
-                              <span className="font-semibold text-slate-900 text-xs sm:text-sm font-display">{member.name}</span>
+                              <span className="font-semibold text-slate-900 text-xs sm:text-sm ">{member.name}</span>
                             </div>
                           </td>
                           <td className="px-5 py-4 text-slate-500 font-mono text-xs">
@@ -124,7 +124,7 @@ export const TeamUtilization = () => {
                             {other > 0 ? `${other}h` : '—'}
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <span className="inline-flex items-center font-mono font-extrabold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/80 text-xs shadow-2xs">
+                            <span className="inline-flex items-center font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/80 text-xs shadow-2xs">
                               {totalHoursLogged}h
                             </span>
                           </td>
@@ -141,3 +141,6 @@ export const TeamUtilization = () => {
     </ReportLayout>
   );
 };
+
+
+

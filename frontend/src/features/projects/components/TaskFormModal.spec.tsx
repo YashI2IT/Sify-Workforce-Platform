@@ -41,7 +41,7 @@ describe('TaskFormModal', () => {
     render(<TaskFormModal {...defaultProps} />);
     // Use section titles which are unique in the modal
     expect(screen.getByText('Basic Information')).toBeDefined();
-    expect(screen.getByText('Status & Priority')).toBeDefined();
+    expect(screen.getByText('Status, Priority & Recurrence')).toBeDefined();
     expect(screen.getByText('Assignment')).toBeDefined();
     expect(screen.getByText('Planning')).toBeDefined();
     // Submit button via ID
@@ -120,5 +120,32 @@ describe('TaskFormModal', () => {
     render(<TaskFormModal {...defaultProps} />);
     const submitBtn = document.querySelector('button[type="submit"]') as HTMLElement;
     expect(submitBtn?.textContent?.trim()).toBe('Create Task');
+  });
+
+  it('renders template mode correctly', () => {
+    render(<TaskFormModal {...defaultProps} isTemplateMode={true} />);
+    expect(screen.getByText('Create Task Template')).toBeDefined();
+    expect(screen.getByText('Template Name *')).toBeDefined();
+    expect(screen.getByText('Task Name *')).toBeDefined();
+    // Should not render Status or Start Date or Parent Task
+    expect(screen.queryByText('Status, Priority & Recurrence')).toBeNull();
+    expect(screen.getByText('Priority & Recurrence')).toBeDefined();
+    expect(screen.queryByText('Start Date')).toBeNull();
+    expect(screen.queryByText('Hierarchy')).toBeNull();
+  });
+
+  it('populates from initialData when creating task from template', () => {
+    const initialData = {
+      name: 'Test Task',
+      description: 'Desc',
+      priority: 'HIGH',
+      estimatedHours: 4,
+      recurrence: 'WEEKLY',
+      assigneeId: 'emp-1'
+    };
+    render(<TaskFormModal {...defaultProps} initialData={initialData} />);
+    expect(screen.getByDisplayValue('Test Task')).toBeDefined();
+    expect(screen.getByDisplayValue('Desc')).toBeDefined();
+    expect(screen.getByDisplayValue('4')).toBeDefined();
   });
 });

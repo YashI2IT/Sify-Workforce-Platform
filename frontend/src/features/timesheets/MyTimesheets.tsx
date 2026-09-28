@@ -83,12 +83,9 @@ export const MyTimesheets = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-slate-950 text-white shadow-xs border border-slate-800 flex items-center justify-center shrink-0">
-              <CalendarDays className="w-5 h-5 text-white" />
-            </div>
             <div>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
                   My Timesheets
                 </h1>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
@@ -124,7 +121,7 @@ export const MyTimesheets = () => {
       {/* Executive Telemetry Row (4 Cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Timesheet Cycles */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Recorded Cycles
@@ -133,7 +130,7 @@ export const MyTimesheets = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                 {loading ? '—' : timesheets.length}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">weeks</span>
@@ -146,7 +143,7 @@ export const MyTimesheets = () => {
         </div>
 
         {/* Card 2: Approved Timesheets */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Approved Cycles
@@ -155,7 +152,7 @@ export const MyTimesheets = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                 {loading ? '—' : approvedCount}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">({approvedRate}%)</span>
@@ -171,7 +168,7 @@ export const MyTimesheets = () => {
         </div>
 
         {/* Card 3: Pending Review */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Pending Review
@@ -180,7 +177,7 @@ export const MyTimesheets = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                 {loading ? '—' : submittedCount}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">submitted</span>
@@ -196,7 +193,7 @@ export const MyTimesheets = () => {
         </div>
 
         {/* Card 4: Draft / Open */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Draft & Open
@@ -211,7 +208,7 @@ export const MyTimesheets = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-extrabold text-slate-950 tracking-tight font-display">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
                 {loading ? '—' : draftCount}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">draft cycles</span>
@@ -255,7 +252,7 @@ export const MyTimesheets = () => {
               <circle cx="88" cy="34" r="10" fill="#0F172A" />
               <path d="M84 34H92M88 30V38" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
             </svg>
-            <p className="text-base font-bold text-slate-900 font-display">No timesheets recorded yet</p>
+            <p className="text-base font-bold text-slate-900 ">No timesheets recorded yet</p>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-sm mx-auto">
               Timesheets are automatically created when you record your daily project work hours.
             </p>
@@ -281,7 +278,7 @@ export const MyTimesheets = () => {
                 {timesheets.map(ts => (
                   <tr key={ts.id} className="hover:bg-slate-50/70 transition-colors duration-150">
                     <td className="px-6 py-4">
-                      <div className="font-bold text-slate-900 text-sm font-display">
+                      <div className="font-bold text-slate-900 text-sm ">
                         {formatWeekRange(ts.startDate)}
                       </div>
                       <div className="text-xs text-slate-400 font-mono mt-0.5">
@@ -317,3 +314,6 @@ export const MyTimesheets = () => {
     </div>
   );
 };
+
+
+

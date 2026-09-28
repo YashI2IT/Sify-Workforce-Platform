@@ -12,6 +12,10 @@ vi.mock('../prisma/db.js', () => {
     first: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    aggregate: vi.fn(),
+    orderBy: vi.fn(() => mEmp),
+    limit: vi.fn(() => mEmp),
+    offset: vi.fn(() => mEmp),
   };
   const mOrg = {
     where: vi.fn(() => mOrg),
@@ -219,10 +223,20 @@ describe('EmployeesService', () => {
       vi.mocked(db.orm.public.Employee.where).mockReturnValueOnce({
         first: vi.fn().mockResolvedValue({ id: 'e1', organizationId: 'org-1' })
       } as any).mockReturnValueOnce({
-        first: vi.fn().mockResolvedValue({ id: 'e-dup' })
+        first: vi.fn().mockResolvedValue({ id: 'e-dup', organizationId: 'org-1' })
       } as any);
 
       await expect(service.update('e1', { ...updateDto, email: '2@a.com' }, 'org-1')).rejects.toThrow(ConflictException);
+    });
+
+    it('rejects email update if email exists in another organization', async () => {
+      vi.mocked(db.orm.public.Employee.where).mockReturnValueOnce({
+        first: vi.fn().mockResolvedValue({ id: 'e1', organizationId: 'org-1', email: '1@a.com' })
+      } as any).mockReturnValueOnce({
+        first: vi.fn().mockResolvedValue({ id: 'e-dup', organizationId: 'org-2', email: '2@a.com' })
+      } as any);
+
+      await expect(service.update('e1', { email: '2@a.com' }, 'org-1', 'admin')).rejects.toThrow('already assigned to another organization');
     });
     it('prevents self-role escalation', async () => {
       vi.mocked(db.orm.public.Employee.where).mockReturnValue({
@@ -236,6 +250,18 @@ describe('EmployeesService', () => {
       } as any);
 
       await expect(service.update('emp1', { role: 'ADMIN' }, 'org1', 'emp1')).rejects.toThrow(ForbiddenException);
+    });
+
+    it('prevents self-deactivation', async () => {
+      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({
+          id: 'emp1',
+          organizationId: 'org1',
+          isActive: true,
+        })
+      } as any);
+
+      await expect(service.update('emp1', { isActive: false }, 'org1', 'emp1')).rejects.toThrow(ForbiddenException);
     });
 
     it('allows ADMIN to change another employees role', async () => {
@@ -262,16 +288,19 @@ describe('EmployeesService', () => {
 
     it('findAll returns all employees for ADMIN', async () => {
       const employees = [{ id: 'e1', name: 'User 1' }];
-      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
-        orderBy: vi.fn(() => ({
-          limit: vi.fn(() => ({
-            offset: vi.fn(() => ({
-              all: vi.fn().mockResolvedValue(employees)
+      vi.mocked(db.orm.public.Employee.where)
+        .mockReturnValueOnce({
+          orderBy: vi.fn(() => ({
+            limit: vi.fn(() => ({
+              offset: vi.fn(() => ({
+                all: vi.fn().mockResolvedValue(employees)
+              }))
             }))
           }))
-        })),
-        all: vi.fn().mockResolvedValue(employees)
-      } as any);
+        } as any)
+        .mockReturnValueOnce({
+          aggregate: vi.fn(() => Promise.resolve({ count: 1 }))
+        } as any);
       vi.mocked(db.orm.public.Team.where).mockReturnValue({
         select: vi.fn(() => ({
           all: vi.fn().mockResolvedValue([])

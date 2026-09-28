@@ -20,7 +20,9 @@ describe('ReportsController', () => {
             getManagerDashboard: vi.fn().mockResolvedValue({}),
             getTeamUtilization: vi.fn().mockResolvedValue({}),
             getProjectHours: vi.fn().mockResolvedValue({}),
-            getProjectAnalysis: vi.fn().mockResolvedValue({})
+            getProjectAnalysis: vi.fn().mockResolvedValue({}),
+            getWorkload: vi.fn().mockResolvedValue([]),
+            getAdminDashboard: vi.fn().mockResolvedValue({})
           }
         }
       ],
@@ -97,6 +99,23 @@ describe('ReportsController', () => {
   it('Admin organization-wide access when targetEmployeeId is omitted', async () => {
     await controller.getEmployeeSummary({}, authCtx(['ADMIN']));
     expect(service.getEmployeeSummary).toHaveBeenCalledWith(undefined, expect.any(String), expect.any(String), expect.any(Object));
+  });
+
+  describe('Admin Dashboard Endpoint', () => {
+    it('allows ADMIN role', async () => {
+      await controller.getAdminDashboard(authCtx(['ADMIN']));
+      expect(service.getAdminDashboard).toHaveBeenCalled();
+    });
+
+    it('rejects MANAGER role', async () => {
+      await expect(controller.getAdminDashboard(authCtx(['MANAGER'])))
+        .rejects.toThrow(ForbiddenException);
+    });
+
+    it('rejects EMPLOYEE role', async () => {
+      await expect(controller.getAdminDashboard(authCtx(['EMPLOYEE'])))
+        .rejects.toThrow(ForbiddenException);
+    });
   });
   
   describe('Manager Dashboard Endpoint', () => {
@@ -185,6 +204,21 @@ describe('ReportsController', () => {
     it('validates project ID', async () => {
       await expect(controller.getProjectHours({ projectId: 'invalid' }, authCtx(['ADMIN'])))
         .rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('Workload Endpoint', () => {
+    it('validates dates are required and valid', async () => {
+      await expect(controller.getWorkload({}, authCtx(['MANAGER'])))
+        .rejects.toThrow(BadRequestException);
+      
+      await expect(controller.getWorkload({ startDate: '2026-08-01', endDate: 'invalid' }, authCtx(['MANAGER'])))
+        .rejects.toThrow(BadRequestException);
+    });
+
+    it('allows MANAGER role and passes data to service', async () => {
+      await controller.getWorkload({ startDate: '2026-08-01', endDate: '2026-08-07' }, authCtx(['MANAGER']));
+      expect(service.getWorkload).toHaveBeenCalledWith('2026-08-01', '2026-08-07', expect.any(Object));
     });
   });
 

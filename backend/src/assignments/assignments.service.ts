@@ -6,13 +6,30 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 @Injectable()
 export class AssignmentsService {
   constructor(private auditLogsService: AuditLogsService) {}
+
+  private async validateManagerAccess(employeeId: string, auth: AuthenticatedContext) {
+    if (auth.roles.includes('ADMIN')) return;
+    if (employeeId === auth.employeeId) return; // Can self-assign if permitted
+    
+    const employee = await db.orm.public.Employee.where({ id: employeeId, organizationId: auth.organizationId }).first();
+    if (!employee) throw new NotFoundException('Employee not found');
+    
+    if (employee.teamId) {
+      const team = await db.orm.public.Team.where({ id: employee.teamId, organizationId: auth.organizationId }).first();
+      if (team && team.managerId === auth.employeeId) {
+        return; // Authorized
+      }
+    }
+    throw new ForbiddenException('You can only assign or remove employees from teams you manage');
+  }
+
   async assignEmployeeToProject(projectId: string, employeeId: string, auth: AuthenticatedContext) {
     const project = await db.orm.public.Project.where({ id: projectId, organizationId: auth.organizationId }).first();
     if (!project) {
       throw new NotFoundException('Project not found');
     }
-    if (!project.isActive) {
-      throw new BadRequestException('Project is inactive');
+    if (!project.isActive || project.status === 'COMPLETED' || project.status === 'ON_HOLD') {
+      throw new BadRequestException('Project is inactive or completed/on-hold');
     }
 
     const settings = await db.orm.public.OrganizationSettings.where({ organizationId: auth.organizationId }).first();
@@ -20,6 +37,8 @@ export class AssignmentsService {
     if (!auth.roles.includes('ADMIN') && !auth.roles.includes(requiredRole)) {
       throw new ForbiddenException(`You must be a ${requiredRole} or ADMIN to assign employees to projects`);
     }
+
+    await this.validateManagerAccess(employeeId, auth);
 
     const employee = await db.orm.public.Employee.where({ id: employeeId, organizationId: auth.organizationId }).first();
     if (!employee) {
@@ -61,12 +80,17 @@ export class AssignmentsService {
     if (!project) {
       throw new NotFoundException('Project not found');
     }
+    if (!project.isActive || project.status === 'COMPLETED' || project.status === 'ON_HOLD') {
+      throw new BadRequestException('Project is inactive or completed/on-hold');
+    }
 
     const settings = await db.orm.public.OrganizationSettings.where({ organizationId: auth.organizationId }).first();
     const requiredRole = settings?.projectAssignmentPermission || 'MANAGER';
     if (!auth.roles.includes('ADMIN') && !auth.roles.includes(requiredRole)) {
       throw new ForbiddenException(`You must be a ${requiredRole} or ADMIN to remove employees from projects`);
     }
+
+    await this.validateManagerAccess(employeeId, auth);
 
     const existingAssignment = await db.orm.public.EmployeeProject.where({
       projectId,

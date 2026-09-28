@@ -207,7 +207,10 @@ export const ProjectTasksTimeline = ({
                 )}
                 
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
-                  <div className="text-xs font-semibold text-slate-800 truncate" title={t.name}>{t.name}</div>
+                  <div className="text-xs font-semibold text-slate-800 truncate" title={t.name}>
+                    <span className="text-slate-400 font-mono mr-1.5 font-normal text-xs">{t.ticketId}</span>
+                    {t.name}
+                  </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className={`px-1 rounded text-[8px] font-bold font-mono ${statusColors[t.status] || 'bg-slate-100 text-slate-600'}`}>
                       {t.status.replace('_', ' ')}
@@ -385,6 +388,7 @@ export const ProjectTasksTimeline = ({
                       onClick={() => onViewDetail(t)}
                     >
                       <span className="text-[10px] font-semibold text-white truncate drop-shadow-xs">
+                        <span className="text-white/70 font-mono mr-1.5 font-normal text-xs">{t.ticketId}</span>
                         {t.name}
                       </span>
                       {isOverdue && <AlertCircle className="w-3 h-3 text-white absolute -right-4 text-rose-500" />}

@@ -5,15 +5,16 @@ import {
 } from '../../store/apiSlice';
 import { 
   Settings, 
-
   Clock, 
   Bell,
-  X
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { Select } from '../../components/ui/Select';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 
 export const UserPreferences = () => {
-  const { data: preferences, isLoading } = useGetMyPreferencesQuery();
+  const { data: preferences, isLoading, error: prefError } = useGetMyPreferencesQuery();
   const [updatePreferences, { isLoading: isSaving }] = useUpdateMyPreferencesMutation();
 
   const [formData, setFormData] = useState({
@@ -88,7 +89,26 @@ export const UserPreferences = () => {
   };
 
   if (isLoading) {
-    return <div className="p-8 text-center text-slate-500">Loading preferences...</div>;
+    return (
+      <div className="flex-1 p-8 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <LoadingSpinner size="md" />
+          <p className="text-xs font-mono text-slate-500">Loading preferences...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (prefError) {
+    return (
+      <div className="flex-1 p-8 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <AlertCircle className="w-10 h-10 text-rose-400 mx-auto" />
+          <p className="font-semibold text-slate-800">Failed to load preferences</p>
+          <p className="text-sm text-rose-600">Please refresh the page to try again.</p>
+        </div>
+      </div>
+    );
   }
 
   return (

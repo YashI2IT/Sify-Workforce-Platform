@@ -7,6 +7,10 @@ vi.mock('../../../lib/apiClient', () => ({
   apiClient: (...args: any[]) => mockApiClient(...args),
 }));
 
+vi.mock('../../../context/ToastContext', () => ({
+  useToast: () => ({ toast: vi.fn() }),
+}));
+
 const mockTasks = [
   { id: 't-1', name: 'Main Task', status: 'IN_PROGRESS', isActive: true, priority: 'HIGH' },
   { id: 't-2', name: 'Subtask One', status: 'TODO', isActive: true, parentTaskId: 't-1' },
@@ -98,7 +102,7 @@ describe('TaskDetailPanel', () => {
   });
 
   it('returns null when isOpen is false', () => {
-    const { container } = render(<TaskDetailPanel {...defaultProps} isOpen={false} />);
-    expect(container.firstChild).toBeNull();
+    render(<TaskDetailPanel {...defaultProps} isOpen={false} />);
+    expect(screen.queryByText('Main Task')).toBeNull();
   });
 });

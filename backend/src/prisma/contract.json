@@ -28,6 +28,10 @@
       "model": "Milestone",
       "namespace": "public"
     },
+    "notification": {
+      "model": "Notification",
+      "namespace": "public"
+    },
     "organization": {
       "model": "Organization",
       "namespace": "public"
@@ -52,8 +56,16 @@
       "model": "Task",
       "namespace": "public"
     },
+    "task_comment": {
+      "model": "TaskComment",
+      "namespace": "public"
+    },
     "task_dependency": {
       "model": "TaskDependency",
+      "namespace": "public"
+    },
+    "task_template": {
+      "model": "TaskTemplate",
       "namespace": "public"
     },
     "team": {
@@ -415,6 +427,21 @@
                   "namespace": "public"
                 }
               },
+              "assignedTemplates": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "assigneeId"
+                  ]
+                },
+                "to": {
+                  "model": "TaskTemplate",
+                  "namespace": "public"
+                }
+              },
               "auditLogs": {
                 "cardinality": "1:N",
                 "on": {
@@ -445,6 +472,21 @@
                   "namespace": "public"
                 }
               },
+              "createdTemplates": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "creatorId"
+                  ]
+                },
+                "to": {
+                  "model": "TaskTemplate",
+                  "namespace": "public"
+                }
+              },
               "managedTeams": {
                 "cardinality": "1:N",
                 "on": {
@@ -457,6 +499,21 @@
                 },
                 "to": {
                   "model": "Team",
+                  "namespace": "public"
+                }
+              },
+              "notifications": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "recipientId"
+                  ]
+                },
+                "to": {
+                  "model": "Notification",
                   "namespace": "public"
                 }
               },
@@ -502,6 +559,21 @@
                 },
                 "to": {
                   "model": "EmployeeProject",
+                  "namespace": "public"
+                }
+              },
+              "taskComments": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "authorId"
+                  ]
+                },
+                "to": {
+                  "model": "TaskComment",
                   "namespace": "public"
                 }
               },
@@ -962,6 +1034,143 @@
               "table": "milestone"
             }
           },
+          "Notification": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "isRead": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "message": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "readAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              },
+              "recipientId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "relatedEntityId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "relatedEntityType": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "type": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "recipient": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "recipientId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "isRead": {
+                  "column": "isRead"
+                },
+                "message": {
+                  "column": "message"
+                },
+                "readAt": {
+                  "column": "readAt"
+                },
+                "recipientId": {
+                  "column": "recipientId"
+                },
+                "relatedEntityId": {
+                  "column": "relatedEntityId"
+                },
+                "relatedEntityType": {
+                  "column": "relatedEntityType"
+                },
+                "title": {
+                  "column": "title"
+                },
+                "type": {
+                  "column": "type"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "notification"
+            }
+          },
           "Organization": {
             "fields": {
               "createdAt": {
@@ -1368,6 +1577,13 @@
                   "kind": "scalar"
                 }
               },
+              "taskSequence": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "updatedAt": {
                 "nullable": false,
                 "type": {
@@ -1452,6 +1668,21 @@
                   "namespace": "public"
                 }
               },
+              "taskTemplates": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "projectId"
+                  ]
+                },
+                "to": {
+                  "model": "TaskTemplate",
+                  "namespace": "public"
+                }
+              },
               "tasks": {
                 "cardinality": "1:N",
                 "on": {
@@ -1514,6 +1745,9 @@
                 },
                 "status": {
                   "column": "status"
+                },
+                "taskSequence": {
+                  "column": "taskSequence"
                 },
                 "updatedAt": {
                   "column": "updatedAt"
@@ -1814,6 +2048,13 @@
                   "kind": "scalar"
                 }
               },
+              "nextOccurrenceId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "parentTaskId": {
                 "nullable": true,
                 "type": {
@@ -1835,6 +2076,13 @@
                   "kind": "scalar"
                 }
               },
+              "recurrence": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "requirementId": {
                 "nullable": true,
                 "type": {
@@ -1850,6 +2098,13 @@
                 }
               },
               "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "ticketId": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
@@ -1877,6 +2132,21 @@
                 },
                 "to": {
                   "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "comments": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "taskId"
+                  ]
+                },
+                "to": {
+                  "model": "TaskComment",
                   "namespace": "public"
                 }
               },
@@ -1910,6 +2180,21 @@
                   "namespace": "public"
                 }
               },
+              "nextOccurrence": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "nextOccurrenceId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Task",
+                  "namespace": "public"
+                }
+              },
               "parentTask": {
                 "cardinality": "N:1",
                 "on": {
@@ -1937,6 +2222,21 @@
                 },
                 "to": {
                   "model": "TaskDependency",
+                  "namespace": "public"
+                }
+              },
+              "previousOccurrence": {
+                "cardinality": "1:1",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "nextOccurrenceId"
+                  ]
+                },
+                "to": {
+                  "model": "Task",
                   "namespace": "public"
                 }
               },
@@ -2048,6 +2348,9 @@
                 "name": {
                   "column": "name"
                 },
+                "nextOccurrenceId": {
+                  "column": "nextOccurrenceId"
+                },
                 "parentTaskId": {
                   "column": "parentTaskId"
                 },
@@ -2056,6 +2359,9 @@
                 },
                 "projectId": {
                   "column": "projectId"
+                },
+                "recurrence": {
+                  "column": "recurrence"
                 },
                 "requirementId": {
                   "column": "requirementId"
@@ -2066,12 +2372,117 @@
                 "status": {
                   "column": "status"
                 },
+                "ticketId": {
+                  "column": "ticketId"
+                },
                 "updatedAt": {
                   "column": "updatedAt"
                 }
               },
               "namespaceId": "public",
               "table": "task"
+            }
+          },
+          "TaskComment": {
+            "fields": {
+              "authorId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "comment": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "taskId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "author": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "authorId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "task": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "taskId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Task",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "authorId": {
+                  "column": "authorId"
+                },
+                "comment": {
+                  "column": "comment"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "taskId": {
+                  "column": "taskId"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "task_comment"
             }
           },
           "TaskDependency": {
@@ -2164,6 +2575,193 @@
               },
               "namespaceId": "public",
               "table": "task_dependency"
+            }
+          },
+          "TaskTemplate": {
+            "fields": {
+              "assigneeId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              },
+              "creatorId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "estimatedHours": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "isActive": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "priority": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "projectId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "recurrence": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "taskName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "assignee": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "assigneeId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "creator": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "creatorId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "project": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "projectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Project",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "assigneeId": {
+                  "column": "assigneeId"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "creatorId": {
+                  "column": "creatorId"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "estimatedHours": {
+                  "column": "estimatedHours"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "isActive": {
+                  "column": "isActive"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "priority": {
+                  "column": "priority"
+                },
+                "projectId": {
+                  "column": "projectId"
+                },
+                "recurrence": {
+                  "column": "recurrence"
+                },
+                "taskName": {
+                  "column": "taskName"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "task_template"
             }
           },
           "Team": {
@@ -3535,6 +4133,15 @@
                 },
                 {
                   "columns": [
+                    "organizationId",
+                    "status"
+                  ],
+                  "name": "employee_invitation_organizationId_status_idx_21af5e82",
+                  "prefix": "employee_invitation_organizationId_status_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "status"
                   ],
                   "name": "employee_invitation_status_idx_e98638ab",
@@ -3703,6 +4310,129 @@
                   ],
                   "name": "milestone_projectId_idx_a96e4d92",
                   "prefix": "milestone_projectId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "notification": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "isRead": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "message": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "readAt": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "recipientId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "relatedEntityId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "relatedEntityType": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "title": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "type": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "recipientId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "notification"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "employee"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "createdAt"
+                  ],
+                  "name": "notification_createdAt_idx_9575dbd7",
+                  "prefix": "notification_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "recipientId"
+                  ],
+                  "name": "notification_recipientId_idx_c9527cf8",
+                  "prefix": "notification_recipientId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "recipientId",
+                    "isRead"
+                  ],
+                  "name": "notification_recipientId_isRead_idx_5f19de55",
+                  "prefix": "notification_recipientId_isRead_idx",
                   "unique": false
                 }
               ],
@@ -3968,6 +4698,15 @@
                 "status": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
+                  "nullable": false
+                },
+                "taskSequence": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "int4",
                   "nullable": false
                 },
                 "updatedAt": {
@@ -4292,6 +5031,11 @@
                   "nativeType": "text",
                   "nullable": false
                 },
+                "nextOccurrenceId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "parentTaskId": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -4311,6 +5055,11 @@
                   "nativeType": "text",
                   "nullable": false
                 },
+                "recurrence": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "requirementId": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -4322,6 +5071,11 @@
                   "nullable": true
                 },
                 "status": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "ticketId": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
@@ -4432,6 +5186,22 @@
                     "namespaceId": "public",
                     "tableName": "task"
                   }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "nextOccurrenceId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "task"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "task"
+                  }
                 }
               ],
               "indexes": [
@@ -4477,6 +5247,16 @@
                 },
                 {
                   "columns": [
+                    "projectId",
+                    "isActive",
+                    "status"
+                  ],
+                  "name": "task_projectId_isActive_status_idx_269c4286",
+                  "prefix": "task_projectId_isActive_status_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "requirementId"
                   ],
                   "name": "task_requirementId_idx_fb134ad7",
@@ -4492,11 +5272,131 @@
               "uniques": [
                 {
                   "columns": [
+                    "ticketId"
+                  ]
+                },
+                {
+                  "columns": [
+                    "nextOccurrenceId"
+                  ]
+                },
+                {
+                  "columns": [
                     "projectId",
                     "name"
                   ]
                 }
               ]
+            },
+            "task_comment": {
+              "columns": {
+                "authorId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "comment": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "taskId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "taskId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "task_comment"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "task"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "authorId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "task_comment"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "employee"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "authorId"
+                  ],
+                  "name": "task_comment_authorId_idx_e47547ed",
+                  "prefix": "task_comment_authorId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "taskId",
+                    "createdAt"
+                  ],
+                  "name": "task_comment_taskId_createdAt_idx_f41547ff",
+                  "prefix": "task_comment_taskId_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "taskId"
+                  ],
+                  "name": "task_comment_taskId_idx_4965c936",
+                  "prefix": "task_comment_taskId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
             },
             "task_dependency": {
               "columns": {
@@ -4596,6 +5496,180 @@
                   "columns": [
                     "predecessorId",
                     "successorId"
+                  ]
+                }
+              ]
+            },
+            "task_template": {
+              "columns": {
+                "assigneeId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "creatorId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "estimatedHours": {
+                  "codecId": "pg/float8@1",
+                  "nativeType": "float8",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "isActive": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": true
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "priority": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "MEDIUM"
+                  },
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "projectId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "recurrence": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "taskName": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "projectId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "task_template"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "project"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "assigneeId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "task_template"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "employee"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "creatorId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "task_template"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "employee"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "assigneeId"
+                  ],
+                  "name": "task_template_assigneeId_idx_fd12ae38",
+                  "prefix": "task_template_assigneeId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "creatorId"
+                  ],
+                  "name": "task_template_creatorId_idx_3a77d800",
+                  "prefix": "task_template_creatorId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "projectId"
+                  ],
+                  "name": "task_template_projectId_idx_a96e4d92",
+                  "prefix": "task_template_projectId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "projectId",
+                    "name"
                   ]
                 }
               ]
@@ -4998,6 +6072,15 @@
                   ],
                   "name": "timesheet_employeeId_idx_087dd4a6",
                   "prefix": "timesheet_employeeId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "employeeId",
+                    "status"
+                  ],
+                  "name": "timesheet_employeeId_status_idx_e746ea39",
+                  "prefix": "timesheet_employeeId_status_idx",
                   "unique": false
                 },
                 {
@@ -5412,10 +6495,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "8222cde6a2db721090f954af90c52451763efd87ba51e10407cb816e5bf20d61"
+    "storageHash": "1f6aebc3e10c93ef4803f3efb106aeac8a8dc734ec444b1461c9d4c375a2c575"
   },
   "execution": {
-    "executionHash": "224efc84b554a794d28d4d9c99fe56a7bdc4cc3127615024656eb63f14d72ede",
+    "executionHash": "60035aa2c747171720d60d014102fabde88ec33e631defdd8482ec1ad952c145",
     "mutations": {
       "defaults": [
         {
@@ -5471,6 +6554,17 @@
             "column": "id",
             "namespace": "public",
             "table": "milestone"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "notification"
           }
         },
         {
@@ -5547,7 +6641,29 @@
           "ref": {
             "column": "id",
             "namespace": "public",
+            "table": "task_comment"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
             "table": "task_dependency"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "task_template"
           }
         },
         {

@@ -2,8 +2,9 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TimesheetsService } from './timesheets.service.js';
 import { WorkingTimesService } from '../working-times/working-times.service.js';
-import { db } from '../prisma/db.js';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { NotificationsService } from '../notifications/notifications.service.js';
+import { db } from '../prisma/db.js';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { AuthenticatedContext } from '../auth/authenticated-context.js';
 
@@ -13,29 +14,52 @@ vi.mock('../prisma/db.js', () => {
     first: vi.fn(),
     all: vi.fn(),
     update: vi.fn(),
+    aggregate: vi.fn(),
+    orderBy: vi.fn(() => mTimesheet),
+    limit: vi.fn(() => mTimesheet),
+    offset: vi.fn(() => mTimesheet),
   };
-  const mEmployee = { where: vi.fn(() => mEmployee), first: vi.fn() };
+  const mEmployee = {
+    where: vi.fn(() => mEmployee),
+    first: vi.fn(),
+    all: vi.fn(),
+    select: vi.fn(() => mEmployee),
+  };
   const mTeam = { where: vi.fn(() => mTeam), first: vi.fn(), all: vi.fn() };
-  // WorkingTime mock – resolveConfigForEmployee calls .where().first()
   const mWorkingTime = { where: vi.fn(() => mWorkingTime), first: vi.fn().mockResolvedValue(null), eq: vi.fn() };
   // PublicHoliday mock – calculateExpectedHours calls .where().all()
   const mPublicHoliday = { where: vi.fn(() => mPublicHoliday), all: vi.fn().mockResolvedValue([]), gte: vi.fn(), lte: vi.fn() };
+  const mTimesheetAudit = {
+    create: vi.fn(),
+    where: vi.fn(() => ({ orderBy: vi.fn(() => ({ all: vi.fn() })) }))
+  };
 
   return {
     db: {
       orm: {
         public: {
+          TimeEntry: { where: vi.fn(() => ({ all: vi.fn().mockResolvedValue([]) })) },
           Timesheet: mTimesheet,
           Employee: mEmployee,
           Team: mTeam,
-          TimesheetAudit: {
-            create: vi.fn(),
-            where: vi.fn(() => ({ orderBy: vi.fn(() => ({ all: vi.fn() })) }))
-          },
+          TimesheetAudit: mTimesheetAudit,
           WorkingTime: mWorkingTime,
           PublicHoliday: mPublicHoliday,
         },
       },
+      transaction: vi.fn(async (cb: any) => cb({
+        orm: {
+          public: {
+            TimeEntry: { where: vi.fn(() => ({ all: vi.fn().mockResolvedValue([]) })) },
+            Timesheet: mTimesheet,
+            Employee: mEmployee,
+            Team: mTeam,
+            TimesheetAudit: mTimesheetAudit,
+            WorkingTime: mWorkingTime,
+            PublicHoliday: mPublicHoliday,
+          }
+        }
+      })),
       client: {
         query: vi.fn(),
       }
@@ -49,7 +73,12 @@ describe('TimesheetsService - Security Tests', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [TimesheetsService, WorkingTimesService, { provide: AuditLogsService, useValue: { logEvent: vi.fn(), getOrganizationLogs: vi.fn() } }],
+      providers: [
+        TimesheetsService, 
+        WorkingTimesService, 
+        { provide: AuditLogsService, useValue: { logEvent: vi.fn(), getOrganizationLogs: vi.fn() } },
+        { provide: NotificationsService, useValue: { createNotification: vi.fn() } }
+      ],
     }).compile();
     service = module.get<TimesheetsService>(TimesheetsService);
   });
@@ -80,6 +109,22 @@ describe('TimesheetsService - Security Tests', () => {
       } as any);
 
       await expect(service.findOne('ts1', authCtx)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow ADMIN to view a timesheet belonging to another employee in the same organization', async () => {
+      const adminAuthCtx: AuthenticatedContext = { userId: 'u2', employeeId: 'admin1', organizationId: 'org1', roles: ['ADMIN'] };
+      
+      vi.mocked(db.orm.public.Timesheet.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 'ts1', employeeId: 'e2' })
+      } as any);
+      // Mock employee fetch for the timesheet owner
+      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 'e2', organizationId: 'org1', teamId: null })
+      } as any);
+      
+      // enrichWithHours will make another query for TimeEntry, WorkingTime, PublicHoliday which are mocked
+      const res = await service.findOne('ts1', adminAuthCtx);
+      expect(res.id).toBe('ts1');
     });
   });
 
@@ -148,7 +193,10 @@ describe('TimesheetsService - Security Tests', () => {
         update: vi.fn().mockResolvedValue({ id: 'ts1', status: 'SUBMITTED' })
       } as any);
       vi.mocked(db.orm.public.Employee.where).mockReturnValue({
-        first: vi.fn().mockResolvedValue({ id: 'manager1', organizationId: 'org1' })
+        first: vi.fn().mockResolvedValue({ id: 'manager1', organizationId: 'org1', teamId: 't1', name: 'John' })
+      } as any);
+      vi.mocked(db.orm.public.Team.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 't1', managerId: 'bigboss1' })
       } as any);
 
       await service.submit('ts1', authCtx);
@@ -159,6 +207,13 @@ describe('TimesheetsService - Security Tests', () => {
         action: 'SUBMITTED',
         comments: null
       }));
+
+      // Check Notification
+      const serviceObj = service as any;
+      expect(serviceObj.notificationsService.createNotification).toHaveBeenCalledWith(expect.objectContaining({
+        recipientId: 'bigboss1',
+        type: 'TIMESHEET_SUBMITTED',
+      }), expect.anything());
     });
 
     it('should create RESUBMITTED audit on submit from REJECTED state', async () => {

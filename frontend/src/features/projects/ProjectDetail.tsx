@@ -14,7 +14,8 @@ import {
   useGetProjectActivitiesQuery,
   useGetProjectEmployeesQuery,
   useGetProjectUnassignedEmployeesQuery,
-  useRemoveProjectEmployeeMutation
+  useRemoveProjectEmployeeMutation,
+  useGetProjectHealthQuery
 } from '../../store/apiSlice';
 
 // Components
@@ -43,9 +44,12 @@ export const ProjectDetail = () => {
   const { data: employeesData, isLoading: employeesLoading, refetch: refetchEmployees } = useGetProjectEmployeesQuery(projectId || '', { skip: !projectId });
   const { data: unassignedData, refetch: refetchUnassigned } = useGetProjectUnassignedEmployeesQuery(projectId || '', { skip: !projectId });
   
+  const isManagerOrAdmin = employee?.roles?.includes('MANAGER') || isAdmin;
+  const { data: healthData, isLoading: healthLoading, refetch: refetchHealth } = useGetProjectHealthQuery(projectId || '', { skip: !projectId || !isManagerOrAdmin });
+  
   const [removeEmpM] = useRemoveProjectEmployeeMutation();
 
-  const loading = projectLoading || tasksLoading || activitiesLoading || employeesLoading;
+  const loading = projectLoading || tasksLoading || activitiesLoading || employeesLoading || healthLoading;
   const error = projectErr ? 'Failed to load project details' : '';
 
   const project = projectData || null;
@@ -59,6 +63,7 @@ export const ProjectDetail = () => {
   // Modal States
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
+  const [initialTaskData, setInitialTaskData] = useState<any>(null);
 
   const [actModalOpen, setActModalOpen] = useState(false);
   const [editingAct, setEditingAct] = useState<any>(null);
@@ -74,6 +79,7 @@ export const ProjectDetail = () => {
     refetchActivities();
     refetchEmployees();
     refetchUnassigned();
+    if (isManagerOrAdmin) refetchHealth();
   };
 
   const handleRemoveEmployee = async (emp: any) => {
@@ -216,6 +222,7 @@ export const ProjectDetail = () => {
             project={project}
             tasks={tasks}
             assignedEmployees={assignedEmployees}
+            healthData={healthData}
           />
         )}
         {activeTab === 'tasks' && (
@@ -225,7 +232,11 @@ export const ProjectDetail = () => {
             isAdmin={isAdmin}
             projectIsActive={project.isActive}
             projectId={projectId!}
-            onAdd={() => { setEditingTask(null); setTaskModalOpen(true); }}
+            onAdd={(initialData?: any) => { 
+              setEditingTask(null); 
+              setInitialTaskData(initialData || null);
+              setTaskModalOpen(true); 
+            }}
             onEdit={(t) => { setEditingTask(t); setTaskModalOpen(true); }}
             onViewDetail={(t) => { setDetailTask(t); setDetailPanelOpen(true); }}
           />
@@ -257,9 +268,10 @@ export const ProjectDetail = () => {
         <>
           <TaskFormModal
             isOpen={taskModalOpen}
-            onClose={() => setTaskModalOpen(false)}
+            onClose={() => { setTaskModalOpen(false); setInitialTaskData(null); }}
             projectId={projectId}
             editingTask={editingTask}
+            initialData={initialTaskData}
             employees={assignedEmployees}
             tasks={tasks}
           />

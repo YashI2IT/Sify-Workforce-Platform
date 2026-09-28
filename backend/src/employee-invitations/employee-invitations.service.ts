@@ -226,7 +226,7 @@ export class EmployeeInvitationsService {
     }
 
     try {
-      return await db.transaction(async (tx) => {
+      const result = await db.transaction(async (tx) => {
         const newEmployee = await tx.orm.public.Employee.create({
           organizationId: invitation.organizationId,
           name: invitation.name || umsUser.name || umsUser.username || invitation.email.split('@')[0],
@@ -243,13 +243,15 @@ export class EmployeeInvitationsService {
           acceptedAt: (globalThis as any).Temporal.Instant.from(new Date().toISOString()),
         });
 
-        await this.auditLogsService.logEvent(invitation.organizationId, newEmployee.id, 'INVITATION_ACCEPTED', 'EmployeeInvitation', invitation.id);
-        
         return {
           employee: newEmployee,
           organization,
         };
       });
+      
+      await this.auditLogsService.logEvent(invitation.organizationId, result.employee.id, 'INVITATION_ACCEPTED', 'EmployeeInvitation', invitation.id);
+      
+      return result;
     } catch (err: any) {
       if (err instanceof ConflictException || err instanceof BadRequestException || err instanceof NotFoundException) {
         throw err;
@@ -363,20 +365,24 @@ export class EmployeeInvitationsService {
 
     // Create Employee and mark invitation ACCEPTED
     try {
-      const newEmployee = await db.orm.public.Employee.create({
-        organizationId: invitation.organizationId,
-        name: invitation.name,
-        email: invitation.email,
-        role: invitation.role,
-        teamId: invitation.teamId,
-        isActive: true,
-        umsUserId: umsUser.id,
-        employeeCode: `EMP-${Math.floor(Math.random() * 100000)}`
-      });
+      const newEmployee = await db.transaction(async (tx) => {
+        const emp = await tx.orm.public.Employee.create({
+          organizationId: invitation.organizationId,
+          name: invitation.name,
+          email: invitation.email,
+          role: invitation.role,
+          teamId: invitation.teamId,
+          isActive: true,
+          umsUserId: umsUser.id,
+          employeeCode: `EMP-${Math.floor(Math.random() * 100000)}`
+        });
 
-      await db.orm.public.EmployeeInvitation.where({ id: invitation.id }).update({
-        status: 'ACCEPTED',
-        acceptedAt: (globalThis as any).Temporal.Instant.from(new Date().toISOString()),
+        await tx.orm.public.EmployeeInvitation.where({ id: invitation.id }).update({
+          status: 'ACCEPTED',
+          acceptedAt: (globalThis as any).Temporal.Instant.from(new Date().toISOString()),
+        });
+        
+        return emp;
       });
 
       await this.auditLogsService.logEvent(invitation.organizationId, newEmployee.id, 'INVITATION_ACCEPTED', 'EmployeeInvitation', invitation.id);

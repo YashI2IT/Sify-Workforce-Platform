@@ -36,14 +36,17 @@ export class EmployeesService {
       allMatching.sort((a, b) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime());
       rawEmployees = allMatching.slice(offset, offset + limit);
     } else {
-      rawEmployees = await db.orm.public.Employee.where({ organizationId })
-        .orderBy(m => m.createdAt.desc())
-        .limit(limit)
-        .offset(offset)
-        .all();
-
-      const allCount = await db.orm.public.Employee.where({ organizationId }).all();
-      total = allCount.length;
+      const [pageEmployees, countResult] = await Promise.all([
+        db.orm.public.Employee.where({ organizationId })
+          .orderBy(m => m.createdAt.desc())
+          .limit(limit)
+          .offset(offset)
+          .all(),
+        db.orm.public.Employee.where({ organizationId })
+          .aggregate((a: any) => ({ count: a.count() })),
+      ]);
+      rawEmployees = pageEmployees;
+      total = Number((countResult as any)?.count ?? 0);
     }
 
     // Fetch all teams to resolve managedTeams in memory and bypass TS relation errors
@@ -222,15 +225,30 @@ export class EmployeesService {
       }
     }
 
-    // Check duplicate email (if being changed)
+    // Check duplicate email (if being changed) globally
     if (email && email !== employee.email) {
-      const existingEmail = await db.orm.public.Employee.where({
-        organizationId: employee.organizationId,
-        email,
-      }).first();
+      const existingEmail = await db.orm.public.Employee.where({ email }).first();
       if (existingEmail) {
-        throw new ConflictException('Employee with this email already exists in the organization');
+        if (existingEmail.organizationId === employee.organizationId) {
+          throw new ConflictException('Employee with this email already exists in the organization');
+        } else {
+          throw new ConflictException('Employee with this email is already assigned to another organization');
+        }
       }
+    }
+    
+    // Prevent self-deactivation
+    if (updateEmployeeDto.isActive !== undefined && updateEmployeeDto.isActive !== employee.isActive) {
+      if (id === requestorEmployeeId) {
+        throw new ForbiddenException('A user cannot change their own active status');
+      }
+    }
+
+    // Clean up invalid team relationships if demoted or deactivated
+    const isDeactivated = updateEmployeeDto.isActive === false;
+    const isDemoted = role && role !== 'MANAGER' && role !== 'ADMIN' && (employee.role === 'MANAGER' || employee.role === 'ADMIN');
+    if (isDeactivated || isDemoted) {
+      await db.orm.public.Team.where({ managerId: id }).update({ managerId: null });
     }
 
     // Update

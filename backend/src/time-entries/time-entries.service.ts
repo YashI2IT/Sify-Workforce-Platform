@@ -16,44 +16,52 @@ export class TimeEntriesService {
   constructor(private auditLogsService: AuditLogsService) {}
 
   async validateReferences(employeeId: string, projectId: string, taskId: string, activityId: string, orgId: string) {
-    const employee = await db.orm.public.Employee.where({ id: employeeId, organizationId: orgId }).first();
+    // Run independent lookups in parallel to avoid sequential round-trips
+    const [employee, project, assignment] = await Promise.all([
+      db.orm.public.Employee.where({ id: employeeId, organizationId: orgId }).first(),
+      db.orm.public.Project.where({ id: projectId }).first(),
+      db.orm.public.EmployeeProject.where({ employeeId, projectId }).first(),
+    ]);
+
     if (!employee) throw new NotFoundException('Employee not found');
     if (!employee.isActive) throw new BadRequestException('Employee is inactive');
-
-    const project = await db.orm.public.Project.where({ id: projectId }).first();
     if (!project) throw new NotFoundException('Project not found');
-    if (!project.isActive) throw new BadRequestException('Project is inactive');
-
+    if (!project.isActive || project.status === 'COMPLETED' || project.status === 'ON_HOLD') {
+      throw new BadRequestException('Cannot log time for an inactive or completed/on-hold project');
+    }
     if (employee.organizationId !== project.organizationId) {
       throw new BadRequestException('Cross-organization assignment is not allowed');
     }
-
-    const assignment = await db.orm.public.EmployeeProject.where({ employeeId, projectId }).first();
     if (!assignment) throw new BadRequestException('Employee is not assigned to this project');
 
-    const task = await db.orm.public.Task.where({ id: taskId }).first();
+    // Task and Activity must belong to the same project — run them in parallel
+    const [task, activity] = await Promise.all([
+      db.orm.public.Task.where({ id: taskId }).first(),
+      db.orm.public.Activity.where({ id: activityId }).first(),
+    ]);
+
     if (!task) throw new NotFoundException('Task not found');
     if (task.projectId !== projectId) throw new BadRequestException('Task does not belong to the project');
-    if (!task.isActive) throw new BadRequestException('Task is inactive');
-
-    const activity = await db.orm.public.Activity.where({ id: activityId }).first();
+    if (!task.isActive || task.status === 'COMPLETED') {
+      throw new BadRequestException('Cannot log time for an inactive or completed task');
+    }
     if (!activity) throw new NotFoundException('Activity not found');
     if (activity.projectId !== projectId) throw new BadRequestException('Activity does not belong to the project');
     if (!activity.isActive) throw new BadRequestException('Activity is inactive');
   }
 
-  private async getOrCreateTimesheet(employeeId: string, dateString: string) {
-    const startJsDate = getMonday(dateString);
-    const endJsDate = new Date(Date.UTC(
-      startJsDate.getUTCFullYear(),
-      startJsDate.getUTCMonth(),
-      startJsDate.getUTCDate() + 6,
-      23, 59, 59, 999
-    ));
+  private async getOrCreateTimesheet(employeeId: string, dateString: string, orgId: string) {
+    const settings = await db.orm.public.OrganizationSettings.where({ organizationId: orgId }).first();
+    const timeZone = settings?.timeZone || 'UTC';
 
-    // Prisma 8 requires Temporal.Instant for timestamptz
-    const startDate = (globalThis as any).Temporal.Instant.from(startJsDate.toISOString());
-    const endDate = (globalThis as any).Temporal.Instant.from(endJsDate.toISOString());
+    const plainDate = (globalThis as any).Temporal.PlainDate.from(dateString);
+    const dayOfWeek = plainDate.dayOfWeek; // 1 = Monday, 7 = Sunday
+    const diffToMonday = 1 - dayOfWeek;
+    const monday = plainDate.add({ days: diffToMonday });
+    const sunday = plainDate.add({ days: diffToMonday + 6 });
+
+    const startDate = monday.toZonedDateTime({ timeZone, plainTime: '00:00:00' }).toInstant();
+    const endDate = sunday.toZonedDateTime({ timeZone, plainTime: '23:59:59.999' }).toInstant();
 
     let timesheet: any;
     let attempts = 0;
@@ -85,11 +93,18 @@ export class TimeEntriesService {
       throw new Error('Concurrency failure: Could not acquire timesheet after multiple attempts.');
     }
 
-    if (timesheet.status === 'SUBMITTED' || timesheet.status === 'APPROVED') {
-      throw new ForbiddenException(`Cannot modify time entries for a ${timesheet.status} timesheet`);
-    }
-
     return timesheet.id;
+  }
+
+  private async ensureMutableTimesheet(timesheetId: string, auth: AuthenticatedContext, targetDate?: string) {
+    const timesheet = await db.orm.public.Timesheet.where({ id: timesheetId }).first();
+    if (timesheet && (timesheet.status === 'SUBMITTED' || timesheet.status === 'APPROVED')) {
+      if (targetDate) {
+        throw new BadRequestException(`Cannot log time on ${targetDate} because the timesheet for that week is already ${timesheet.status}.`);
+      } else {
+        throw new BadRequestException(`Cannot modify time entries because the timesheet is already ${timesheet.status}.`);
+      }
+    }
   }
 
   async create(dto: CreateTimeEntryDto, auth: AuthenticatedContext) {
@@ -97,7 +112,8 @@ export class TimeEntriesService {
 
     await this.validateReferences(targetEmployeeId, dto.projectId, dto.taskId, dto.activityId, auth.organizationId);
 
-    const timesheetId = await this.getOrCreateTimesheet(targetEmployeeId, dto.date);
+    const timesheetId = await this.getOrCreateTimesheet(targetEmployeeId, dto.date, auth.organizationId);
+    await this.ensureMutableTimesheet(timesheetId, auth, dto.date);
 
     const timeEntry = await db.orm.public.TimeEntry.create({
       employeeId: targetEmployeeId,
@@ -128,30 +144,50 @@ export class TimeEntriesService {
     page: number = 1,
     limit: number = 50
   ): Promise<PaginatedResponse<any>> {
-    // Basic auth check: either it's their own entries, or they must be a manager of this employee
-    if (employeeId !== auth.employeeId) {
-       // In a real app we'd verify manager relationship here
-       // For now, we enforce organizationId matches.
-    }
-
     const employee = await db.orm.public.Employee.where({ id: employeeId, organizationId: auth.organizationId }).first();
     if (!employee) {
       throw new NotFoundException('Employee not found or access denied');
     }
 
+    // Basic auth check: either it's their own entries, or they must be a manager of this employee, or an admin
+    if (employeeId !== auth.employeeId && !auth.roles.includes('ADMIN')) {
+      if (employee.teamId) {
+        const team = await db.orm.public.Team.where({ id: employee.teamId, organizationId: auth.organizationId }).first();
+        if (team?.managerId !== auth.employeeId) {
+           throw new ForbiddenException('Cannot view another employee\'s time entries unless you are their manager');
+        }
+      } else {
+        throw new ForbiddenException('Cannot view another employee\'s time entries');
+      }
+    }
+
     const offset = (page - 1) * limit;
-    const entries = await db.orm.public.TimeEntry.where({ employeeId })
-      .orderBy(m => m.date.desc())
-      .limit(limit)
-      .offset(offset)
-      .all();
-      
-    const allCount = await db.orm.public.TimeEntry.where({ employeeId }).all();
-    const total = allCount.length;
+    const [entries, countResult] = await Promise.all([
+      db.orm.public.TimeEntry.where({ employeeId })
+        .orderBy((m: any) => m.date.desc())
+        .limit(limit)
+        .offset(offset)
+        .all(),
+      db.orm.public.TimeEntry.where({ employeeId })
+        .aggregate((a: any) => ({ count: a.count() })),
+    ]);
+    const total = (countResult as any)?.count ?? 0;
+
+    const timesheetIds = [...new Set(entries.map((e: any) => e.timesheetId))];
+    const timesheets = timesheetIds.length > 0 
+      ? await db.orm.public.Timesheet.where((ts: any) => ts.id.in(timesheetIds)).select('id', 'status').all()
+      : [];
+    
+    const tsMap = new Map(timesheets.map((ts: any) => [ts.id, ts]));
+
+    const enrichedEntries = entries.map((e: any) => ({
+      ...e,
+      timesheet: tsMap.get(e.timesheetId) || undefined
+    }));
 
     return {
-      data: entries,
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+      data: enrichedEntries,
+      meta: { total: Number(total), page, limit, totalPages: Math.ceil(Number(total) / limit) }
     };
   }
 
@@ -165,12 +201,7 @@ export class TimeEntriesService {
       throw new NotFoundException('Time Entry not found');
     }
     // Also verify employee ownership where appropriate.
-    // If not their own time entry, they must be manager (not fully implemented due to Keycloak delay, but we ensure org boundary).
-    if (entry.employeeId !== auth.employeeId) {
-       // In a full implementation we check manager hierarchy.
-       // We'll allow org-level retrieval for now or throw Forbidden based on ownership rules.
-       // The prompt says "Also verify employee ownership where appropriate. Do not allow an arbitrary employee to retrieve another employee's TimeEntry merely by knowing its ID."
-       // So let's lock it down to self-only or manager. Since we don't have manager mapping in the current context yet (except manually), we can do:
+    if (entry.employeeId !== auth.employeeId && !auth.roles.includes('ADMIN')) {
        if (employee.teamId) {
           const team = await db.orm.public.Team.where({ id: employee.teamId }).first();
           if (team?.managerId !== auth.employeeId) {
@@ -196,20 +227,20 @@ export class TimeEntriesService {
 
     // Determine target date for timesheet validation
     const targetDate = dto.date ?? existingEntry.date;
-    const timesheetId = await this.getOrCreateTimesheet(existingEntry.employeeId, targetDate);
+    const timesheetId = await this.getOrCreateTimesheet(existingEntry.employeeId, targetDate, auth.organizationId);
+    await this.ensureMutableTimesheet(timesheetId, auth, targetDate);
 
     // If date changed, we must also verify the original timesheet was mutable
     if (dto.date && dto.date !== existingEntry.date) {
-       await this.getOrCreateTimesheet(existingEntry.employeeId, existingEntry.date);
+       const oldTsId = await this.getOrCreateTimesheet(existingEntry.employeeId, existingEntry.date, auth.organizationId);
+       await this.ensureMutableTimesheet(oldTsId, auth, existingEntry.date);
     }
 
     const newProjectId = dto.projectId ?? existingEntry.projectId;
     const newTaskId = dto.taskId ?? existingEntry.taskId;
     const newActivityId = dto.activityId ?? existingEntry.activityId;
 
-    if (dto.projectId || dto.taskId || dto.activityId) {
-      await this.validateReferences(existingEntry.employeeId, newProjectId, newTaskId, newActivityId, auth.organizationId);
-    }
+    await this.validateReferences(existingEntry.employeeId, newProjectId, newTaskId, newActivityId, auth.organizationId);
 
     const updatedData: any = {};
     if (dto.projectId !== undefined) updatedData.projectId = dto.projectId;
@@ -233,5 +264,28 @@ export class TimeEntriesService {
     }
 
     return updatedEntry;
+  }
+
+  async remove(id: string, auth: AuthenticatedContext) {
+    const existingEntry = await db.orm.public.TimeEntry.where({ id }).first();
+    if (!existingEntry) {
+      throw new NotFoundException('Time Entry not found');
+    }
+    
+    if (existingEntry.employeeId !== auth.employeeId) {
+      throw new ForbiddenException('Cannot delete another employee\'s time entry');
+    }
+
+    await this.validateReferences(existingEntry.employeeId, existingEntry.projectId, existingEntry.taskId, existingEntry.activityId, auth.organizationId);
+
+    await this.ensureMutableTimesheet(existingEntry.timesheetId, auth, existingEntry.date);
+
+    const deletedEntry = await db.orm.public.TimeEntry.where({ id }).delete();
+    
+    if (auth.employeeId) {
+      await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'TIME_ENTRY_DELETED', 'TimeEntry', id);
+    }
+
+    return { success: true };
   }
 }

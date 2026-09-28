@@ -16,16 +16,29 @@ export class AuditLogsService {
     action: string,
     resourceType: string,
     resourceId?: string,
-    details?: any
+    details?: any,
+    externalTx?: any
   ): Promise<void> {
     try {
-      await db.orm.public.AuditLog.create({
+      const orm = externalTx ? externalTx.orm : db.orm;
+      let safeDetails = details;
+      if (safeDetails && typeof safeDetails === 'object') {
+        safeDetails = { ...safeDetails };
+        const sensitiveKeys = ['password', 'token', 'refreshToken', 'secret', 'apiKey'];
+        for (const key of sensitiveKeys) {
+          if (key in safeDetails) {
+            safeDetails[key] = '[REDACTED]';
+          }
+        }
+      }
+
+      await orm.public.AuditLog.create({
         organizationId,
         actorId,
         action,
         resourceType,
         resourceId: resourceId || null,
-        details: details ? JSON.stringify(details) : null,
+        details: safeDetails ? JSON.stringify(safeDetails) : null,
       });
     } catch (e) {
       console.error('Failed to write audit log', e);
@@ -85,8 +98,8 @@ export class AuditLogsService {
       .offset(offset)
       .all();
 
-    const allMatching = await query.all();
-    const total = allMatching.length;
+    const countAgg = await query.aggregate((a: any) => ({ count: a.count() }));
+    const total = Number((countAgg as any)?.count || 0);
 
     const formattedLogs = rawLogs.map((log: any) => ({
       id: log.id,

@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { db } from '../prisma/db.js';
 import type { AuthenticatedContext } from '../auth/authenticated-context.js';
 
@@ -22,22 +22,34 @@ export class UserPreferencesService {
   // GET own preferences (auto-create defaults if missing)
   // ---------------------------------------------------------------------------
   async getMyPreferences(auth: AuthenticatedContext) {
-    const existing = await db.orm.public.UserPreference
-      .where({ employeeId: auth.employeeId })
-      .first();
+    let attempts = 0;
+    while (attempts < 2) {
+      try {
+        const existing = await db.orm.public.UserPreference
+          .where({ employeeId: auth.employeeId })
+          .first();
 
-    if (existing) return existing;
+        if (existing) return existing;
 
-    // Auto-seed defaults on first access
-    return db.orm.public.UserPreference.create({
-      employeeId: auth.employeeId,
-      timezone: 'UTC',
-      language: 'en',
-      theme: 'system',
-      defaultView: 'timesheet',
-      dateFormat: 'DD/MM/YYYY',
-      emailNotifications: true,
-    });
+        // Auto-seed defaults on first access
+        return await db.orm.public.UserPreference.create({
+          employeeId: auth.employeeId,
+          timezone: 'UTC',
+          language: 'en',
+          theme: 'system',
+          defaultView: 'timesheet',
+          dateFormat: 'DD/MM/YYYY',
+          emailNotifications: true,
+        });
+      } catch (e: any) {
+        if (e.code === 'P2002' || e.message?.includes('Unique constraint') || e.message?.includes('duplicate key')) {
+          attempts++;
+          continue;
+        }
+        throw e;
+      }
+    }
+    return await db.orm.public.UserPreference.where({ employeeId: auth.employeeId }).first();
   }
 
   // ---------------------------------------------------------------------------
@@ -46,21 +58,17 @@ export class UserPreferencesService {
   async updateMyPreferences(auth: AuthenticatedContext, body: PreferenceBody) {
     // Validate allowed values
     if (body.theme && !ALLOWED_THEMES.includes(body.theme)) {
-      throw new ForbiddenException(`theme must be one of: ${ALLOWED_THEMES.join(', ')}`);
+      throw new BadRequestException(`theme must be one of: ${ALLOWED_THEMES.join(', ')}`);
     }
     if (body.defaultView && !ALLOWED_VIEWS.includes(body.defaultView)) {
-      throw new ForbiddenException(`defaultView must be one of: ${ALLOWED_VIEWS.join(', ')}`);
+      throw new BadRequestException(`defaultView must be one of: ${ALLOWED_VIEWS.join(', ')}`);
     }
     if (body.language && !ALLOWED_LANGUAGES.includes(body.language)) {
-      throw new ForbiddenException(`language must be one of: ${ALLOWED_LANGUAGES.join(', ')}`);
+      throw new BadRequestException(`language must be one of: ${ALLOWED_LANGUAGES.join(', ')}`);
     }
     if (body.dateFormat && !ALLOWED_DATE_FORMATS.includes(body.dateFormat)) {
-      throw new ForbiddenException(`dateFormat must be one of: ${ALLOWED_DATE_FORMATS.join(', ')}`);
+      throw new BadRequestException(`dateFormat must be one of: ${ALLOWED_DATE_FORMATS.join(', ')}`);
     }
-
-    const existing = await db.orm.public.UserPreference
-      .where({ employeeId: auth.employeeId })
-      .first();
 
     const patch: Record<string, any> = { updatedAt: (globalThis as any).Temporal.Instant.from(new Date().toISOString()) };
     if (body.timezone !== undefined) patch.timezone = body.timezone;
@@ -70,18 +78,35 @@ export class UserPreferencesService {
     if (body.dateFormat !== undefined) patch.dateFormat = body.dateFormat;
     if (body.emailNotifications !== undefined) patch.emailNotifications = body.emailNotifications;
 
-    if (existing) {
-      return db.orm.public.UserPreference.where({ id: existing.id }).update(patch);
-    }
+    let attempts = 0;
+    while (attempts < 2) {
+      try {
+        return await db.transaction(async (tx) => {
+          const existing = await tx.orm.public.UserPreference
+            .where({ employeeId: auth.employeeId })
+            .first();
 
-    return db.orm.public.UserPreference.create({
-      employeeId: auth.employeeId,
-      timezone: body.timezone ?? 'UTC',
-      language: body.language ?? 'en',
-      theme: body.theme ?? 'system',
-      defaultView: body.defaultView ?? 'timesheet',
-      dateFormat: body.dateFormat ?? 'DD/MM/YYYY',
-      emailNotifications: body.emailNotifications ?? true,
-    });
+          if (existing) {
+            return await tx.orm.public.UserPreference.where({ id: existing.id }).update(patch);
+          }
+
+          return await tx.orm.public.UserPreference.create({
+            employeeId: auth.employeeId,
+            timezone: body.timezone ?? 'UTC',
+            language: body.language ?? 'en',
+            theme: body.theme ?? 'system',
+            defaultView: body.defaultView ?? 'timesheet',
+            dateFormat: body.dateFormat ?? 'DD/MM/YYYY',
+            emailNotifications: body.emailNotifications ?? true,
+          });
+        });
+      } catch (e: any) {
+        if (e.code === 'P2002' || e.message?.includes('Unique constraint') || e.message?.includes('duplicate key')) {
+          attempts++;
+          continue;
+        }
+        throw e;
+      }
+    }
   }
 }

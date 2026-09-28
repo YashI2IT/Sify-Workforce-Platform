@@ -26,6 +26,7 @@ import {
   LogOut,
   Settings
 } from 'lucide-react';
+import { NotificationsMenu } from './NotificationsMenu';
 
 export const AppLayout = () => {
   const dispatch = useDispatch();
@@ -109,6 +110,8 @@ export const AppLayout = () => {
     {
       title: 'SYSTEM',
       items: [
+        { name: 'Working Times', path: '/admin/working-times', icon: Clock },
+        { name: 'Public Holidays', path: '/admin/public-holidays', icon: CalendarDays },
         { name: 'Audit Logs', path: '/admin/audit-logs', icon: ShieldAlert },
         { name: 'Preferences', path: '/preferences', icon: Settings },
       ]
@@ -128,7 +131,15 @@ export const AppLayout = () => {
       items: [
         { name: 'My Projects', path: '/projects', icon: Briefcase, roles: ['EMPLOYEE', 'MANAGER'] },
         { name: 'Time Entries', path: '/time-entries', icon: Clock, roles: ['EMPLOYEE', 'MANAGER'] },
-        { name: 'Timesheets', path: '/timesheets', icon: CalendarDays, roles: ['EMPLOYEE', 'MANAGER'] },
+        { name: 'My Timesheets', path: '/timesheets', icon: CalendarDays, roles: ['EMPLOYEE', 'MANAGER'] },
+      ]
+    },
+    {
+      title: 'Management',
+      items: [
+        { name: 'Employees', path: '/employees', icon: Users, roles: ['MANAGER'] },
+        { name: 'Teams', path: '/teams', icon: UsersRound, roles: ['MANAGER'] },
+        { name: 'Projects', path: '/admin/projects', icon: Briefcase, roles: ['MANAGER'] },
       ]
     },
     {
@@ -140,13 +151,14 @@ export const AppLayout = () => {
     {
       title: 'Reports',
       items: [
-        { name: 'Employee Summary', path: '/reports/employee-summary', icon: PieChart, roles: ['EMPLOYEE', 'MANAGER'] },
+        { name: 'Employee Summary', path: '/reports/employee-summary', icon: PieChart, roles: ['MANAGER'] },
         { name: 'Team Utilization', path: '/reports/team-utilization', icon: TrendingUp, roles: ['MANAGER'] },
       ]
     },
     {
       title: 'Settings',
       items: [
+        { name: 'Timesheet Settings', path: '/settings/timesheets', icon: Clock, roles: ['MANAGER'] },
         { name: 'Preferences', path: '/preferences', icon: Settings, roles: ['EMPLOYEE', 'MANAGER'] },
       ]
     }
@@ -168,12 +180,15 @@ export const AppLayout = () => {
     }
 
     // Projects active check: keeps Projects highlighted for nested project workspace routes
-    if (itemPath === '/admin/projects' || itemPath === '/projects') {
-      return currentPath.startsWith('/admin/projects') || currentPath.startsWith('/projects');
+    if (itemPath === '/admin/projects') {
+      return currentPath.startsWith('/admin/projects');
+    }
+    if (itemPath === '/projects') {
+      return currentPath.startsWith('/projects');
     }
 
-    // Reports active check: keeps Reports highlighted for all sub-reports
-    if (itemPath === '/reports' || itemPath.startsWith('/reports/')) {
+    // Reports active check: only /reports root highlights for everything. Sub-reports rely on exact match below.
+    if (itemPath === '/reports') {
       return currentPath.startsWith('/reports');
     }
 
@@ -344,6 +359,8 @@ export const AppLayout = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            <NotificationsMenu />
+            
             {employee && (
               <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-50/80 border border-slate-200/80 rounded-full text-xs text-slate-700 shadow-2xs">
                 <div className="w-5 h-5 rounded-full bg-slate-950 text-white font-mono font-bold text-[10px] flex items-center justify-center">

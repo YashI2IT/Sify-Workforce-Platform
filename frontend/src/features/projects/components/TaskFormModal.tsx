@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useToast } from '../../../context/ToastContext';
 import { Modal } from '../../../components/ui/Modal';
-import { useCreateProjectTaskMutation, useUpdateProjectTaskMutation } from '../../../store/apiSlice';
+import { useCreateProjectTaskMutation, useUpdateProjectTaskMutation, useCreateTaskTemplateMutation } from '../../../store/apiSlice';
 import { Select } from '../../../components/ui/Select';
 import { DatePicker } from '../../../components/ui/DatePicker';
 
 interface Task {
   id: string;
+  ticketId: string;
   name: string;
   description?: string | null;
   status: string;
@@ -20,6 +21,7 @@ interface Task {
   parentTaskId?: string | null;
   requirementId?: string | null;
   milestoneId?: string | null;
+  recurrence?: string | null;
 }
 
 interface Employee {
@@ -38,6 +40,7 @@ const taskSchema = z.object({
   dueDate: z.string().optional().nullable(),
   estimatedHours: z.number().nonnegative('Estimated hours must be positive').optional().nullable(),
   parentTaskId: z.string().optional().nullable(),
+  recurrence: z.string().optional().nullable(),
 }).refine(data => {
   if (data.startDate && data.dueDate) {
     return new Date(data.startDate) <= new Date(data.dueDate);
@@ -52,9 +55,11 @@ interface TaskFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
-  editingTask: Task | null;
+  editingTask?: Task | null;
+  initialData?: any;
   employees?: Employee[];
   tasks?: Task[];
+  isTemplateMode?: boolean;
 }
 
 const FIELD_CLS = 'w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-950 focus:border-transparent text-sm bg-white';
@@ -66,12 +71,15 @@ export const TaskFormModal = ({
   onClose,
   projectId,
   editingTask,
+  initialData,
   employees = [],
   tasks = [],
+  isTemplateMode = false,
 }: TaskFormModalProps) => {
   const { showToast } = useToast();
   const [createTaskM] = useCreateProjectTaskMutation();
   const [updateTaskM] = useUpdateProjectTaskMutation();
+  const [createTemplateM] = useCreateTaskTemplateMutation();
 
   const [form, setForm] = useState({
     name: '',
@@ -84,6 +92,8 @@ export const TaskFormModal = ({
     dueDate: '',
     estimatedHours: '' as number | string,
     parentTaskId: '',
+    recurrence: '',
+    templateName: '',
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -102,6 +112,23 @@ export const TaskFormModal = ({
         dueDate: editingTask.dueDate ? new Date(editingTask.dueDate).toISOString().split('T')[0] : '',
         estimatedHours: editingTask.estimatedHours ?? '',
         parentTaskId: editingTask.parentTaskId || '',
+        recurrence: editingTask.recurrence || '',
+        templateName: '',
+      });
+    } else if (initialData) {
+      setForm({
+        name: initialData.name || '',
+        description: initialData.description || '',
+        status: 'TODO',
+        isActive: true,
+        priority: initialData.priority || 'MEDIUM',
+        assigneeId: initialData.assigneeId || '',
+        startDate: '',
+        dueDate: '',
+        estimatedHours: initialData.estimatedHours ?? '',
+        parentTaskId: '',
+        recurrence: initialData.recurrence || '',
+        templateName: '',
       });
     } else {
       setForm({
@@ -115,6 +142,8 @@ export const TaskFormModal = ({
         dueDate: '',
         estimatedHours: '',
         parentTaskId: '',
+        recurrence: '',
+        templateName: '',
       });
     }
     setErrors({});
@@ -139,11 +168,27 @@ export const TaskFormModal = ({
         dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
         estimatedHours: form.estimatedHours !== '' ? Number(form.estimatedHours) : null,
         parentTaskId: form.parentTaskId || null,
+        recurrence: form.recurrence || null,
       };
 
       taskSchema.parse(payload);
 
-      if (editingTask) {
+      if (isTemplateMode) {
+        if (!form.templateName) throw new Error("Template name is required");
+        await createTemplateM({
+          projectId,
+          data: {
+            name: form.templateName,
+            taskName: form.name,
+            description: form.description || undefined,
+            priority: form.priority,
+            assigneeId: form.assigneeId || null,
+            estimatedHours: form.estimatedHours !== '' ? Number(form.estimatedHours) : null,
+            recurrence: form.recurrence || null,
+          }
+        }).unwrap();
+        showToast('Template created successfully', 'success');
+      } else if (editingTask) {
         await updateTaskM({ projectId, taskId: editingTask.id, data: payload }).unwrap();
         showToast('Task updated successfully', 'success');
       } else {
@@ -174,7 +219,7 @@ export const TaskFormModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={editingTask ? 'Edit Task' : 'Create Task'}
+      title={isTemplateMode ? 'Create Task Template' : (editingTask ? `Edit Task (${editingTask.ticketId})` : 'Create Task')}
     >
       <form onSubmit={handleSubmit} className="space-y-5">
         {errors.general && (
@@ -187,8 +232,21 @@ export const TaskFormModal = ({
         <div>
           <p className={SECTION_TITLE}>Basic Information</p>
           <div className="space-y-3">
+            {isTemplateMode && (
+              <div>
+                <label className={LABEL_CLS}>Template Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={form.templateName}
+                  onChange={e => set('templateName', e.target.value)}
+                  placeholder="e.g. Weekly Report Template"
+                  className={FIELD_CLS}
+                />
+              </div>
+            )}
             <div>
-              <label className={LABEL_CLS}>Name *</label>
+              <label className={LABEL_CLS}>{isTemplateMode ? 'Task Name *' : 'Name *'}</label>
               <input
                 id="task-name-input"
                 type="text"
@@ -213,11 +271,12 @@ export const TaskFormModal = ({
           </div>
         </div>
 
-        {/* ── STATUS & PRIORITY ── */}
+        {/* ── STATUS, PRIORITY & RECURRENCE ── */}
         <div>
-          <p className={SECTION_TITLE}>Status & Priority</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          <p className={SECTION_TITLE}>{isTemplateMode ? 'Priority & Recurrence' : 'Status, Priority & Recurrence'}</p>
+          <div className={`grid gap-3 ${isTemplateMode ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            {!isTemplateMode && (
+              <div>
               <label className={LABEL_CLS}>Status</label>
               <Select
                 value={form.status}
@@ -231,6 +290,7 @@ export const TaskFormModal = ({
                 ]}
               />
             </div>
+            )}
             <div>
               <label className={LABEL_CLS}>Priority</label>
               <Select
@@ -242,6 +302,20 @@ export const TaskFormModal = ({
                   { value: 'MEDIUM', label: 'MEDIUM' },
                   { value: 'HIGH', label: 'HIGH' },
                   { value: 'URGENT', label: 'URGENT' }
+                ]}
+              />
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Recurrence</label>
+              <Select
+                value={form.recurrence}
+                onChange={val => set('recurrence', val)}
+                className="w-full"
+                options={[
+                  { value: '', label: 'None' },
+                  { value: 'DAILY', label: 'Daily' },
+                  { value: 'WEEKLY', label: 'Weekly' },
+                  { value: 'MONTHLY', label: 'Monthly' }
                 ]}
               />
             </div>
@@ -268,9 +342,11 @@ export const TaskFormModal = ({
         {/* ── PLANNING ── */}
         <div>
           <p className={SECTION_TITLE}>Planning</p>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className={LABEL_CLS}>Start Date</label>
+          <div className={`grid gap-3 ${isTemplateMode ? 'grid-cols-1' : 'grid-cols-3'}`}>
+            {!isTemplateMode && (
+              <>
+                <div>
+                  <label className={LABEL_CLS}>Start Date</label>
               <DatePicker
                 value={form.startDate}
                 onChange={val => set('startDate', val)}
@@ -285,8 +361,10 @@ export const TaskFormModal = ({
                 className="w-full"
                 isOverdue={!!errors.dueDate}
               />
-              {errors.dueDate && <p className="mt-1 text-[11px] text-rose-600">{errors.dueDate}</p>}
-            </div>
+                {errors.dueDate && <p className="mt-1 text-[11px] text-rose-600">{errors.dueDate}</p>}
+              </div>
+            </>
+            )}
             <div>
               <label className={LABEL_CLS}>Est. Hours</label>
               <input
@@ -304,21 +382,23 @@ export const TaskFormModal = ({
         </div>
 
         {/* ── HIERARCHY ── */}
-        <div>
-          <p className={SECTION_TITLE}>Hierarchy</p>
-          <div className="mt-3">
-            <label className={LABEL_CLS}>Parent Task</label>
-            <Select
-              value={form.parentTaskId}
-              onChange={val => set('parentTaskId', val)}
-              className="w-full"
-              options={[
-                { value: '', label: 'None (Top Level)' },
-                ...eligibleParents.map(t => ({ value: t.id, label: t.name }))
-              ]}
-            />
+        {!isTemplateMode && (
+          <div>
+            <p className={SECTION_TITLE}>Hierarchy</p>
+            <div className="mt-3">
+              <label className={LABEL_CLS}>Parent Task</label>
+              <Select
+                value={form.parentTaskId}
+                onChange={val => set('parentTaskId', val)}
+                className="w-full"
+                options={[
+                  { value: '', label: 'None (Top Level)' },
+                  ...eligibleParents.map(t => ({ value: t.id, label: t.ticketId ? `[${t.ticketId}] ${t.name}` : t.name }))
+                ]}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ── ACTIVE STATUS ── */}
         <div className="flex items-center gap-2">
@@ -330,7 +410,7 @@ export const TaskFormModal = ({
             className="w-4 h-4 text-slate-950 border-slate-300 rounded focus:ring-slate-950"
           />
           <label htmlFor="taskIsActive" className="text-sm text-slate-700 font-medium">
-            Active Task
+            {isTemplateMode ? 'Active Template' : 'Active Task'}
           </label>
         </div>
 

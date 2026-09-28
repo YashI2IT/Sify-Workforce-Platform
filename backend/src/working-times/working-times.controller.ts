@@ -45,8 +45,8 @@ export class WorkingTimesController {
   }
 
   @Put('overrides/:employeeId')
-  @Roles('ADMIN')
-  @ApiOperation({ summary: 'Create or update working-time override for an employee (ADMIN)' })
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({ summary: 'Create or update working-time override for an employee (ADMIN/MANAGER)' })
   @ApiParam({ name: 'employeeId', description: 'Employee UUID' })
   async upsertOverride(
     @Param('employeeId') employeeId: string,
@@ -57,8 +57,8 @@ export class WorkingTimesController {
   }
 
   @Delete('overrides/:employeeId')
-  @Roles('ADMIN')
-  @ApiOperation({ summary: 'Remove working-time override for an employee (ADMIN)' })
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({ summary: 'Remove working-time override for an employee (ADMIN/MANAGER)' })
   @ApiParam({ name: 'employeeId', description: 'Employee UUID' })
   async deleteOverride(@Param('employeeId') employeeId: string, @GetAuthContext() auth: AuthenticatedContext) {
     return this.workingTimesService.deleteOverride(employeeId, auth);

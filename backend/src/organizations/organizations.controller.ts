@@ -124,23 +124,7 @@ export class OrganizationsController {
     });
   }
 
-  @Get('available')
-  @UseGuards(UmsOnboardingGuard)
-  @ApiOperation({ summary: 'Get list of available organizations to join' })
-  @ApiResponse({ status: 200, description: 'List of organizations' })
-  async getAvailableOrganizations() {
-    return this.organizationsService.getAvailableOrganizations();
-  }
 
-  @Post(':id/join')
-  @UseGuards(UmsOnboardingGuard)
-  @ApiOperation({ summary: 'Join an existing organization (Onboarding ONLY)' })
-  @ApiResponse({ status: 201, description: 'Successfully joined organization' })
-  @ApiResponse({ status: 404, description: 'Organization not found' })
-  @ApiResponse({ status: 409, description: 'User already has an active Workforce Employee record' })
-  async joinOrganization(@Req() req: any, @Param('id') id: string) {
-    return this.organizationsService.joinOrganization(req.umsUser, id);
-  }
 
   @Get('current/settings')
   @ApiOperation({ summary: 'Get current organization settings' })
@@ -157,6 +141,6 @@ export class OrganizationsController {
     if (!auth.roles?.includes('ADMIN')) {
       throw new ForbiddenException('Only admins can update organization settings');
     }
-    return this.organizationsService.updateSettings(auth.organizationId, body);
+    return this.organizationsService.updateSettings(auth.organizationId, auth.employeeId!, body);
   }
 }

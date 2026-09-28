@@ -23,6 +23,10 @@ vi.mock('../prisma/db.js', () => {
     where: vi.fn(() => mEmployee),
     first: vi.fn(),
   };
+  const mTeam = {
+    where: vi.fn(() => mTeam),
+    first: vi.fn(),
+  };
   const mOrganizationSettings = {
     where: vi.fn(() => mOrganizationSettings),
     first: vi.fn(),
@@ -35,6 +39,7 @@ vi.mock('../prisma/db.js', () => {
           EmployeeProject: mEmployeeProject,
           Project: mProject,
           Employee: mEmployee,
+          Team: mTeam,
           OrganizationSettings: mOrganizationSettings,
         },
       },
@@ -58,6 +63,43 @@ describe('AssignmentsService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  describe('Manager Assignment Authorization', () => {
+    it('rejects MANAGER if employee not in their team', async () => {
+      vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce({ id: 'p1', isActive: true, status: 'ACTIVE', organizationId: 'org1' } as any);
+      vi.mocked(db.orm.public.OrganizationSettings.first).mockResolvedValueOnce(null);
+      // Target employee exists but no team
+      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'targetE1', isActive: true, organizationId: 'org1', teamId: null } as any);
+      
+      const managerAuth: AuthenticatedContext = { userId: 'u2', employeeId: 'manager1', organizationId: 'org1', roles: ['MANAGER'] };
+      await expect(service.assignEmployeeToProject('p1', 'targetE1', managerAuth)).rejects.toThrow('You can only assign or remove employees from teams you manage');
+    });
+
+    it('rejects MANAGER if employee in different manager team', async () => {
+      vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce({ id: 'p1', isActive: true, status: 'ACTIVE', organizationId: 'org1' } as any);
+      vi.mocked(db.orm.public.OrganizationSettings.first).mockResolvedValueOnce(null);
+      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'targetE1', isActive: true, organizationId: 'org1', teamId: 't1' } as any);
+      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', managerId: 'otherManager', organizationId: 'org1' } as any);
+      
+      const managerAuth: AuthenticatedContext = { userId: 'u2', employeeId: 'manager1', organizationId: 'org1', roles: ['MANAGER'] };
+      await expect(service.assignEmployeeToProject('p1', 'targetE1', managerAuth)).rejects.toThrow('You can only assign or remove employees from teams you manage');
+    });
+
+    it('allows MANAGER to assign own team members', async () => {
+      vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce({ id: 'p1', isActive: true, status: 'ACTIVE', organizationId: 'org1' } as any);
+      vi.mocked(db.orm.public.OrganizationSettings.first).mockResolvedValueOnce(null);
+      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'targetE1', isActive: true, organizationId: 'org1', teamId: 't1' } as any);
+      // Second fetch of employee by real validation
+      vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'targetE1', isActive: true, organizationId: 'org1', teamId: 't1' } as any);
+      vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', managerId: 'manager1', organizationId: 'org1' } as any);
+      vi.mocked(db.orm.public.EmployeeProject.first).mockResolvedValueOnce(null); // No existing assignment
+      
+      const managerAuth: AuthenticatedContext = { userId: 'u2', employeeId: 'manager1', organizationId: 'org1', roles: ['MANAGER'] };
+      
+      await service.assignEmployeeToProject('p1', 'targetE1', managerAuth);
+      expect(db.orm.public.EmployeeProject.create).toHaveBeenCalledWith({ projectId: 'p1', employeeId: 'targetE1' });
+    });
   });
 
   describe('assignEmployeeToProject', () => {
@@ -117,7 +159,7 @@ describe('AssignmentsService', () => {
     });
 
     it('should remove successfully', async () => {
-      vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce({ id: 'p1', organizationId: 'org1' } as any);
+      vi.mocked(db.orm.public.Project.first).mockResolvedValueOnce({ id: 'p1', isActive: true, status: 'ACTIVE', organizationId: 'org1' } as any);
       vi.mocked(db.orm.public.EmployeeProject.first).mockResolvedValueOnce({ projectId: 'p1', employeeId: 'e1' } as any);
       await service.removeEmployeeFromProject('p1', 'e1', authCtx);
       expect(db.orm.public.EmployeeProject.delete).toHaveBeenCalled();

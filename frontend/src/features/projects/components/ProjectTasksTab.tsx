@@ -8,9 +8,11 @@ import { ProjectTasksBacklog } from './ProjectTasksBacklog';
 import { ProjectTasksTimeline } from './ProjectTasksTimeline';
 import { statusColors, priorityColors } from './taskUtils';
 import { Select } from '../../../components/ui/Select';
+import { TaskTemplatesModal } from './TaskTemplatesModal';
 
 export interface Task {
   id: string;
+  ticketId: string;
   name: string;
   description?: string | null;
   status: string;
@@ -48,7 +50,7 @@ interface ProjectTasksTabProps {
   isAdmin: boolean;
   projectIsActive: boolean;
   projectId: string; // Added to pass to updateTask
-  onAdd: () => void;
+  onAdd: (initialData?: any) => void;
   onEdit: (t: Task) => void;
   onViewDetail: (t: Task) => void;
 }
@@ -72,6 +74,7 @@ export const ProjectTasksTab = ({
   const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
   const [assigneeFilter, setAssigneeFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [taskTemplatesModalOpen, setTaskTemplatesModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'board' | 'backlog' | 'timeline'>('list');
   const [updateTask] = useUpdateProjectTaskMutation();
   const { showToast } = useToast();
@@ -189,13 +192,21 @@ export const ProjectTasksTab = ({
             )}
           </button>
           {isAdmin && projectIsActive && (
-            <button
-              id="task-create-btn"
-              onClick={onAdd}
-              className="inline-flex items-center gap-2 bg-slate-950 hover:bg-slate-800 text-white px-4 py-2 rounded-xl font-medium text-xs shadow-xs transition-all cursor-pointer active:scale-95"
-            >
-              <Plus className="w-4 h-4" /> Create Task
-            </button>
+            <>
+              <button
+                onClick={() => setTaskTemplatesModalOpen(true)}
+                className="inline-flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-400 text-slate-700 px-4 py-2 rounded-xl font-medium text-xs shadow-xs transition-all cursor-pointer"
+              >
+                Templates
+              </button>
+              <button
+                id="task-create-btn"
+                onClick={() => onAdd()}
+                className="inline-flex items-center gap-2 bg-slate-950 hover:bg-slate-800 text-white px-4 py-2 rounded-xl font-medium text-xs shadow-xs transition-all cursor-pointer active:scale-95"
+              >
+                <Plus className="w-4 h-4" /> Create Task
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -333,6 +344,23 @@ export const ProjectTasksTab = ({
           onViewDetail={onViewDetail}
         />
       )}
+      <TaskTemplatesModal
+        isOpen={taskTemplatesModalOpen}
+        onClose={() => setTaskTemplatesModalOpen(false)}
+        projectId={projectId}
+        isAdmin={isAdmin}
+        projectIsActive={projectIsActive}
+        employees={employees}
+        tasks={tasks}
+        onUseTemplate={(tpl) => onAdd({
+          name: tpl.taskName,
+          description: tpl.description,
+          priority: tpl.priority,
+          estimatedHours: tpl.estimatedHours,
+          assigneeId: tpl.assigneeId,
+          recurrence: tpl.recurrence,
+        })}
+      />
     </div>
   );
 };

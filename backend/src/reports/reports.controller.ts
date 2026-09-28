@@ -41,6 +41,11 @@ const projectAnalysisQuerySchema = z.object({
   interval: z.enum(['week', 'month']).default('week'),
 }).refine(dateRangeRefinement, dateRangeRefinementOptions);
 
+const workloadQuerySchema = z.object({
+  startDate: dateStringSchema,
+  endDate: dateStringSchema,
+}).refine(dateRangeRefinement, dateRangeRefinementOptions);
+
 @ApiTags('Reports')
 @Controller('reports')
 export class ReportsController {
@@ -148,6 +153,58 @@ export class ReportsController {
     }
 
     return this.reportsService.getManagerDashboard(finalStartDate, finalEndDate, auth);
+  }
+
+  @Get('admin-dashboard')
+  @ApiOperation({ summary: 'Get admin dashboard report' })
+  @ApiResponse({ status: 200, description: 'Admin dashboard data' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getAdminDashboard(
+    @GetAuthContext() auth: AuthenticatedContext
+  ) {
+    if (!auth.roles.includes('ADMIN')) {
+      throw new ForbiddenException('Only admins can access the admin dashboard');
+    }
+    return this.reportsService.getAdminDashboard(auth);
+  }
+
+  @Get('manager-overdue-tasks')
+  @ApiOperation({ summary: 'Get total overdue tasks for manager' })
+  @ApiResponse({ status: 200, description: 'Overdue task data' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getManagerOverdueTasks(
+    @GetAuthContext() auth: AuthenticatedContext
+  ) {
+    if (!auth.roles.includes('MANAGER')) {
+      throw new ForbiddenException('Only managers can access the manager overdue tasks');
+    }
+    try {
+      return await this.reportsService.getManagerOverdueTasks(auth);
+    } catch (e: any) {
+      import('fs').then(fs => fs.appendFileSync('error.log', e.stack || e.message || String(e) + '\n'));
+      throw e;
+    }
+  }
+
+  @Get('workload')
+  @ApiOperation({ summary: 'Get basic workload and capacity view' })
+  @ApiQuery({ name: 'startDate', required: true, example: '2026-08-01' })
+  @ApiQuery({ name: 'endDate', required: true, example: '2026-08-07' })
+  @ApiResponse({ status: 200, description: 'Workload/Capacity data' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getWorkload(
+    @Query() query: any,
+    @GetAuthContext() auth: AuthenticatedContext
+  ) {
+    try {
+      const { startDate, endDate } = workloadQuerySchema.parse(query);
+      return await this.reportsService.getWorkload(startDate, endDate, auth);
+    } catch (error: any) {
+      if (error && error.name === 'ZodError') {
+        throw new BadRequestException(formatZodError(error));
+      }
+      throw error;
+    }
   }
 
   @Get('team-utilization')

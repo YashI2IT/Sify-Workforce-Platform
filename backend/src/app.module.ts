@@ -37,6 +37,7 @@ import { WorkingTimesModule } from './working-times/working-times.module.js';
 import { PublicHolidaysModule } from './public-holidays/public-holidays.module.js';
 import { UserPreferencesModule } from './user-preferences/user-preferences.module.js';
 import { AuditLogsModule } from './audit-logs/audit-logs.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 
 const authGuardProvider = [
   { provide: APP_GUARD, useClass: UmsAuthGuard },
@@ -65,6 +66,7 @@ const authGuardProvider = [
     PublicHolidaysModule,
     UserPreferencesModule,
     AuditLogsModule,
+    NotificationsModule,
   ],
   controllers: [AppController, AuthController],
   providers: [

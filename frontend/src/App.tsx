@@ -26,6 +26,7 @@ import { ProjectAnalysis } from './features/reports/ProjectAnalysis';
 
 import { AuditLogsList } from './features/system/AuditLogsList';
 
+import { ManagerWorkingTimesView } from './features/working-times/ManagerWorkingTimesView';
 import { WorkingTimesConfig } from './features/working-times/WorkingTimesConfig';
 import { PublicHolidaysConfig } from './features/working-times/PublicHolidaysConfig';
 import { UserPreferences } from './features/working-times/UserPreferences';
@@ -65,6 +66,7 @@ function App() {
             <Route path="/organization/settings" element={<OrganizationSettings />} />
             <Route path="/admin/projects" element={<AllProjectsList />} />
             <Route path="/admin/working-times" element={<WorkingTimesConfig />} />
+            <Route path="/settings/timesheets" element={<ManagerWorkingTimesView />} />
             <Route path="/admin/public-holidays" element={<PublicHolidaysConfig />} />
             
             {/* Reports Routing */}

@@ -10,6 +10,7 @@ export const createTaskSchema = z.object({
   estimatedHours: z.number().nonnegative().nullable().optional(),
   parentTaskId: z.string().uuid().nullable().optional(),
   status: z.string().min(1, 'Status is required'),
+  recurrence: z.enum(['DAILY', 'WEEKLY', 'MONTHLY']).nullable().optional(),
   isActive: z.boolean().default(true),
 }).refine(
   (data) => {
@@ -36,6 +37,7 @@ export const updateTaskSchema = z.object({
   estimatedHours: z.number().nonnegative().nullable().optional(),
   parentTaskId: z.string().uuid().nullable().optional(),
   status: z.string().min(1, 'Status is required').optional(),
+  recurrence: z.enum(['DAILY', 'WEEKLY', 'MONTHLY']).nullable().optional(),
   isActive: z.boolean().optional(),
 }).refine(
   (data) => {

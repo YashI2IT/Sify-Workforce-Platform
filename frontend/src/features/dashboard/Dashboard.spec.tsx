@@ -94,9 +94,8 @@ describe('Dashboard Component', () => {
     await waitFor(() => {
       expect(screen.getByText(/Bob/)).toBeInTheDocument();
       expect(screen.getByText('MANAGER')).toBeInTheDocument();
-      expect(screen.getAllByText('Pending Approvals').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('3').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText('Awaiting your review')).toBeInTheDocument();
+      expect(screen.getAllByText('Pending Review').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('Timesheets to approve')).toBeInTheDocument();
     });
   });
 
