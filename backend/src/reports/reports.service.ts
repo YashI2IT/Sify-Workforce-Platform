@@ -720,4 +720,300 @@ export class ReportsService {
       teamsWithoutManager
     };
   }
+
+  async getAdvancedAnalytics(
+    startDate: string,
+    endDate: string,
+    interval: 'day' | 'week' | 'month',
+    auth: AuthenticatedContext
+  ) {
+    const orgId = auth.organizationId;
+    let targetEmployeeIds: string[] = [];
+    let targetProjectIds: string[] = [];
+
+    // 1. Authorization Scoping
+    if (auth.roles.includes('ADMIN')) {
+      const orgEmployees = await db.orm.public.Employee.where({ organizationId: orgId }).select('id').all();
+      targetEmployeeIds = orgEmployees.map((e: any) => e.id);
+      
+      const orgProjects = await db.orm.public.Project.where({ organizationId: orgId }).select('id').all();
+      targetProjectIds = orgProjects.map((p: any) => p.id);
+    } else if (auth.roles.includes('MANAGER') && auth.employeeId) {
+      targetEmployeeIds.push(auth.employeeId);
+      const managedTeams = await db.orm.public.Team.where({ organizationId: orgId, managerId: auth.employeeId }).all();
+      const teamIds = managedTeams.map((t: any) => t.id);
+      if (teamIds.length > 0) {
+        const teamMembers = await db.orm.public.Employee.where((e: any) => e.teamId.in(teamIds)).select('id').all();
+        for (const e of teamMembers) {
+          if (!targetEmployeeIds.includes(e.id)) targetEmployeeIds.push(e.id);
+        }
+      }
+      const employeeProjects = await db.orm.public.EmployeeProject.where((ep: any) => (ep as any).employeeId.in(targetEmployeeIds)).all();
+      targetProjectIds = [...new Set(employeeProjects.map((ep: any) => ep.projectId))];
+    } else if (auth.employeeId) {
+      targetEmployeeIds = [auth.employeeId];
+      const employeeProjects = await db.orm.public.EmployeeProject.where({ employeeId: auth.employeeId }).all();
+      targetProjectIds = employeeProjects.map((ep: any) => ep.projectId);
+    }
+
+    if (targetEmployeeIds.length === 0 && targetProjectIds.length === 0) {
+      return { trendData: [], projectHoursTrend: [], estimatedVsActual: [], overdueTaskTrend: [], periodOverPeriod: null };
+    }
+
+    // 2. Fetch TimeEntries for Trend Data
+    const timeEntries = targetEmployeeIds.length > 0 ? await db.orm.public.TimeEntry
+      .where((e: any) => (e as any).employeeId.in(targetEmployeeIds))
+      .where((e: any) => (e as any).date.gte(startDate))
+      .where((e: any) => (e as any).date.lte(endDate))
+      .select('id', 'date', 'hours', 'timesheetId', 'projectId')
+      .all() : [];
+
+    const timesheetIds = [...new Set(timeEntries.map((e: any) => e.timesheetId))];
+    const timesheets = timesheetIds.length > 0 ? await db.orm.public.Timesheet.where((t: any) => (t as any).id.in(timesheetIds)).select('id', 'status').all() : [];
+    const tsMap = new Map(timesheets.map((t: any) => [t.id, t.status]));
+
+    // 3. Process Trend Data
+    const trendMap = new Map<string, any>();
+    const projectHoursMap = new Map<string, Map<string, number>>(); // period -> projectId -> hours
+
+    for (const entry of timeEntries) {
+      const dateStr = entry.date;
+      const hours = Number(entry.hours);
+      let bucket = '';
+
+      if (interval === 'month') {
+        bucket = dateStr.substring(0, 7);
+      } else if (interval === 'week') {
+        bucket = formatUtcMondayDateString(dateStr);
+      } else {
+        bucket = dateStr;
+      }
+
+      if (!trendMap.has(bucket)) {
+        trendMap.set(bucket, { period: bucket, totalHours: 0, APPROVED: 0, SUBMITTED: 0, DRAFT: 0, REJECTED: 0 });
+      }
+      const bData = trendMap.get(bucket);
+      bData.totalHours += hours;
+
+      const status = tsMap.get(entry.timesheetId) || 'DRAFT';
+      if (status in bData) {
+        bData[status] += hours;
+      }
+
+      if (!projectHoursMap.has(bucket)) projectHoursMap.set(bucket, new Map());
+      const pMap = projectHoursMap.get(bucket)!;
+      pMap.set(entry.projectId, (pMap.get(entry.projectId) || 0) + hours);
+    }
+
+    const trendData = Array.from(trendMap.values()).sort((a, b) => a.period.localeCompare(b.period));
+
+    // 4. Project Hours Trends
+    const pIds = [...new Set(timeEntries.map((e: any) => e.projectId))];
+    const projects = pIds.length > 0 ? await db.orm.public.Project.where((p: any) => (p as any).id.in(pIds)).select('id', 'name').all() : [];
+    const pNameMap = new Map(projects.map((p: any) => [p.id, p.name]));
+
+    const projectHoursTrend: any[] = [];
+    Array.from(projectHoursMap.entries()).forEach(([period, pMap]) => {
+      pMap.forEach((hours, projectId) => {
+        projectHoursTrend.push({
+          period,
+          projectId,
+          projectName: pNameMap.get(projectId) || 'Unknown',
+          hours
+        });
+      });
+    });
+    projectHoursTrend.sort((a, b) => a.period.localeCompare(b.period));
+
+    // 5. Estimated vs Actual Hours
+    const tasks = targetProjectIds.length > 0 ? await db.orm.public.Task
+      .where((t: any) => (t as any).projectId.in(targetProjectIds))
+      .select('id', 'name', 'estimatedHours')
+      .all() : [];
+
+    const taskIds = tasks.map((t: any) => t.id);
+    const taskActualAgg = taskIds.length > 0 ? await db.orm.public.TimeEntry
+      .where((e: any) => (e as any).taskId.in(taskIds))
+      .groupBy('taskId')
+      .aggregate((a: any) => ({ total: a.sum('hours') })) : [];
+
+    const taskActualMap = new Map();
+    if (Array.isArray(taskActualAgg)) {
+      taskActualAgg.forEach((row: any) => taskActualMap.set(row.taskId, Number(row.total || 0)));
+    }
+
+    const estimatedVsActual = tasks.map((t: any) => ({
+      taskId: t.id,
+      taskName: t.name,
+      estimatedHours: Number(t.estimatedHours || 0),
+      actualHours: taskActualMap.get(t.id) || 0
+    })).sort((a, b) => b.actualHours - a.actualHours).slice(0, 50); // top 50 tasks by actual hours
+
+    // 6. Overdue Task Trend (Current snapshot grouped by due date bucket)
+    const activeTasks = targetProjectIds.length > 0 ? await db.orm.public.Task
+      .where((t: any) => (t as any).projectId.in(targetProjectIds))
+      .all() : [];
+    
+    const overdueTasks = activeTasks.filter((t: any) => t.status !== 'DONE' && t.status !== 'COMPLETED' && t.isActive !== false && t.dueDate && new Date(String(t.dueDate)).getTime() < Date.now());
+    const overdueTrendMap = new Map<string, number>();
+
+    overdueTasks.forEach((t: any) => {
+      const dateStr = new Date(String(t.dueDate)).toISOString().split('T')[0];
+      let bucket = '';
+      if (interval === 'month') {
+        bucket = dateStr.substring(0, 7);
+      } else if (interval === 'week') {
+        bucket = formatUtcMondayDateString(dateStr);
+      } else {
+        bucket = dateStr;
+      }
+      overdueTrendMap.set(bucket, (overdueTrendMap.get(bucket) || 0) + 1);
+    });
+
+    const overdueTaskTrend = Array.from(overdueTrendMap.entries())
+      .map(([period, count]) => ({ period, count }))
+      .sort((a, b) => a.period.localeCompare(b.period));
+
+    // 7. Period-over-Period
+    const currentDiffTime = new Date(endDate).getTime() - new Date(startDate).getTime();
+    const prevEndDate = new Date(new Date(startDate).getTime() - 24 * 60 * 60 * 1000);
+    const prevStartDate = new Date(prevEndDate.getTime() - currentDiffTime);
+    
+    const formatYMD = (d: Date) => d.toISOString().split('T')[0];
+    const prevStartStr = formatYMD(prevStartDate);
+    const prevEndStr = formatYMD(prevEndDate);
+
+    const prevEntriesAgg = targetEmployeeIds.length > 0 ? await db.orm.public.TimeEntry
+      .where((e: any) => (e as any).employeeId.in(targetEmployeeIds))
+      .where((e: any) => (e as any).date.gte(prevStartStr))
+      .where((e: any) => (e as any).date.lte(prevEndStr))
+      .aggregate((a: any) => ({ total: a.sum('hours') })) : null;
+
+    const currentTotalHours = Array.from(trendMap.values()).reduce((sum, b) => sum + b.totalHours, 0);
+    const prevTotalHours = Number(prevEntriesAgg?.total || 0);
+
+    const periodOverPeriod = {
+      currentPeriod: { startDate, endDate, totalHours: currentTotalHours },
+      previousPeriod: { startDate: prevStartStr, endDate: prevEndStr, totalHours: prevTotalHours },
+      percentageChange: prevTotalHours > 0 ? Math.round(((currentTotalHours - prevTotalHours) / prevTotalHours) * 100) : null
+    };
+
+    return {
+      trendData,
+      projectHoursTrend,
+      estimatedVsActual,
+      overdueTaskTrend,
+      periodOverPeriod
+    };
+  }
+
+  async getResourceAllocation(startDate: string, endDate: string, auth: AuthenticatedContext) {
+    let targetEmployeeIds: string[] = [];
+
+    if (auth.roles.includes('ADMIN')) {
+      const orgEmployees = await db.orm.public.Employee.where({ organizationId: auth.organizationId, isActive: true }).select('id').all();
+      targetEmployeeIds = orgEmployees.map((e: any) => e.id);
+    } else if (auth.roles.includes('MANAGER')) {
+      const managedTeams = await db.orm.public.Team.where({
+        organizationId: auth.organizationId,
+        managerId: auth.employeeId
+      }).select('id').all();
+      const teamIds = managedTeams.map((t: any) => t.id);
+      
+      let teamEmployees: any[] = [];
+      if (teamIds.length > 0) {
+        teamEmployees = await db.orm.public.Employee.where((e: any) => e.teamId.in(teamIds)).where({ isActive: true }).select('id').all();
+      }
+      targetEmployeeIds = Array.from(new Set([auth.employeeId, ...teamEmployees.map((e: any) => e.id)]));
+    } else if (auth.roles.includes('EMPLOYEE')) {
+      targetEmployeeIds = [auth.employeeId];
+    }
+
+    if (targetEmployeeIds.length === 0) return [];
+
+    const employees = await db.orm.public.Employee.where((e: any) => e.id.in(targetEmployeeIds)).all();
+    const workingTimes = await db.orm.public.WorkingTime.where((e: any) => e.employeeId.in(targetEmployeeIds)).where({ isActive: true }).all();
+    
+    // Find Org level default working time if any
+    const orgWorkingTimes = await db.orm.public.WorkingTime.where({
+      organizationId: auth.organizationId,
+      isActive: true
+    }).all();
+    const orgWorkingTime = orgWorkingTimes.find((w: any) => !w.employeeId);
+
+    const defaultWT = orgWorkingTime || {
+      monday: 8, tuesday: 8, wednesday: 8, thursday: 8, friday: 8, saturday: 0, sunday: 0
+    };
+
+    const wtMap = new Map(workingTimes.map((wt: any) => [wt.employeeId, wt]));
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    const getCapacity = (employeeId: string) => {
+      const wt = wtMap.get(employeeId) || defaultWT;
+      const dayMap = [wt.sunday, wt.monday, wt.tuesday, wt.wednesday, wt.thursday, wt.friday, wt.saturday];
+      let capacity = 0;
+      if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return 0;
+      
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        capacity += dayMap[d.getDay()] || 0;
+      }
+      return capacity;
+    };
+
+    const activeTasks = await db.orm.public.Task
+      .where((e: any) => e.assigneeId.in(targetEmployeeIds))
+      .where({ isActive: true })
+      .where((e: any) => e.status.notEquals('DONE'))
+      .all();
+
+    const projectIds = Array.from(new Set(activeTasks.map((t: any) => t.projectId)));
+    let projects: any[] = [];
+    if (projectIds.length > 0) {
+      projects = await db.orm.public.Project.where((e: any) => e.id.in(projectIds)).all();
+    }
+    const projectMap = new Map(projects.map((p: any) => [p.id, p]));
+
+    const result = employees.map((emp: any) => {
+      const availableCapacity = getCapacity(emp.id);
+      const empTasks = activeTasks.filter((t: any) => t.assigneeId === emp.id);
+      
+      let plannedDemand = 0;
+      const projectDemandMap = new Map<string, { projectId: string, projectName: string, demand: number }>();
+      
+      for (const t of empTasks) {
+        const est = t.estimatedHours || 0;
+        plannedDemand += est;
+        
+        if (est > 0) {
+          const p = projectMap.get(t.projectId);
+          const pName = p ? p.name : 'Unknown Project';
+          if (!projectDemandMap.has(t.projectId)) {
+            projectDemandMap.set(t.projectId, { projectId: t.projectId, projectName: pName, demand: 0 });
+          }
+          projectDemandMap.get(t.projectId)!.demand += est;
+        }
+      }
+
+      const remainingCapacity = availableCapacity - plannedDemand;
+      const isOverAllocated = plannedDemand > availableCapacity;
+      const utilizationPercentage = availableCapacity > 0 ? Math.round((plannedDemand / availableCapacity) * 100) : (plannedDemand > 0 ? 100 : 0);
+
+      return {
+        employeeId: emp.id,
+        employeeName: emp.name,
+        role: emp.role,
+        availableCapacity,
+        plannedDemand,
+        remainingCapacity,
+        isOverAllocated,
+        utilizationPercentage,
+        projectDemand: Array.from(projectDemandMap.values())
+      };
+    });
+
+    return result.sort((a, b) => b.utilizationPercentage - a.utilizationPercentage);
+  }
 }
+

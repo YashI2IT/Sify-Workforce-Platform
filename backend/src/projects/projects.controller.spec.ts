@@ -65,7 +65,7 @@ describe('ProjectsController', () => {
   describe('getHealth', () => {
     it('should return project health', async () => {
       const auth: AuthenticatedContext = { userId: 'u1', employeeId: 'e1', organizationId: 'org1', roles: [] };
-      const expectedHealth = { overdueTasksCount: 1 };
+      const expectedHealth = { summary: 'On Track' };
       vi.mocked(service.getProjectHealth).mockResolvedValue(expectedHealth as any);
 
       expect(await controller.getHealth('1', auth)).toBe(expectedHealth);

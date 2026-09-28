@@ -113,6 +113,13 @@ export class TasksController {
 
   // --- Task Dependencies ---
 
+  @Get('projects/:projectId/dependencies')
+  @ApiOperation({ summary: 'List all dependencies in a project' })
+  @ApiParam({ name: 'projectId', description: 'Project UUID' })
+  async findProjectDependencies(@Param('projectId') projectId: string, @GetAuthContext() auth: AuthenticatedContext) {
+    return this.tasksService.findProjectDependencies(projectId, auth);
+  }
+
   @Get('tasks/:id/dependencies')
   @ApiOperation({ summary: 'List task dependencies' })
   @ApiParam({ name: 'id', description: 'Task UUID' })
@@ -124,10 +131,10 @@ export class TasksController {
   // @Roles omitted to allow fine-grained service RBAC
   @ApiOperation({ summary: 'Create task dependency' })
   @ApiParam({ name: 'id', description: 'Predecessor Task UUID' })
-  @ApiBody({ schema: { type: 'object', required: ['successorId'], properties: { successorId: { type: 'string' } } } })
+  @ApiBody({ schema: { type: 'object', required: ['successorId'], properties: { successorId: { type: 'string' }, type: { type: 'string', enum: ['FS', 'SS', 'FF', 'SF'] } } } })
   async addDependency(@Param('id') id: string, @Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {
     if (!body.successorId) throw new BadRequestException('Validation failed: successorId is required');
-    return this.tasksService.addDependency(id, body.successorId, auth);
+    return this.tasksService.addDependency(id, body.successorId, body.type || 'FS', auth);
   }
 
   @Delete('tasks/:id/dependencies/:successorId')

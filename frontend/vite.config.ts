@@ -15,4 +15,17 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
   },
+  server: {
+    proxy: {
+      '/ums-api': {
+        target: 'https://apidev.sifymodernization.digital/user-mgt/api',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/ums-api/, ''),
+        bypass: (req: any) => {
+          delete req.headers.origin;
+          delete req.headers.referer;
+        },
+      },
+    },
+  },
 } as any)

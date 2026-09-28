@@ -57,6 +57,22 @@ vi.mock('../prisma/db.js', () => {
     where: vi.fn(() => mTimeEntry),
     all: vi.fn(),
   };
+  const mTaskDependency = {
+    where: vi.fn(() => mTaskDependency),
+    all: vi.fn(),
+  };
+  const mTimesheet = {
+    where: vi.fn(() => mTimesheet),
+    all: vi.fn(),
+  };
+  const mWorkingTime = {
+    where: vi.fn(() => mWorkingTime),
+    all: vi.fn(),
+  };
+  const mEmployee = {
+    where: vi.fn(() => mEmployee),
+    all: vi.fn(),
+  };
 
   return {
     db: {
@@ -69,9 +85,12 @@ vi.mock('../prisma/db.js', () => {
           Milestone: mMilestone,
           OrganizationSettings: mOrganizationSettings,
           Team: { where: vi.fn(() => ({ all: vi.fn().mockResolvedValue([]) })) },
-          Employee: { where: vi.fn(() => ({ all: vi.fn().mockResolvedValue([]) })) },
+          Employee: mEmployee,
           Task: mTask,
           TimeEntry: mTimeEntry,
+          TaskDependency: mTaskDependency,
+          Timesheet: mTimesheet,
+          WorkingTime: mWorkingTime,
         },
       },
     },
@@ -205,11 +224,16 @@ describe('ProjectsService', () => {
 
     it('should aggregate factual project health', async () => {
       vi.mocked(db.orm.public.Project.where).mockReturnValue({
-        first: vi.fn().mockResolvedValue({ id: 'p1', name: 'P1' })
+        first: vi.fn().mockResolvedValue({ id: 'p1', name: 'P1', organizationId: 'org1' })
       } as any);
 
       vi.mocked(db.orm.public.Task.where).mockReturnValue({
-        all: vi.fn().mockResolvedValue(mockTasks)
+        all: vi.fn().mockResolvedValue(mockTasks),
+        where: vi.fn().mockReturnThis()
+      } as any);
+
+      vi.mocked(db.orm.public.TaskDependency.where).mockReturnValue({
+        all: vi.fn().mockResolvedValue([])
       } as any);
 
       vi.mocked(db.orm.public.TimeEntry.where).mockReturnValue({
@@ -219,16 +243,31 @@ describe('ProjectsService', () => {
         ])
       } as any);
 
+      vi.mocked(db.orm.public.Timesheet.where).mockReturnValue({
+        all: vi.fn().mockResolvedValue([])
+      } as any);
+
+      vi.mocked(db.orm.public.WorkingTime.where).mockReturnValue({
+        all: vi.fn().mockResolvedValue([]),
+        where: vi.fn().mockReturnThis()
+      } as any);
+
+      vi.mocked(db.orm.public.Employee.where).mockReturnValue({
+        all: vi.fn().mockResolvedValue([]),
+        where: vi.fn().mockReturnThis()
+      } as any);
+
       const result = await service.getProjectHealth('p1', authCtx);
 
-      expect(result.overdueTasksCount).toBe(1);
-      expect(result.overdueTasks[0].id).toBe('t1');
-      expect(result.blockedTasksCount).toBe(1);
-      expect(result.blockedTasks[0].id).toBe('t2');
-      expect(result.dueSoonTasksCount).toBe(1);
-      expect(result.dueSoonTasks[0].id).toBe('t3');
-      expect(result.tasksExceedingEstimateCount).toBe(1);
-      expect(result.tasksExceedingEstimate[0].id).toBe('t1');
+      expect(result.summary).toBe('At Risk');
+      expect(result.signals.schedule.overdueTasks.length).toBe(1);
+      expect(result.signals.schedule.overdueTasks[0].id).toBe('t1');
+      expect(result.signals.execution.blockedTasks.length).toBe(1);
+      expect(result.signals.execution.blockedTasks[0].id).toBe('t2');
+      expect(result.signals.schedule.dueSoonTasks.length).toBe(1);
+      expect(result.signals.schedule.dueSoonTasks[0].id).toBe('t3');
+      expect(result.signals.execution.tasksExceedingEstimate.length).toBe(1);
+      expect(result.signals.execution.tasksExceedingEstimate[0].id).toBe('t1');
     });
 
     it('should throw NotFound if project does not exist', async () => {

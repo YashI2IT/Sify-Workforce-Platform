@@ -46,6 +46,13 @@ const workloadQuerySchema = z.object({
   endDate: dateStringSchema,
 }).refine(dateRangeRefinement, dateRangeRefinementOptions);
 
+const advancedAnalyticsQuerySchema = z.object({
+  startDate: dateStringSchema.optional(),
+  endDate: dateStringSchema.optional(),
+  interval: z.enum(['day', 'week', 'month']).default('week'),
+}).refine(dateRangeRefinement, dateRangeRefinementOptions);
+
+
 @ApiTags('Reports')
 @Controller('reports')
 export class ReportsController {
@@ -186,19 +193,28 @@ export class ReportsController {
     }
   }
 
-  @Get('workload')
-  @ApiOperation({ summary: 'Get basic workload and capacity view' })
+  @Get('resource-allocation')
+  @ApiOperation({ summary: 'Get advanced capacity and resource allocation' })
   @ApiQuery({ name: 'startDate', required: true, example: '2026-08-01' })
   @ApiQuery({ name: 'endDate', required: true, example: '2026-08-07' })
-  @ApiResponse({ status: 200, description: 'Workload/Capacity data' })
+  @ApiResponse({ status: 200, description: 'Resource Allocation data' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
-  async getWorkload(
+  async getResourceAllocation(
     @Query() query: any,
     @GetAuthContext() auth: AuthenticatedContext
   ) {
     try {
       const { startDate, endDate } = workloadQuerySchema.parse(query);
-      return await this.reportsService.getWorkload(startDate, endDate, auth);
+      
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays > 365) {
+        throw new BadRequestException('Date range cannot exceed 1 year for capacity planning');
+      }
+      
+      return await this.reportsService.getResourceAllocation(startDate, endDate, auth);
     } catch (error: any) {
       if (error && error.name === 'ZodError') {
         throw new BadRequestException(formatZodError(error));
@@ -344,4 +360,45 @@ export class ReportsController {
 
     return this.reportsService.getProjectAnalysis(projectId, finalStartDate, finalEndDate, interval as 'week' | 'month', auth);
   }
+
+  @Get('advanced-analytics')
+  @ApiOperation({ summary: 'Get advanced analytics report' })
+  @ApiQuery({ name: 'startDate', required: false, type: String, description: 'YYYY-MM-DD' })
+  @ApiQuery({ name: 'endDate', required: false, type: String, description: 'YYYY-MM-DD' })
+  @ApiQuery({ name: 'interval', required: false, enum: ['day', 'week', 'month'] })
+  @ApiResponse({ status: 200, description: 'Advanced analytics data' })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  async getAdvancedAnalytics(
+    @Query() query: any,
+    @GetAuthContext() auth: AuthenticatedContext
+  ) {
+    const result = advancedAnalyticsQuerySchema.safeParse(query);
+    if (!result.success) {
+      throw new BadRequestException({ message: 'Validation failed', errors: result.error.issues });
+    }
+
+    const { startDate, endDate, interval } = result.data;
+
+    // Default dates (90 days max range for performance)
+    const end = endDate ? new Date(endDate) : new Date();
+    const start = startDate ? new Date(startDate) : new Date(end.getTime() - 90 * 24 * 60 * 60 * 1000);
+    
+    if (isNaN(end.getTime()) || isNaN(start.getTime())) {
+      throw new BadRequestException('Invalid date provided');
+    }
+    
+    const formatYMD = (d: Date) => d.toISOString().split('T')[0];
+    const finalStartDate = formatYMD(start);
+    const finalEndDate = formatYMD(end);
+    
+    // Enforce 365-day limit for Advanced Analytics
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays > 365) {
+      throw new BadRequestException('Date range cannot exceed 365 days');
+    }
+
+    return this.reportsService.getAdvancedAnalytics(finalStartDate, finalEndDate, interval as 'day' | 'week' | 'month', auth);
+  }
 }
+

@@ -117,51 +117,189 @@ export class ProjectsService {
   }
 
   async getProjectHealth(id: string, auth: AuthenticatedContext) {
-    // 1. Verify project exists and user has access
-    await this.findOne(id, auth);
+    const project = await this.findOne(id, auth);
+    const settings = await db.orm.public.OrganizationSettings.where({ organizationId: project.organizationId }).first();
+    const timeZone = settings?.timeZone || 'UTC';
     
-    // 2. We gather factual indicators:
-    const today = new Date().toISOString().split('T')[0];
-    const in3DaysDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const nowZoned = (globalThis as any).Temporal.Now.zonedDateTimeISO(timeZone);
+    const today = nowZoned.toPlainDate().toString();
+    const in7DaysDate = nowZoned.add({ days: 7 }).toPlainDate().toString();
+    
+    const projectEndStr = project.endDate ? project.endDate.toString().split('T')[0] : null;
+    let projectEndMinus7Str: string | null = null;
+    if (projectEndStr) {
+       projectEndMinus7Str = new Date(new Date(projectEndStr).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    }
 
     const tasks = await db.orm.public.Task.where({ projectId: id, isActive: true }).all();
-    
-    const overdueTasks = tasks.filter((t: any) => t.status !== 'COMPLETED' && t.dueDate && t.dueDate.toString().split('T')[0] < today);
-    const blockedTasks = tasks.filter((t: any) => t.status === 'BLOCKED');
-    const dueSoonTasks = tasks.filter((t: any) => {
-      if (t.status === 'COMPLETED' || !t.dueDate) return false;
-      const dateStr = t.dueDate.toString().split('T')[0];
-      return dateStr >= today && dateStr <= in3DaysDate;
-    });
-    
-    // Fetch time entries to calculate actual hours
+    const taskIds = tasks.map((t: any) => t.id);
+
+    const dependencies = taskIds.length > 0 ? await db.orm.public.TaskDependency.where((d: any) => (d as any).successorId.in(taskIds)).all() : [];
+    const taskMap = new Map(tasks.map((t: any) => [t.id, t]));
+
     const timeEntries = await db.orm.public.TimeEntry.where({ projectId: id }).all();
+    const timesheetIds = [...new Set(timeEntries.map((e: any) => e.timesheetId).filter(Boolean))];
+    const timesheets = timesheetIds.length > 0 ? await db.orm.public.Timesheet.where((ts: any) => (ts as any).id.in(timesheetIds)).all() : [];
+    const tsMap = new Map(timesheets.map((ts: any) => [ts.id, ts.status]));
+
     const actualHoursByTask = new Map<string, number>();
+    const timesheetStatusHours = { DRAFT: 0, SUBMITTED: 0, APPROVED: 0, REJECTED: 0 };
+    
     for (const entry of timeEntries) {
+      const hrs = Number(entry.hours);
       if (entry.taskId) {
-        actualHoursByTask.set(entry.taskId, (actualHoursByTask.get(entry.taskId) || 0) + Number(entry.hours));
+        actualHoursByTask.set(entry.taskId, (actualHoursByTask.get(entry.taskId) || 0) + hrs);
+      }
+      if (entry.timesheetId && tsMap.has(entry.timesheetId)) {
+         const st = tsMap.get(entry.timesheetId) as string;
+         if (st in timesheetStatusHours) {
+            (timesheetStatusHours as any)[st] += hrs;
+         }
       }
     }
+
+    let totalBacklogHours = 0;
+    let assignedHours = 0;
+    let unassignedHours = 0;
     
-    const tasksExceedingEstimate = tasks.filter((t: any) => {
-      const actual = actualHoursByTask.get(t.id) || 0;
-      return t.estimatedHours && actual > t.estimatedHours;
-    });
+    const overdueTasks: any[] = [];
+    const dueSoonTasks: any[] = [];
+    const endOfProjectExposureTasks: any[] = [];
+    const pastProjectEndTasks: any[] = [];
+    
+    const blockedTasks: any[] = [];
+    const dependencyBlockedTasks: any[] = [];
+    const tasksExceedingEstimate: any[] = [];
+    
+    for (const t of tasks) {
+       if (t.status === 'DONE' || t.status === 'COMPLETED') continue;
+
+       const est = Number(t.estimatedHours || 0);
+       totalBacklogHours += est;
+       if (t.assigneeId) assignedHours += est;
+       else unassignedHours += est;
+       
+       const dateStr = t.dueDate ? t.dueDate.toString().split('T')[0] : null;
+       if (dateStr) {
+          if (dateStr < today) overdueTasks.push(t);
+          if (dateStr >= today && dateStr <= in7DaysDate) dueSoonTasks.push(t);
+          
+          if (projectEndStr) {
+             if (dateStr > projectEndStr) pastProjectEndTasks.push(t);
+             else if (projectEndMinus7Str && dateStr > projectEndMinus7Str) endOfProjectExposureTasks.push(t);
+          }
+       }
+
+       if (t.status === 'BLOCKED') blockedTasks.push(t);
+       
+       const actual = actualHoursByTask.get(t.id) || 0;
+       if (est > 0 && actual > est) {
+          tasksExceedingEstimate.push({ ...t, actualHours: actual, estimatedHours: est });
+       }
+       
+       const myDeps = dependencies.filter((d: any) => d.successorId === t.id);
+       let isBlockedByDep = false;
+       for (const d of myDeps) {
+          const pred = taskMap.get(d.predecessorId);
+          if (pred && pred.status !== 'DONE' && pred.status !== 'COMPLETED') {
+             isBlockedByDep = true;
+             break;
+          }
+       }
+       if (isBlockedByDep) dependencyBlockedTasks.push(t);
+    }
+
+    const assignedEmployeeIds = [...new Set(tasks.map((t: any) => t.assigneeId).filter(Boolean))];
+    const overallocatedEmployees: any[] = [];
+    
+    if (assignedEmployeeIds.length > 0) {
+      const workingTimes = await db.orm.public.WorkingTime.where((e: any) => (e as any).employeeId.in(assignedEmployeeIds)).where({ isActive: true }).all();
+      const orgWorkingTimes = await db.orm.public.WorkingTime.where({ organizationId: project.organizationId, isActive: true }).all();
+      const defaultWT = orgWorkingTimes.find((w: any) => !w.employeeId) || {
+        monday: 8, tuesday: 8, wednesday: 8, thursday: 8, friday: 8, saturday: 0, sunday: 0
+      };
+      const wtMap = new Map(workingTimes.map((wt: any) => [wt.employeeId, wt]));
+      
+      const pStart = project.startDate ? new Date(project.startDate.toString()) : new Date();
+      const pEnd = project.endDate ? new Date(project.endDate.toString()) : new Date(pStart.getTime() + 30 * 24 * 60 * 60 * 1000);
+      
+      const empCapacity = new Map<string, number>();
+      for (const empId of assignedEmployeeIds) {
+        const wt = wtMap.get(empId) || defaultWT;
+        const dayMap = [wt.sunday, wt.monday, wt.tuesday, wt.wednesday, wt.thursday, wt.friday, wt.saturday];
+        let cap = 0;
+        for (let d = new Date(pStart); d <= pEnd; d.setDate(d.getDate() + 1)) cap += dayMap[d.getDay()] || 0;
+        empCapacity.set(empId, cap);
+      }
+      
+      const empActiveTasks = await db.orm.public.Task.where((e: any) => (e as any).assigneeId.in(assignedEmployeeIds)).where({ isActive: true }).where((e: any) => (e as any).status.notEquals('DONE')).all();
+      const empDemand = new Map<string, number>();
+      for (const t of empActiveTasks) {
+         if (t.assigneeId) {
+            empDemand.set(t.assigneeId, (empDemand.get(t.assigneeId) || 0) + Number(t.estimatedHours || 0));
+         }
+      }
+      
+      const emps = await db.orm.public.Employee.where((e: any) => (e as any).id.in(assignedEmployeeIds)).all();
+      for (const emp of emps) {
+         const cap = empCapacity.get(emp.id) || 0;
+         const demand = empDemand.get(emp.id) || 0;
+         if (demand > cap) {
+            overallocatedEmployees.push({ id: emp.id, name: emp.name, capacity: cap, demand });
+         }
+      }
+    }
+
+    const evidence: string[] = [];
+    let summary = 'On Track';
+    
+    if (overdueTasks.length > 0) evidence.push(`${overdueTasks.length} active tasks are past due`);
+    if (pastProjectEndTasks.length > 0) evidence.push(`${pastProjectEndTasks.length} tasks are due after the project end date`);
+    if (blockedTasks.length > 0) evidence.push(`${blockedTasks.length} tasks are marked as BLOCKED`);
+    if (tasksExceedingEstimate.length > 0) evidence.push(`${tasksExceedingEstimate.length} tasks have actual hours exceeding estimates`);
+    if (overallocatedEmployees.length > 0) evidence.push(`${overallocatedEmployees.length} assigned employees have total organization workload exceeding their capacity during the project window`);
+    
+    if (evidence.length > 0) {
+       summary = 'At Risk';
+    } else {
+       if (dueSoonTasks.length > 0) evidence.push(`${dueSoonTasks.length} tasks are due in the next 7 days`);
+       if (endOfProjectExposureTasks.length > 0) evidence.push(`${endOfProjectExposureTasks.length} unfinished tasks are approaching the project end date`);
+       if (dependencyBlockedTasks.length > 0) evidence.push(`${dependencyBlockedTasks.length} tasks have incomplete predecessors`);
+       if (unassignedHours > 0) evidence.push(`${unassignedHours}h of estimated work is currently unassigned`);
+       if (timesheetStatusHours.REJECTED > 0) evidence.push(`${timesheetStatusHours.REJECTED}h of logged work is in REJECTED status`);
+       
+       if (evidence.length > 0) summary = 'Attention Needed';
+    }
+
+    if (evidence.length === 0) {
+       evidence.push('All schedule, workload, and execution signals are healthy');
+    }
+
+    const mapTask = (t: any) => ({ id: t.id, name: t.name, dueDate: t.dueDate, estimatedHours: t.estimatedHours, actualHours: t.actualHours });
 
     return {
-      overdueTasksCount: overdueTasks.length,
-      blockedTasksCount: blockedTasks.length,
-      dueSoonTasksCount: dueSoonTasks.length,
-      tasksExceedingEstimateCount: tasksExceedingEstimate.length,
-      overdueTasks: overdueTasks.map((t: any) => ({ id: t.id, name: t.name, dueDate: t.dueDate })),
-      blockedTasks: blockedTasks.map((t: any) => ({ id: t.id, name: t.name })),
-      dueSoonTasks: dueSoonTasks.map((t: any) => ({ id: t.id, name: t.name, dueDate: t.dueDate })),
-      tasksExceedingEstimate: tasksExceedingEstimate.map((t: any) => ({
-        id: t.id, 
-        name: t.name, 
-        estimatedHours: t.estimatedHours,
-        actualHours: actualHoursByTask.get(t.id) || 0
-      }))
+      summary,
+      evidence,
+      signals: {
+        schedule: {
+          overdueTasks: overdueTasks.map(mapTask),
+          dueSoonTasks: dueSoonTasks.map(mapTask),
+          pastProjectEndTasks: pastProjectEndTasks.map(mapTask),
+          endOfProjectExposureTasks: endOfProjectExposureTasks.map(mapTask)
+        },
+        workload: {
+          totalBacklogHours,
+          assignedHours,
+          unassignedHours,
+          overallocatedEmployees
+        },
+        execution: {
+          tasksExceedingEstimate: tasksExceedingEstimate.map(mapTask),
+          blockedTasks: blockedTasks.map(mapTask),
+          dependencyBlockedTasks: dependencyBlockedTasks.map(mapTask),
+          timesheetStatusHours
+        }
+      }
     };
   }
 

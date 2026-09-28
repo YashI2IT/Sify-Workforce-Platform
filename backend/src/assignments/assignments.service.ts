@@ -2,10 +2,14 @@ import { Injectable, NotFoundException, ConflictException, BadRequestException, 
 import { db } from '../prisma/db.js';
 import { AuthenticatedContext } from '../auth/authenticated-context.js';
 import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 @Injectable()
 export class AssignmentsService {
-  constructor(private auditLogsService: AuditLogsService) {}
+  constructor(
+    private auditLogsService: AuditLogsService,
+    private notificationsService: NotificationsService
+  ) {}
 
   private async validateManagerAccess(employeeId: string, auth: AuthenticatedContext) {
     if (auth.roles.includes('ADMIN')) return;
@@ -61,16 +65,30 @@ export class AssignmentsService {
       throw new ConflictException('Employee is already assigned to this project');
     }
 
-    const assignment = await db.orm.public.EmployeeProject.create({
-      projectId,
-      employeeId,
-    });
-    
-    if (auth.employeeId) {
-      await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'EMPLOYEE_ASSIGNED_TO_PROJECT', 'Project', projectId, {
-        assignedEmployeeId: employeeId
+    const assignment = await db.transaction(async (tx) => {
+      const created = await tx.orm.public.EmployeeProject.create({
+        projectId,
+        employeeId,
       });
-    }
+      
+      if (auth.employeeId && employeeId !== auth.employeeId) {
+        await this.notificationsService.createNotification({
+          recipientId: employeeId,
+          type: 'PROJECT_ASSIGNED',
+          title: 'Assigned to Project',
+          message: `You have been assigned to project: ${project.name}`,
+          relatedEntityType: 'PROJECT',
+          relatedEntityId: projectId,
+        }, tx);
+      }
+      
+      if (auth.employeeId) {
+        await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'EMPLOYEE_ASSIGNED_TO_PROJECT', 'Project', projectId, {
+          assignedEmployeeId: employeeId
+        }, tx);
+      }
+      return created;
+    });
 
     return assignment;
   }
@@ -101,13 +119,26 @@ export class AssignmentsService {
       throw new NotFoundException('Assignment not found');
     }
 
-    await db.orm.public.EmployeeProject.where({ projectId, employeeId }).delete();
-    
-    if (auth.employeeId) {
-      await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'EMPLOYEE_REMOVED_FROM_PROJECT', 'Project', projectId, {
-        removedEmployeeId: employeeId
-      });
-    }
+    await db.transaction(async (tx) => {
+      await tx.orm.public.EmployeeProject.where({ projectId, employeeId }).delete();
+      
+      if (auth.employeeId && employeeId !== auth.employeeId) {
+        await this.notificationsService.createNotification({
+          recipientId: employeeId,
+          type: 'PROJECT_UNASSIGNED',
+          title: 'Removed from Project',
+          message: `You have been removed from project: ${project.name}`,
+          relatedEntityType: 'PROJECT',
+          relatedEntityId: projectId,
+        }, tx);
+      }
+      
+      if (auth.employeeId) {
+        await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'EMPLOYEE_REMOVED_FROM_PROJECT', 'Project', projectId, {
+          removedEmployeeId: employeeId
+        }, tx);
+      }
+    });
   }
 
   async getProjectEmployees(projectId: string, auth: AuthenticatedContext) {

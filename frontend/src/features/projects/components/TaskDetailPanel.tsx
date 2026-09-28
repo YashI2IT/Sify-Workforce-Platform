@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { X, Edit2, Clock, Calendar, AlertCircle, Send, Trash2, Edit3, MessageSquare } from 'lucide-react';
+import { X, Edit2, Clock, Calendar, AlertCircle, Send, Trash2, Edit3, MessageSquare, Link, Plus } from 'lucide-react';
 import { useCurrentEmployee } from '../../../hooks/useCurrentEmployee';
-import { useGetTaskCommentsQuery, useCreateTaskCommentMutation, useUpdateTaskCommentMutation, useDeleteTaskCommentMutation } from '../../../store/apiSlice';
+import { useGetTaskCommentsQuery, useCreateTaskCommentMutation, useUpdateTaskCommentMutation, useDeleteTaskCommentMutation, useGetTaskDependenciesQuery, useCreateTaskDependencyMutation, useDeleteTaskDependencyMutation } from '../../../store/apiSlice';
 import { useToast } from '../../../context/ToastContext';
 
 interface Task {
@@ -91,6 +91,41 @@ export const TaskDetailPanel = ({
   const [newComment, setNewComment] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+
+  // Dependencies API
+  const { data: depsData, isLoading: depsLoading, refetch: refetchDeps } = useGetTaskDependenciesQuery(
+    task?.id ?? '',
+    { skip: !isOpen || !task }
+  );
+  const [createDep, { isLoading: creatingDep }] = useCreateTaskDependencyMutation();
+  const [deleteDep] = useDeleteTaskDependencyMutation();
+
+  const [isAddingDep, setIsAddingDep] = useState(false);
+  const [newDepId, setNewDepId] = useState('');
+  const [newDepType, setNewDepType] = useState('FS');
+
+  const handleCreateDep = async () => {
+    if (!newDepId) return;
+    try {
+       await createDep({ taskId: task!.id, successorId: newDepId, type: newDepType, projectId }).unwrap();
+       setIsAddingDep(false);
+       setNewDepId('');
+       setNewDepType('FS');
+       refetchDeps();
+       showToast('Dependency added', 'success');
+    } catch (e: any) {
+       showToast(e.data?.message || 'Failed to add dependency', 'error');
+    }
+  };
+  const handleDeleteDep = async (succId: string) => {
+    try {
+      await deleteDep({ taskId: task!.id, successorId: succId, projectId }).unwrap();
+      refetchDeps();
+      showToast('Dependency removed', 'success');
+    } catch (e: any) {
+      showToast(e.data?.message || 'Failed to remove dependency', 'error');
+    }
+  };
 
   if (!isOpen || !task) return null;
 
@@ -241,6 +276,113 @@ export const TaskDetailPanel = ({
               </div>
             </section>
           )}
+
+          {/* ── DEPENDENCIES ── */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-bold text-slate-500 uppercase font-mono">Dependencies</p>
+              {isAdmin && projectIsActive && !isAddingDep && (
+                <button
+                  onClick={() => setIsAddingDep(true)}
+                  className="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-1 hover:text-indigo-700"
+                >
+                  <Plus className="w-3 h-3" /> Add
+                </button>
+              )}
+            </div>
+
+            {isAddingDep && (
+              <div className="p-3 mb-3 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-2">
+                <div className="flex gap-2">
+                  <select 
+                    className="flex-1 text-xs border border-slate-200 rounded-lg p-1.5 bg-white"
+                    value={newDepId}
+                    onChange={(e) => setNewDepId(e.target.value)}
+                  >
+                    <option value="">Select task...</option>
+                    {tasks.filter(t => t.id !== task.id && t.isActive).map(t => (
+                      <option key={t.id} value={t.id}>{t.ticketId} - {t.name}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="w-20 text-xs border border-slate-200 rounded-lg p-1.5 bg-white font-mono"
+                    value={newDepType}
+                    onChange={(e) => setNewDepType(e.target.value)}
+                  >
+                    <option value="FS">FS</option>
+                    <option value="SS">SS</option>
+                    <option value="FF">FF</option>
+                    <option value="SF">SF</option>
+                  </select>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setIsAddingDep(false)} className="text-[10px] font-bold text-slate-500">CANCEL</button>
+                  <button onClick={handleCreateDep} disabled={!newDepId || creatingDep} className="text-[10px] font-bold text-indigo-600 disabled:opacity-50">
+                    SAVE
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {depsLoading ? (
+               <div className="text-xs text-slate-400">Loading...</div>
+            ) : (!depsData?.predecessors?.length && !depsData?.successors?.length && !isAddingDep) ? (
+               <div className="text-xs text-slate-400 italic">No dependencies set.</div>
+            ) : (
+              <div className="space-y-2">
+                {depsData?.predecessors?.length > 0 && (
+                  <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase font-mono mb-2 flex items-center gap-1">
+                      <Link className="w-3 h-3" /> Waiting On (Predecessors)
+                    </p>
+                    <div className="space-y-1.5">
+                      {depsData.predecessors.map((dep: any) => {
+                         const predTask = getTask(dep.predecessorId);
+                         if (!predTask) return null;
+                         return (
+                           <div key={dep.id} className="flex items-center justify-between gap-2">
+                             <div className="flex items-center gap-2 overflow-hidden">
+                               <span className="px-1 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-700 rounded font-mono shrink-0">{dep.type}</span>
+                               <span className="text-xs text-slate-700 truncate">{predTask.ticketId} {predTask.name}</span>
+                             </div>
+                           </div>
+                         );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {depsData?.successors?.length > 0 && (
+                  <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase font-mono mb-2 flex items-center gap-1">
+                      <Link className="w-3 h-3" /> Blocks (Successors)
+                    </p>
+                    <div className="space-y-1.5">
+                      {depsData.successors.map((dep: any) => {
+                         const succTask = getTask(dep.successorId);
+                         if (!succTask) return null;
+                         return (
+                           <div key={dep.id} className="flex items-center justify-between gap-2 group">
+                             <div className="flex items-center gap-2 overflow-hidden">
+                               <span className="px-1 py-0.5 text-[9px] font-bold bg-indigo-100 text-indigo-700 rounded font-mono shrink-0">{dep.type}</span>
+                               <span className="text-xs text-slate-700 truncate">{succTask.ticketId} {succTask.name}</span>
+                             </div>
+                             {isAdmin && projectIsActive && (
+                               <button 
+                                 onClick={() => handleDeleteDep(dep.successorId)}
+                                 className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                               >
+                                 <Trash2 className="w-3.5 h-3.5" />
+                               </button>
+                             )}
+                           </div>
+                         );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
 
           {/* ── COMMENTS ── */}
           <section className="flex flex-col flex-1 min-h-0 border-t border-slate-100">

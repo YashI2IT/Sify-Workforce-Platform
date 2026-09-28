@@ -23,6 +23,7 @@ export interface Task {
   startDate?: string | null;
   dueDate?: string | null;
   estimatedHours?: number | null;
+  projectId: string;
   parentTaskId?: string | null;
   requirementId?: string | null;
   milestoneId?: string | null;

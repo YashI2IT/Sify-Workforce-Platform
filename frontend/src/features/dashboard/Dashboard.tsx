@@ -11,6 +11,7 @@ import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { formatDateRange, getThisMonday, getTodayString } from '../../utils/date';
 import { getStatusBadgeClass } from '../../utils/status';
+import { AiSummaryCard } from '../../components/AiSummaryCard';
 
 interface AdminDashboardViewProps {
   employee: any;
@@ -1965,6 +1966,14 @@ export const Dashboard = () => {
         {/* Primary Operational Feed: 8 Columns */}
         <div className="lg:col-span-8 space-y-6 sm:space-y-7">
           
+          {roleEmployee && (
+            <AiSummaryCard 
+              type="EMPLOYEE" 
+              startDate={getThisMonday()} 
+              endDate={getTodayString()} 
+            />
+          )}
+
           {/* Weekly Work Distribution: Pure SVG Chart Component */}
           {roleEmployee && (
             <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">

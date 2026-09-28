@@ -21,7 +21,7 @@ describe('ReportsController', () => {
             getTeamUtilization: vi.fn().mockResolvedValue({}),
             getProjectHours: vi.fn().mockResolvedValue({}),
             getProjectAnalysis: vi.fn().mockResolvedValue({}),
-            getWorkload: vi.fn().mockResolvedValue([]),
+            getResourceAllocation: vi.fn().mockResolvedValue([]),
             getAdminDashboard: vi.fn().mockResolvedValue({})
           }
         }
@@ -207,18 +207,18 @@ describe('ReportsController', () => {
     });
   });
 
-  describe('Workload Endpoint', () => {
+  describe('Resource Allocation Endpoint', () => {
     it('validates dates are required and valid', async () => {
-      await expect(controller.getWorkload({}, authCtx(['MANAGER'])))
+      await expect(controller.getResourceAllocation({}, authCtx(['MANAGER'])))
         .rejects.toThrow(BadRequestException);
       
-      await expect(controller.getWorkload({ startDate: '2026-08-01', endDate: 'invalid' }, authCtx(['MANAGER'])))
+      await expect(controller.getResourceAllocation({ startDate: '2026-08-01', endDate: 'invalid' }, authCtx(['MANAGER'])))
         .rejects.toThrow(BadRequestException);
     });
 
     it('allows MANAGER role and passes data to service', async () => {
-      await controller.getWorkload({ startDate: '2026-08-01', endDate: '2026-08-07' }, authCtx(['MANAGER']));
-      expect(service.getWorkload).toHaveBeenCalledWith('2026-08-01', '2026-08-07', expect.any(Object));
+      await controller.getResourceAllocation({ startDate: '2026-08-01', endDate: '2026-08-07' }, authCtx(['MANAGER']));
+      expect(service.getResourceAllocation).toHaveBeenCalledWith('2026-08-01', '2026-08-07', expect.any(Object));
     });
   });
 

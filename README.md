@@ -53,13 +53,6 @@ View captured emails at `http://localhost:8025`.
 # Run backend test suite (309 tests across 27 suites)
 cd backend && npm test
 
-# Run frontend test suite
+# Run frontend test suite (74 tests across 17 suites)
 cd frontend && npm test
 ```
-
----
-
-## 🔮 Future Improvements (V1.1+)
-
-- **Frontend Code Splitting**: The production `vite build` produces a large chunk. In future releases, React route-level code splitting (`React.lazy()`) should be implemented to reduce initial load times.
-- **E2E Browser Automation**: Browser-based E2E tests are pending due to external Playwright CDN issues during the V1 auditing phase. These should be reintroduced when the external dependency is resolved.

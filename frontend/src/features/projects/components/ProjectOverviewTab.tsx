@@ -1,4 +1,5 @@
-import { AlertTriangle, AlertCircle, Clock, TrendingUp } from 'lucide-react';
+import { AlertTriangle, AlertCircle } from 'lucide-react';
+import { AiSummaryCard } from '@/components/AiSummaryCard';
 
 interface ProjectOverviewTabProps {
   project: any;
@@ -25,6 +26,8 @@ export const ProjectOverviewTab = ({
           Detailed metrics and configuration parameters for {project.name}.
         </p>
       </div>
+
+      <AiSummaryCard type="PROJECT" entityId={project.id} />
 
       {project.description && (
         <div className="p-4 bg-slate-50/50 border border-slate-200/80 rounded-xl shadow-2xs">
@@ -85,85 +88,52 @@ export const ProjectOverviewTab = ({
       </div>
 
       {/* Project Health Section */}
-      {healthData && (
+      {healthData && healthData.summary && (
         <div className="pt-4 space-y-4">
           <div>
-            <h3 className="text-base font-bold text-slate-900 font-display">Project Health</h3>
+            <h3 className="text-base font-bold text-slate-900 font-display">Project Intelligence</h3>
             <p className="text-xs text-slate-500 font-mono mt-0.5">
-              Live factual indicators based on current tasks and time entries.
+              Factual indicators derived from schedule, workload, and execution signals.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {healthData.overdueTasksCount > 0 && (
-              <div className="p-4 bg-red-50/80 border border-red-200 rounded-xl shadow-2xs flex gap-4 items-start">
-                <div className="mt-0.5 p-2 bg-red-100 text-red-600 rounded-lg">
-                  <AlertCircle className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-red-900">Overdue Tasks ({healthData.overdueTasksCount})</p>
-                  <p className="text-xs text-red-700 mt-1">
-                    Tasks that have passed their due date and are not yet completed.
-                  </p>
-                </div>
+          <div className={`p-5 border rounded-2xl shadow-2xs flex flex-col sm:flex-row gap-6 ${
+            healthData.summary === 'At Risk' ? 'bg-red-50/50 border-red-200' :
+            healthData.summary === 'Attention Needed' ? 'bg-amber-50/50 border-amber-200' :
+            'bg-emerald-50/50 border-emerald-200'
+          }`}>
+            <div className="flex flex-col items-center justify-center shrink-0 min-w-[140px] text-center border-r border-slate-200/50 pr-6">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${
+                healthData.summary === 'At Risk' ? 'bg-red-100 text-red-600' :
+                healthData.summary === 'Attention Needed' ? 'bg-amber-100 text-amber-600' :
+                'bg-emerald-100 text-emerald-600'
+              }`}>
+                {healthData.summary === 'At Risk' ? <AlertCircle className="w-6 h-6" /> :
+                 healthData.summary === 'Attention Needed' ? <AlertTriangle className="w-6 h-6" /> :
+                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                 </svg>}
               </div>
-            )}
-
-            {healthData.blockedTasksCount > 0 && (
-              <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-xl shadow-2xs flex gap-4 items-start">
-                <div className="mt-0.5 p-2 bg-amber-100 text-amber-600 rounded-lg">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-amber-900">Blocked Tasks ({healthData.blockedTasksCount})</p>
-                  <p className="text-xs text-amber-700 mt-1">
-                    Tasks explicitly marked as BLOCKED by the team.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {healthData.dueSoonTasksCount > 0 && (
-              <div className="p-4 bg-blue-50/80 border border-blue-200 rounded-xl shadow-2xs flex gap-4 items-start">
-                <div className="mt-0.5 p-2 bg-blue-100 text-blue-600 rounded-lg">
-                  <Clock className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-blue-900">Due Soon ({healthData.dueSoonTasksCount})</p>
-                  <p className="text-xs text-blue-700 mt-1">
-                    Incomplete work with due dates within the next 3 days.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {healthData.tasksExceedingEstimateCount > 0 && (
-              <div className="p-4 bg-purple-50/80 border border-purple-200 rounded-xl shadow-2xs flex gap-4 items-start">
-                <div className="mt-0.5 p-2 bg-purple-100 text-purple-600 rounded-lg">
-                  <TrendingUp className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-purple-900">Exceeding Estimates ({healthData.tasksExceedingEstimateCount})</p>
-                  <p className="text-xs text-purple-700 mt-1">
-                    Tasks where actual logged hours exceed the estimated hours.
-                  </p>
-                </div>
-              </div>
-            )}
+              <h4 className={`text-sm font-bold font-display ${
+                healthData.summary === 'At Risk' ? 'text-red-900' :
+                healthData.summary === 'Attention Needed' ? 'text-amber-900' :
+                'text-emerald-900'
+              }`}>
+                {healthData.summary}
+              </h4>
+            </div>
             
-            {healthData.overdueTasksCount === 0 && healthData.blockedTasksCount === 0 && healthData.dueSoonTasksCount === 0 && healthData.tasksExceedingEstimateCount === 0 && (
-              <div className="col-span-full p-6 border border-dashed border-emerald-200 bg-emerald-50/50 rounded-xl flex flex-col items-center justify-center text-center">
-                <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mb-3">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <h4 className="text-sm font-bold text-emerald-900">Project is Healthy</h4>
-                <p className="text-xs text-emerald-700 mt-1 max-w-sm">
-                  There are no overdue, blocked, due soon, or over-budget tasks detected.
-                </p>
-              </div>
-            )}
+            <div className="flex-1">
+              <p className="text-[11px] font-bold text-slate-500 uppercase font-mono mb-3">Evidence & Signals</p>
+              <ul className="space-y-2">
+                {healthData.evidence.map((ev: string, idx: number) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-sm text-slate-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0" />
+                    {ev}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       )}

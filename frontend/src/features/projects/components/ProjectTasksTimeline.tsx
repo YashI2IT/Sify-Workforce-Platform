@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import type { Task, Employee, Milestone } from './ProjectTasksTab';
-import { useGetTaskDependenciesQuery } from '../../../store/apiSlice';
+import { useGetProjectDependenciesQuery } from '../../../store/apiSlice';
 import { User, Flag, ChevronRight, ChevronDown, ZoomIn, ZoomOut, AlertCircle } from 'lucide-react';
 import { statusColors } from './taskUtils';
 
@@ -33,25 +33,6 @@ const getWeekNumber = (d: Date) => {
   const pastDaysOfYear = (d.getTime() - firstDayOfYear.getTime()) / 86400000;
   return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
 };
-
-// ==========================================
-// DEPENDENCY FETCHER
-// ==========================================
-const DependencyFetcher = ({ 
-  taskId, 
-  onLoaded 
-}: { 
-  taskId: string; 
-  onLoaded: (taskId: string, data: { predecessors: any[], successors: any[] }) => void;
-}) => {
-  const { data } = useGetTaskDependenciesQuery(taskId);
-  useEffect(() => {
-    if (data) onLoaded(taskId, data);
-  }, [data, taskId, onLoaded]);
-  return null;
-};
-
-// ==========================================
 // MAIN COMPONENT
 // ==========================================
 export const ProjectTasksTimeline = ({
@@ -67,7 +48,6 @@ export const ProjectTasksTimeline = ({
 }) => {
   const [dayWidth, setDayWidth] = useState(30);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [dependencies, setDependencies] = useState<Record<string, { predecessors: any[], successors: any[] }>>({});
   
   // Ref for synced scrolling
   const leftPanelRef = useRef<HTMLDivElement>(null);
@@ -77,9 +57,20 @@ export const ProjectTasksTimeline = ({
     setExpanded(prev => ({ ...prev, [id]: prev[id] === false ? true : false }));
   };
 
-  const handleDependenciesLoaded = (taskId: string, data: any) => {
-    setDependencies(prev => ({ ...prev, [taskId]: data }));
-  };
+  const projectId = tasks[0]?.projectId || '';
+  const { data: projectDependencies = [] } = useGetProjectDependenciesQuery(projectId, { skip: !projectId });
+
+  const dependencies = useMemo(() => {
+    const acc: Record<string, { predecessors: any[], successors: any[] }> = {};
+    projectDependencies.forEach((dep: any) => {
+      if (!acc[dep.predecessorId]) acc[dep.predecessorId] = { predecessors: [], successors: [] };
+      if (!acc[dep.successorId]) acc[dep.successorId] = { predecessors: [], successors: [] };
+      
+      acc[dep.predecessorId].successors.push(dep);
+      acc[dep.successorId].predecessors.push(dep);
+    });
+    return acc;
+  }, [projectDependencies]);
 
   const getEmployee = (id?: string | null) => employees.find(e => e.id === id);
 
@@ -131,7 +122,7 @@ export const ProjectTasksTimeline = ({
 
   // 3. Grid rendering helpers
   const getX = (dateStr?: string | null) => {
-    if (!dateStr) return 0;
+    if (!dateStr) return null;
     const diff = differenceInDays(parseISO(dateStr), minDate);
     return Math.max(0, diff * dayWidth);
   };
@@ -294,7 +285,7 @@ export const ProjectTasksTimeline = ({
             <div className="h-[44px] border-b border-slate-100/50 relative bg-amber-50/10">
               {milestones.map(m => {
                 if (!m.targetDate) return null;
-                const x = getX(m.targetDate);
+                const x = getX(m.targetDate) ?? 0;
                 return (
                   <div 
                     key={m.id} 
@@ -323,11 +314,17 @@ export const ProjectTasksTimeline = ({
                   const successorTask = flatTasks[successorIdx];
                   if (!t.dueDate || !successorTask.startDate) return null; // Cannot draw line if missing dates
                   
-                  // Math for Finish-to-Start line
-                  // Y coordinates account for the milestones row (+1)
-                  const startX = getX(t.dueDate);
+                  // Dep logic based on type
+                  const type = dep.type || 'FS';
+                  
+                  // For F* types we start from dueDate. For S* types we start from startDate.
+                  // For *F types we end at dueDate. For *S types we end at startDate.
+                  const startX = type.startsWith('F') ? getX(t.dueDate) : getX(t.startDate);
+                  const endX = type.endsWith('F') ? getX(successorTask.dueDate) : getX(successorTask.startDate);
+                  
+                  if (startX === null || endX === null) return null; // Can't draw if dates are missing
+                  
                   const startY = (idx + 1) * ROW_HEIGHT + (ROW_HEIGHT / 2);
-                  const endX = getX(successorTask.startDate);
                   const endY = (successorIdx + 1) * ROW_HEIGHT + (ROW_HEIGHT / 2);
 
                   // Path logic: go right 10px, go down/up to target Y, go right to target X
@@ -360,8 +357,8 @@ export const ProjectTasksTimeline = ({
 
             {/* Task Rows & Bars */}
             {flatTasks.map((t, _idx) => {
-              const startX = getX(t.startDate);
-              const endX = getX(t.dueDate);
+              const startX = getX(t.startDate) ?? 0;
+              const endX = getX(t.dueDate) ?? 0;
               let barWidth = endX - startX;
               if (barWidth < dayWidth && t.startDate) barWidth = dayWidth; // Min width 1 day
 
@@ -379,7 +376,6 @@ export const ProjectTasksTimeline = ({
                   className="border-b border-slate-100/50 relative hover:bg-slate-50/50 transition-colors"
                   style={{ height: ROW_HEIGHT }}
                 >
-                  <DependencyFetcher taskId={t.id} onLoaded={handleDependenciesLoaded} />
                   
                   {t.startDate && (
                     <div 

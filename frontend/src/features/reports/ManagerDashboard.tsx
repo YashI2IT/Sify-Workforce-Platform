@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { BarChart3, UsersRound, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { ReportLayout, ReportEmptyState } from './components/ReportLayout';
 import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
-import { useGetManagerDashboardReportQuery, useGetWorkloadReportQuery } from '../../store/apiSlice';
+import { useGetManagerDashboardReportQuery, useGetResourceAllocationReportQuery } from '../../store/apiSlice';
+
+import { AiSummaryCard } from '../../components/AiSummaryCard';
 
 export const ManagerDashboard = () => {
   const { employee } = useCurrentEmployee();
@@ -33,7 +35,7 @@ export const ManagerDashboard = () => {
     { skip: !isValidDateRange || !isManager }
   );
 
-  const { data: workloadData, isLoading: workloadLoading, error: workloadError, refetch: refetchWorkload } = useGetWorkloadReportQuery(
+  const { data: workloadData, isLoading: workloadLoading, error: workloadError, refetch: refetchWorkload } = useGetResourceAllocationReportQuery(
     { startDate, endDate },
     { skip: !isValidDateRange || !isManager }
   );
@@ -75,6 +77,8 @@ export const ManagerDashboard = () => {
         <ReportEmptyState message="No data to display. Adjust date range and refresh." />
       ) : (
         <div className="p-6 space-y-6">
+          <AiSummaryCard type="MANAGER" startDate={startDate} endDate={endDate} />
+
           {/* Summary Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
@@ -193,10 +197,10 @@ export const ManagerDashboard = () => {
                   <thead className="bg-slate-50/80 text-xs uppercase font-bold text-slate-500 font-mono tracking-wider border-b border-slate-200/80">
                     <tr>
                       <th className="px-4 py-3">Employee</th>
-                      <th className="px-4 py-3 text-right">Configured Capacity</th>
-                      <th className="px-4 py-3 text-right">Logged Hours</th>
-                      <th className="px-4 py-3 text-right">Remaining</th>
-                      <th className="px-4 py-3 text-right">Over-Capacity</th>
+                      <th className="px-4 py-3 text-right">Period Capacity</th>
+                      <th className="px-4 py-3 text-right">Active Backlog</th>
+                      <th className="px-4 py-3 text-right">Deficit</th>
+                      <th className="px-4 py-3 text-right">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200/80 bg-white">
@@ -213,14 +217,14 @@ export const ManagerDashboard = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right font-mono font-medium">{row.configuredCapacity}h</td>
-                        <td className="px-4 py-3 text-right font-mono font-medium">{row.actualHours}h</td>
-                        <td className="px-4 py-3 text-right font-mono font-medium text-emerald-600">{row.remainingCapacity}h</td>
+                        <td className="px-4 py-3 text-right font-mono font-medium">{row.availableCapacity}h</td>
+                        <td className="px-4 py-3 text-right font-mono font-medium">{row.plannedDemand}h</td>
+                        <td className={`px-4 py-3 text-right font-mono font-medium ${row.remainingCapacity < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{row.remainingCapacity}h</td>
                         <td className="px-4 py-3 text-right font-mono font-medium">
-                          {row.overCapacity > 0 ? (
-                            <span className="text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md font-bold">{row.overCapacity}h</span>
+                          {row.isOverAllocated ? (
+                            <span className="text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md font-bold text-xs uppercase tracking-wider">Over-allocated</span>
                           ) : (
-                            <span className="text-slate-400">0h</span>
+                            <span className="text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md font-bold text-xs uppercase tracking-wider">On track</span>
                           )}
                         </td>
                       </tr>

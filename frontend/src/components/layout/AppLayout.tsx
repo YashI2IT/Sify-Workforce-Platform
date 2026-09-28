@@ -151,8 +151,10 @@ export const AppLayout = () => {
     {
       title: 'Reports',
       items: [
+        { name: 'Advanced Analytics', path: '/reports/advanced-analytics', icon: TrendingUp, roles: ['EMPLOYEE', 'MANAGER'] },
         { name: 'Employee Summary', path: '/reports/employee-summary', icon: PieChart, roles: ['MANAGER'] },
         { name: 'Team Utilization', path: '/reports/team-utilization', icon: TrendingUp, roles: ['MANAGER'] },
+        { name: 'Resource Allocation', path: '/reports/resource-allocation', icon: UsersRound, roles: ['MANAGER'] },
       ]
     },
     {

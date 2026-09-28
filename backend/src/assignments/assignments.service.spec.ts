@@ -1,4 +1,5 @@
 import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AssignmentsService } from './assignments.service.js';
 import { db } from '../prisma/db.js';
@@ -34,6 +35,19 @@ vi.mock('../prisma/db.js', () => {
 
   return {
     db: {
+      transaction: vi.fn(async (cb) => {
+        return await cb({
+          orm: {
+            public: {
+              EmployeeProject: mEmployeeProject,
+              Project: mProject,
+              Employee: mEmployee,
+              Team: mTeam,
+              OrganizationSettings: mOrganizationSettings,
+            },
+          },
+        });
+      }),
       orm: {
         public: {
           EmployeeProject: mEmployeeProject,
@@ -55,7 +69,11 @@ describe('AssignmentsService', () => {
     vi.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AssignmentsService, { provide: AuditLogsService, useValue: { logEvent: vi.fn(), getOrganizationLogs: vi.fn() } }],
+      providers: [
+        AssignmentsService,
+        { provide: AuditLogsService, useValue: { logEvent: vi.fn(), getOrganizationLogs: vi.fn() } },
+        { provide: NotificationsService, useValue: { createNotification: vi.fn() } },
+      ],
     }).compile();
 
     service = module.get<AssignmentsService>(AssignmentsService);

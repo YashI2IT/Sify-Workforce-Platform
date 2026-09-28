@@ -23,6 +23,8 @@ import { ManagerDashboard } from './features/reports/ManagerDashboard';
 import { TeamUtilization } from './features/reports/TeamUtilization';
 import { ProjectHours } from './features/reports/ProjectHours';
 import { ProjectAnalysis } from './features/reports/ProjectAnalysis';
+import { AdvancedAnalytics } from './features/reports/advanced-analytics/AdvancedAnalytics';
+import { ResourceAllocation } from './features/reports/resource-allocation/ResourceAllocation';
 
 import { AuditLogsList } from './features/system/AuditLogsList';
 
@@ -76,6 +78,8 @@ function App() {
             <Route path="/reports/team-utilization" element={<TeamUtilization />} />
             <Route path="/reports/project-hours" element={<ProjectHours />} />
             <Route path="/reports/project-analysis" element={<ProjectAnalysis />} />
+            <Route path="/reports/advanced-analytics" element={<AdvancedAnalytics />} />
+            <Route path="/reports/resource-allocation" element={<ResourceAllocation />} />
 
             {/* System */}
             <Route path="/admin/audit-logs" element={<AuditLogsList />} />

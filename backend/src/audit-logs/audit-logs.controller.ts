@@ -12,7 +12,7 @@ import type { AuthenticatedContext } from '../auth/authenticated-context.js';
 @UseGuards(UmsAuthGuard, RolesGuard)
 @Controller('audit-logs')
 export class AuditLogsController {
-  constructor(private readonly auditLogsService: AuditLogsService) {}
+  constructor(private readonly auditLogsService: AuditLogsService) { }
 
   @Get()
   @Roles('ADMIN')
@@ -38,7 +38,7 @@ export class AuditLogsController {
   ) {
     const pageNumber = page ? parseInt(page, 10) : 1;
     const limitNumber = limit ? parseInt(limit, 10) : 50;
-    
+
     return this.auditLogsService.findOrganizationAuditLogs(auth, pageNumber, limitNumber, {
       actorId,
       action,

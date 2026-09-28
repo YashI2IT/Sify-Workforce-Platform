@@ -447,37 +447,72 @@ describe('TasksService', () => {
 
   describe('addDependency', () => {
     it('should throw BadRequestException if task depends on itself', async () => {
-      await expect(service.addDependency('t1', 't1', authCtx)).rejects.toThrow(BadRequestException);
+      await expect(service.addDependency('t1', 't1', 'FS', authCtx)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException for cross-project dependency', async () => {
       vi.mocked(db.orm.public.Task.where).mockReturnValue({
         first: vi.fn()
-          .mockResolvedValueOnce({ id: 't1', projectId: 'p1' })
-          .mockResolvedValueOnce({ id: 't2', projectId: 'p2' })
+          .mockResolvedValueOnce({ id: 't1', projectId: 'p1', isActive: true })
+          .mockResolvedValueOnce({ id: 't2', projectId: 'p2', isActive: true })
       } as any);
 
-      await expect(service.addDependency('t1', 't2', authCtx)).rejects.toThrow(BadRequestException);
+      await expect(service.addDependency('t1', 't2', 'FS', authCtx)).rejects.toThrow(BadRequestException);
     });
 
     it('should create task dependency successfully', async () => {
       vi.mocked(db.orm.public.Task.where).mockReturnValue({
         first: vi.fn()
-          .mockResolvedValueOnce({ id: 't1', projectId: 'p1' })
-          .mockResolvedValueOnce({ id: 't2', projectId: 'p1' })
+          .mockResolvedValueOnce({ id: 't1', projectId: 'p1', isActive: true, ticketId: 'p1-1' })
+          .mockResolvedValueOnce({ id: 't2', projectId: 'p1', isActive: true, ticketId: 'p1-2', assigneeId: 'e2' }),
+        all: vi.fn().mockResolvedValue([{ id: 't1' }, { id: 't2' }])
       } as any);
       vi.mocked(db.orm.public.Project.where).mockReturnValue({
         first: vi.fn().mockResolvedValue({ id: 'p1', isActive: true, status: 'ACTIVE', organizationId: 'org1' })
       } as any);
-      vi.mocked(db.orm.public.TaskDependency.where).mockReturnValue({
-        first: vi.fn().mockResolvedValue(null)
-      } as any);
       
       const created = { id: 'td1', predecessorId: 't1', successorId: 't2', type: 'FS' };
-      vi.mocked(db.orm.public.TaskDependency.create).mockResolvedValueOnce(created as any);
+      vi.mocked(db.orm.public.TaskDependency.create).mockResolvedValue(created as any);
+      vi.mocked(db.orm.public.TaskDependency.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue(null),
+        join: vi.fn().mockReturnThis(),
+        all: vi.fn().mockResolvedValue([])
+      } as any);
 
-      const result = await service.addDependency('t1', 't2', authCtx);
+      const result = await service.addDependency('t1', 't2', 'FS', authCtx);
       expect(result).toEqual(created);
+    });
+
+    it('should prevent dependency cycle', async () => {
+      vi.mocked(db.orm.public.Task.where).mockReturnValue({
+        first: vi.fn()
+          .mockResolvedValueOnce({ id: 't1', projectId: 'p1', isActive: true })
+          .mockResolvedValueOnce({ id: 't2', projectId: 'p1', isActive: true }),
+        all: vi.fn().mockResolvedValue([{ id: 't1' }, { id: 't2' }])
+      } as any);
+      vi.mocked(db.orm.public.Project.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 'p1', isActive: true, status: 'ACTIVE', organizationId: 'org1' })
+      } as any);
+      
+      const mTaskDependency = {
+        first: vi.fn().mockResolvedValue(null),
+        join: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        all: vi.fn().mockResolvedValue([{ predecessorId: 't2', successorId: 't1' }]),
+      };
+      (db.orm.public.TaskDependency as any) = mTaskDependency;
+      
+      await expect(service.addDependency('t1', 't2', 'FS', authCtx)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject inactive tasks', async () => {
+      vi.mocked(db.orm.public.Task.where).mockReturnValue({
+        first: vi.fn()
+          .mockResolvedValueOnce({ id: 't1', projectId: 'p1', isActive: false })
+          .mockResolvedValueOnce({ id: 't2', projectId: 'p1', isActive: true })
+      } as any);
+
+      await expect(service.addDependency('t1', 't2', 'FS', authCtx)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -515,8 +550,13 @@ describe('TasksService', () => {
 
     it('addComment should create a comment', async () => {
       vi.mocked(db.orm.public.TaskComment.create).mockResolvedValue(mockComment as any);
+      vi.mocked(db.orm.public.TaskComment.where).mockReturnValue({
+        all: vi.fn().mockResolvedValue([]),
+        first: vi.fn().mockResolvedValue(null)
+      } as any);
       vi.mocked(db.orm.public.Employee.where).mockReturnValue({
-        first: vi.fn().mockResolvedValue({ id: 'emp1', name: 'John Doe' })
+        first: vi.fn().mockResolvedValue({ id: 'emp1', name: 'John Doe' }),
+        all: vi.fn().mockResolvedValue([])
       } as any);
 
       const result = await service.addComment('task1', 'Hello', authCtx);

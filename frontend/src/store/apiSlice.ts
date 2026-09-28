@@ -42,7 +42,7 @@ const customBaseQuery = async (args: any) => {
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: customBaseQuery,
-  tagTypes: ['Organization', 'OrganizationSettings', 'Employee', 'Team', 'Project', 'Task', 'TaskComment', 'TaskTemplate', 'Activity', 'Requirement', 'ProjectEmployee', 'TimeEntry', 'Timesheet', 'Report', 'Milestone', 'TaskDependency', 'WorkingTime', 'PublicHoliday', 'UserPreference', 'AuditLog', 'Notification'],
+  tagTypes: ['Organization', 'OrganizationSettings', 'Employee', 'Team', 'Project', 'Task', 'TaskComment', 'TaskTemplate', 'Activity', 'Requirement', 'ProjectEmployee', 'TimeEntry', 'Timesheet', 'Report', 'Milestone', 'TaskDependency', 'ProjectDependency', 'WorkingTime', 'PublicHoliday', 'UserPreference', 'AuditLog', 'Notification'],
   endpoints: (builder) => ({
     // ==========================================
     // EMPLOYEES
@@ -240,10 +240,15 @@ export const apiSlice = createApi({
       query: (taskId) => `/tasks/${taskId}/dependencies`,
       providesTags: (_result, _error, taskId) => [{ type: 'TaskDependency', id: taskId }],
     }),
-    createTaskDependency: builder.mutation<any, { taskId: string; successorId: string; projectId: string }>({
-      query: ({ taskId, successorId }) => ({ url: `/tasks/${taskId}/dependencies`, method: 'POST', body: { successorId } }),
+    getProjectDependencies: builder.query<any, string>({
+      query: (projectId) => `/projects/${projectId}/dependencies`,
+      providesTags: (_result, _error, projectId) => [{ type: 'ProjectDependency', id: projectId }],
+    }),
+    createTaskDependency: builder.mutation<any, { taskId: string; successorId: string; type: string; projectId: string }>({
+      query: ({ taskId, successorId, type }) => ({ url: `/tasks/${taskId}/dependencies`, method: 'POST', body: { successorId, type } }),
       invalidatesTags: (_result, _error, { taskId, projectId }) => [
         { type: 'TaskDependency', id: taskId },
+        { type: 'ProjectDependency', id: projectId },
         { type: 'Task', id: projectId },
       ],
     }),
@@ -251,6 +256,7 @@ export const apiSlice = createApi({
       query: ({ taskId, successorId }) => ({ url: `/tasks/${taskId}/dependencies/${successorId}`, method: 'DELETE' }),
       invalidatesTags: (_result, _error, { taskId, projectId }) => [
         { type: 'TaskDependency', id: taskId },
+        { type: 'ProjectDependency', id: projectId },
         { type: 'Task', id: projectId },
       ],
     }),
@@ -436,9 +442,9 @@ export const apiSlice = createApi({
       query: (params) => ({ url: '/reports/manager-dashboard', params }),
       providesTags: ['Report'],
     }),
-    getWorkloadReport: builder.query<any, { startDate: string; endDate: string }>({
-      query: (params) => ({ url: '/reports/workload', params }),
-      providesTags: ['Report', 'WorkingTime', 'TimeEntry'],
+    getResourceAllocationReport: builder.query<any, { startDate: string; endDate: string }>({
+      query: (params) => ({ url: '/reports/resource-allocation', params }),
+      providesTags: ['Report', 'WorkingTime', 'Task'],
     }),
     getTeamUtilizationReport: builder.query<any, { startDate: string; endDate: string; teamId?: string }>({
       query: (params) => ({ url: '/reports/team-utilization', params }),
@@ -452,6 +458,11 @@ export const apiSlice = createApi({
       query: ({ projectId, ...params }) => ({ url: `/reports/project-analysis/${projectId}`, params }),
       providesTags: ['Report'],
     }),
+    getAdvancedAnalyticsReport: builder.query<any, { startDate: string; endDate: string; interval: string }>({
+      query: (params) => ({ url: '/reports/advanced-analytics', params }),
+      providesTags: ['Report'],
+    }),
+
 
     // ==========================================
     // WORKING TIMES
@@ -583,6 +594,7 @@ export const {
   useDeleteTaskTemplateMutation,
   useUpdateProjectTaskMutation,
   useGetTaskDependenciesQuery,
+  useGetProjectDependenciesQuery,
   useCreateTaskDependencyMutation,
   useDeleteTaskDependencyMutation,
 
@@ -626,10 +638,11 @@ export const {
   // Reports
   useGetEmployeeSummaryReportQuery,
   useGetManagerDashboardReportQuery,
-  useGetWorkloadReportQuery,
+  useGetResourceAllocationReportQuery,
   useGetTeamUtilizationReportQuery,
   useGetProjectHoursReportQuery,
   useGetProjectAnalysisReportQuery,
+  useGetAdvancedAnalyticsReportQuery,
 
   // Working Times
   useGetOrgWorkingTimeQuery,

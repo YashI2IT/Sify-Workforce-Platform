@@ -193,6 +193,17 @@ export class TasksService {
           
           taskData.ticketId = `${currentProject.code}-${nextSequence}`;
           task = await tx.orm.public.Task.create(taskData);
+          
+          if (task.assigneeId && task.assigneeId !== auth.employeeId) {
+            await this.notificationsService.createNotification({
+              recipientId: task.assigneeId,
+              type: 'TASK_ASSIGNED',
+              title: 'New Task Assigned',
+              message: `You have been assigned to task: ${task.ticketId} - ${task.name}`,
+              relatedEntityType: 'TASK',
+              relatedEntityId: task.id,
+            }, tx);
+          }
         });
         break; // Success!
       } catch (err: any) {
@@ -206,17 +217,6 @@ export class TasksService {
 
     if (!task) {
       throw new Error('Concurrency failure: Could not generate a unique Ticket ID for the task after multiple attempts.');
-    }
-
-    if (task.assigneeId && task.assigneeId !== auth.employeeId) {
-      await this.notificationsService.createNotification({
-        recipientId: task.assigneeId,
-        type: 'TASK_ASSIGNED',
-        title: 'New Task Assigned',
-        message: `You have been assigned to task: ${task.ticketId} - ${task.name}`,
-        relatedEntityType: 'TASK',
-        relatedEntityId: task.id,
-      });
     }
 
     return task;
@@ -363,6 +363,34 @@ export class TasksService {
           }
 
           updated = await tx.orm.public.Task.where({ id }).update(updateData);
+          
+          if (assigneeId !== undefined && assigneeId !== currentTask.assigneeId && assigneeId !== null && assigneeId !== auth.employeeId) {
+            await this.notificationsService.createNotification({
+              recipientId: assigneeId,
+              type: 'TASK_ASSIGNED',
+              title: 'Task Assigned To You',
+              message: `You have been assigned to task: ${(updated as any).ticketId} - ${(updated as any).name}`,
+              relatedEntityType: 'TASK',
+              relatedEntityId: (updated as any).id,
+            }, tx);
+          }
+          
+          if (status !== undefined && status !== currentTask.status) {
+             const targetIds = new Set<string>();
+             if (updated.assigneeId && updated.assigneeId !== auth.employeeId) targetIds.add(updated.assigneeId);
+             if (updated.creatorId && updated.creatorId !== auth.employeeId) targetIds.add(updated.creatorId);
+             
+             for (const rId of targetIds) {
+               await this.notificationsService.createNotification({
+                 recipientId: rId,
+                 type: 'TASK_STATUS_CHANGED',
+                 title: 'Task Status Changed',
+                 message: `Task ${updated.ticketId} status changed to ${status}`,
+                 relatedEntityType: 'TASK',
+                 relatedEntityId: updated.id,
+               }, tx);
+             }
+          }
         });
         break; // Success
       } catch (err: any) {
@@ -374,23 +402,16 @@ export class TasksService {
       }
     }
 
-    if (updated && assigneeId !== undefined && assigneeId !== task.assigneeId && assigneeId !== null && assigneeId !== auth.employeeId) {
-      await this.notificationsService.createNotification({
-        recipientId: assigneeId,
-        type: 'TASK_ASSIGNED',
-        title: 'Task Assigned To You',
-        message: `You have been assigned to task: ${(updated as any).ticketId} - ${(updated as any).name}`,
-        relatedEntityType: 'TASK',
-        relatedEntityId: (updated as any).id,
-      });
-    }
-
     return updated;
   }
 
-  async addDependency(predecessorId: string, successorId: string, auth: AuthenticatedContext) {
+  async addDependency(predecessorId: string, successorId: string, type: string, auth: AuthenticatedContext) {
     if (predecessorId === successorId) {
       throw new BadRequestException('Task cannot depend on itself');
+    }
+    const allowedTypes = ['FS', 'SS', 'FF', 'SF'];
+    if (!allowedTypes.includes(type)) {
+      throw new BadRequestException('Invalid dependency type');
     }
 
     const predecessor = await db.orm.public.Task.where({ id: predecessorId }).first();
@@ -398,6 +419,10 @@ export class TasksService {
 
     if (!predecessor || !successor) {
       throw new NotFoundException('One or both tasks not found');
+    }
+
+    if (!predecessor.isActive || !successor.isActive) {
+      throw new BadRequestException('Cannot add dependencies to inactive tasks');
     }
 
     if (predecessor.projectId !== successor.projectId) {
@@ -424,10 +449,55 @@ export class TasksService {
       throw new ConflictException('Dependency already exists');
     }
 
-    return db.orm.public.TaskDependency.create({
-      predecessorId,
-      successorId,
-      type: 'FS'
+    // Cycle detection
+    const allProjectTasks = await db.orm.public.Task.where({ projectId: predecessor.projectId }).all();
+    const allProjectTaskIds = allProjectTasks.map(t => t.id);
+    let allProjectDeps: any[] = [];
+    if (allProjectTaskIds.length > 0) {
+      allProjectDeps = await db.orm.public.TaskDependency
+        .where(d => (d as any).predecessorId.in(allProjectTaskIds))
+        .all();
+    }
+      
+    const adj = new Map<string, string[]>();
+    for (const dep of allProjectDeps) {
+      if (!adj.has(dep.predecessorId)) adj.set(dep.predecessorId, []);
+      adj.get(dep.predecessorId)!.push(dep.successorId);
+    }
+    
+    const visited = new Set<string>();
+    const queue = [successorId];
+    while (queue.length > 0) {
+      const curr = queue.shift()!;
+      if (curr === predecessorId) {
+        throw new BadRequestException('Cannot create dependency: circular dependency detected');
+      }
+      if (!visited.has(curr)) {
+        visited.add(curr);
+        if (adj.has(curr)) {
+          queue.push(...adj.get(curr)!);
+        }
+      }
+    }
+
+    return await db.transaction(async (tx) => {
+      const created = await tx.orm.public.TaskDependency.create({
+        predecessorId,
+        successorId,
+        type
+      });
+
+      if (successor.assigneeId && successor.assigneeId !== auth.employeeId) {
+        await this.notificationsService.createNotification({
+          recipientId: successor.assigneeId,
+          type: 'DEPENDENCY_ADDED',
+          title: 'New Dependency Added',
+          message: `Task ${predecessor.ticketId} is now a predecessor to your task ${successor.ticketId}.`,
+          relatedEntityType: 'TASK',
+          relatedEntityId: successorId,
+        }, tx);
+      }
+      return created;
     });
   }
 
@@ -438,6 +508,23 @@ export class TasksService {
     const successors = await db.orm.public.TaskDependency.where({ predecessorId: taskId }).all();
 
     return { predecessors, successors };
+  }
+
+  async findProjectDependencies(projectId: string, auth: AuthenticatedContext) {
+    // Re-use project access check from findAllByProject
+    const project = await db.orm.public.Project.where({ id: projectId, organizationId: auth.organizationId }).first();
+    if (!project) throw new NotFoundException('Project not found');
+    await this.validateTaskMutationAccess(projectId, auth, false); // view access
+    
+    // 1. Get all task IDs in this project
+    const tasks = await db.orm.public.Task.where({ projectId }).all();
+    const taskIds = tasks.map(t => t.id);
+    if (taskIds.length === 0) return [];
+
+    // 2. Find dependencies originating from these tasks
+    return db.orm.public.TaskDependency
+      .where(d => (d as any).predecessorId.in(taskIds))
+      .all();
   }
 
   async removeDependency(taskId: string, successorId: string, auth: AuthenticatedContext) {
@@ -454,13 +541,27 @@ export class TasksService {
       throw new BadRequestException('Cannot modify dependencies for an inactive or completed/on-hold project');
     }
 
-    const dependency = await db.orm.public.TaskDependency.where({ predecessorId: taskId, successorId }).first();
-    if (!dependency) {
-      throw new NotFoundException('Dependency not found');
-    }
+    return await db.transaction(async (tx) => {
+      const dependency = await tx.orm.public.TaskDependency.where({ predecessorId: taskId, successorId }).first();
+      if (!dependency) {
+        throw new NotFoundException('Dependency not found');
+      }
 
-    await db.orm.public.TaskDependency.where({ predecessorId: taskId, successorId }).delete();
-    return { success: true };
+      await tx.orm.public.TaskDependency.where({ predecessorId: taskId, successorId }).delete();
+      
+      const successor = await tx.orm.public.Task.where({ id: successorId }).first();
+      if (successor && successor.assigneeId && successor.assigneeId !== auth.employeeId) {
+        await this.notificationsService.createNotification({
+          recipientId: successor.assigneeId,
+          type: 'DEPENDENCY_REMOVED',
+          title: 'Dependency Removed',
+          message: `Task ${task.ticketId} is no longer a predecessor to your task ${successor.ticketId}.`,
+          relatedEntityType: 'TASK',
+          relatedEntityId: successorId,
+        }, tx);
+      }
+      return { success: true };
+    });
   }
 
   // --- Task Comments ---
@@ -502,30 +603,45 @@ export class TasksService {
       throw new BadRequestException('Only employees can comment');
     }
 
-    // 2. Create comment
-    const created = await db.orm.public.TaskComment.create({
-      taskId,
-      authorId: auth.employeeId,
-      comment
-    });
-
-    const author = await db.orm.public.Employee.where({ id: auth.employeeId }).first();
-
-    if (task && task.assigneeId && task.assigneeId !== auth.employeeId) {
-      await this.notificationsService.createNotification({
-        recipientId: task.assigneeId,
-        type: 'COMMENT_ADDED',
-        title: 'New Comment on Task',
-        message: `${author?.name || 'Someone'} commented on task: ${task.ticketId}`,
-        relatedEntityType: 'TASK',
-        relatedEntityId: task.id,
+    // 2. Create comment inside a transaction to bundle with notifications
+    return await db.transaction(async (tx) => {
+      const created = await tx.orm.public.TaskComment.create({
+        taskId,
+        authorId: auth.employeeId!,
+        comment
       });
-    }
 
-    return {
-      ...created,
-      author: author ? { id: author.id, name: author.name } : { id: auth.employeeId, name: 'Unknown' }
-    };
+      const author = await tx.orm.public.Employee.where({ id: auth.employeeId! }).first();
+
+      // Find participants (assignee, creator, and past comment authors)
+      const existingComments = await tx.orm.public.TaskComment.where({ taskId }).all();
+      const participantIds = new Set<string>();
+      
+      if (task.assigneeId) participantIds.add(task.assigneeId);
+      if (task.creatorId) participantIds.add(task.creatorId);
+      for (const c of existingComments) {
+        if (c.authorId) participantIds.add(c.authorId);
+      }
+      
+      // Remove self
+      participantIds.delete(auth.employeeId!);
+
+      for (const pid of participantIds) {
+        await this.notificationsService.createNotification({
+          recipientId: pid,
+          type: 'COMMENT_ADDED',
+          title: 'New Comment on Task',
+          message: `${author?.name || 'Someone'} commented on task: ${task.ticketId}`,
+          relatedEntityType: 'TASK',
+          relatedEntityId: task.id,
+        }, tx);
+      }
+
+      return {
+        ...created,
+        author: author ? { id: author.id, name: author.name } : { id: auth.employeeId, name: 'Unknown' }
+      };
+    });
   }
 
   async editComment(taskId: string, commentId: string, text: string, auth: AuthenticatedContext) {
