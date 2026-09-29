@@ -36,7 +36,7 @@ export const ProjectDetail = () => {
   const { employee } = useCurrentEmployee();
   const { showToast } = useToast();
   
-  const isAdmin = employee?.roles?.includes('ADMIN') || false;
+  const isAdmin = Boolean(employee?.roles?.includes('ADMIN') || employee?.role === 'ADMIN');
 
   const { data: projectData, isLoading: projectLoading, error: projectErr, refetch: refetchProject } = useGetProjectDetailsQuery(projectId || '', { skip: !projectId });
   const { data: tasksData, isLoading: tasksLoading, refetch: refetchTasks } = useGetProjectTasksQuery(projectId || '', { skip: !projectId });
@@ -44,7 +44,7 @@ export const ProjectDetail = () => {
   const { data: employeesData, isLoading: employeesLoading, refetch: refetchEmployees } = useGetProjectEmployeesQuery(projectId || '', { skip: !projectId });
   const { data: unassignedData, refetch: refetchUnassigned } = useGetProjectUnassignedEmployeesQuery(projectId || '', { skip: !projectId });
   
-  const isManagerOrAdmin = employee?.roles?.includes('MANAGER') || isAdmin;
+  const isManagerOrAdmin = Boolean(employee?.roles?.includes('MANAGER') || employee?.role === 'MANAGER' || isAdmin);
   const { data: healthData, isLoading: healthLoading, refetch: refetchHealth } = useGetProjectHealthQuery(projectId || '', { skip: !projectId || !isManagerOrAdmin });
   
   const [removeEmpM] = useRemoveProjectEmployeeMutation();
@@ -245,10 +245,12 @@ export const ProjectDetail = () => {
         {activeTab === 'tasks' && (
           <ProjectTasksTab
             tasks={tasks}
+            milestones={project?.milestones || []}
             employees={assignedEmployees}
-            isAdmin={isAdmin}
+            isAdmin={isManagerOrAdmin}
             projectIsActive={project.isActive}
             projectId={projectId!}
+            currentEmployeeId={employee?.id}
             onAdd={(initialData?: any) => { 
               setEditingTask(null); 
               setInitialTaskData(initialData || null);

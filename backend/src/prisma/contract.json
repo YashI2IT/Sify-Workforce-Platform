@@ -84,6 +84,18 @@
       "model": "TimesheetAudit",
       "namespace": "public"
     },
+    "timesheet_submission": {
+      "model": "TimesheetSubmission",
+      "namespace": "public"
+    },
+    "timesheet_submission_audit": {
+      "model": "TimesheetSubmissionAudit",
+      "namespace": "public"
+    },
+    "timesheet_submission_entry": {
+      "model": "TimesheetSubmissionEntry",
+      "namespace": "public"
+    },
     "user_preference": {
       "model": "UserPreference",
       "namespace": "public"
@@ -562,6 +574,21 @@
                   "namespace": "public"
                 }
               },
+              "reviewedSubmissions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "reviewedBy"
+                  ]
+                },
+                "to": {
+                  "model": "TimesheetSubmission",
+                  "namespace": "public"
+                }
+              },
               "taskComments": {
                 "cardinality": "1:N",
                 "on": {
@@ -619,6 +646,21 @@
                 },
                 "to": {
                   "model": "TimesheetAudit",
+                  "namespace": "public"
+                }
+              },
+              "timesheetSubmissions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "employeeId"
+                  ]
+                },
+                "to": {
+                  "model": "TimesheetSubmission",
                   "namespace": "public"
                 }
               },
@@ -2890,6 +2932,13 @@
                   "kind": "scalar"
                 }
               },
+              "approvalStatus": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -2933,6 +2982,13 @@
                 }
               },
               "remarks": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "submissionId": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
@@ -3007,6 +3063,36 @@
                   "namespace": "public"
                 }
               },
+              "submission": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "submissionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "TimesheetSubmission",
+                  "namespace": "public"
+                }
+              },
+              "submissionLinks": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "timeEntryId"
+                  ]
+                },
+                "to": {
+                  "model": "TimesheetSubmissionEntry",
+                  "namespace": "public"
+                }
+              },
               "task": {
                 "cardinality": "N:1",
                 "on": {
@@ -3043,6 +3129,9 @@
                 "activityId": {
                   "column": "activityId"
                 },
+                "approvalStatus": {
+                  "column": "approvalStatus"
+                },
                 "createdAt": {
                   "column": "createdAt"
                 },
@@ -3063,6 +3152,9 @@
                 },
                 "remarks": {
                   "column": "remarks"
+                },
+                "submissionId": {
+                  "column": "submissionId"
                 },
                 "taskId": {
                   "column": "taskId"
@@ -3165,6 +3257,21 @@
                 },
                 "to": {
                   "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "submissions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "timesheetId"
+                  ]
+                },
+                "to": {
+                  "model": "TimesheetSubmission",
                   "namespace": "public"
                 }
               },
@@ -3315,6 +3422,377 @@
               },
               "namespaceId": "public",
               "table": "timesheet_audit"
+            }
+          },
+          "TimesheetSubmission": {
+            "fields": {
+              "employeeId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "rejectionComment": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "reviewedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              },
+              "reviewedBy": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "submissionType": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "submittedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              },
+              "submittedDate": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "timesheetId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "weekEnd": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "weekStart": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "audits": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "submissionId"
+                  ]
+                },
+                "to": {
+                  "model": "TimesheetSubmissionAudit",
+                  "namespace": "public"
+                }
+              },
+              "employee": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "employeeId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "entries": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "submissionId"
+                  ]
+                },
+                "to": {
+                  "model": "TimeEntry",
+                  "namespace": "public"
+                }
+              },
+              "reviewer": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "reviewedBy"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "submissionEntries": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "submissionId"
+                  ]
+                },
+                "to": {
+                  "model": "TimesheetSubmissionEntry",
+                  "namespace": "public"
+                }
+              },
+              "timesheet": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "timesheetId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Timesheet",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "employeeId": {
+                  "column": "employeeId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "rejectionComment": {
+                  "column": "rejectionComment"
+                },
+                "reviewedAt": {
+                  "column": "reviewedAt"
+                },
+                "reviewedBy": {
+                  "column": "reviewedBy"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "submissionType": {
+                  "column": "submissionType"
+                },
+                "submittedAt": {
+                  "column": "submittedAt"
+                },
+                "submittedDate": {
+                  "column": "submittedDate"
+                },
+                "timesheetId": {
+                  "column": "timesheetId"
+                },
+                "weekEnd": {
+                  "column": "weekEnd"
+                },
+                "weekStart": {
+                  "column": "weekStart"
+                }
+              },
+              "namespaceId": "public",
+              "table": "timesheet_submission"
+            }
+          },
+          "TimesheetSubmissionAudit": {
+            "fields": {
+              "action": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "actorId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "comments": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "submissionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "timestamp": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "submission": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "submissionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "TimesheetSubmission",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "action": {
+                  "column": "action"
+                },
+                "actorId": {
+                  "column": "actorId"
+                },
+                "comments": {
+                  "column": "comments"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "submissionId": {
+                  "column": "submissionId"
+                },
+                "timestamp": {
+                  "column": "timestamp"
+                }
+              },
+              "namespaceId": "public",
+              "table": "timesheet_submission_audit"
+            }
+          },
+          "TimesheetSubmissionEntry": {
+            "fields": {
+              "submissionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "timeEntryId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "submission": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "submissionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "TimesheetSubmission",
+                  "namespace": "public"
+                }
+              },
+              "timeEntry": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "timeEntryId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "TimeEntry",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "submissionId": {
+                  "column": "submissionId"
+                },
+                "timeEntryId": {
+                  "column": "timeEntryId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "timesheet_submission_entry"
             }
           },
           "UserPreference": {
@@ -5788,6 +6266,15 @@
                   "nativeType": "text",
                   "nullable": false
                 },
+                "approvalStatus": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "DRAFT"
+                  },
+                  "nativeType": "text",
+                  "nullable": false
+                },
                 "createdAt": {
                   "codecId": "pg/timestamptz-temporal@1",
                   "default": {
@@ -5823,6 +6310,11 @@
                   "nullable": false
                 },
                 "remarks": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "submissionId": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": true
@@ -5927,6 +6419,22 @@
                     "namespaceId": "public",
                     "tableName": "timesheet"
                   }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "submissionId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "time_entry"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "timesheet_submission"
+                  }
                 }
               ],
               "indexes": [
@@ -5936,6 +6444,14 @@
                   ],
                   "name": "time_entry_activityId_idx_bf2a659e",
                   "prefix": "time_entry_activityId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "approvalStatus"
+                  ],
+                  "name": "time_entry_approvalStatus_idx_d15e1cde",
+                  "prefix": "time_entry_approvalStatus_idx",
                   "unique": false
                 },
                 {
@@ -5970,6 +6486,14 @@
                   ],
                   "name": "time_entry_projectId_idx_a96e4d92",
                   "prefix": "time_entry_projectId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "submissionId"
+                  ],
+                  "name": "time_entry_submissionId_idx_89cd3f4e",
+                  "prefix": "time_entry_submissionId_idx",
                   "unique": false
                 },
                 {
@@ -6034,6 +6558,10 @@
                 },
                 "status": {
                   "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "DRAFT"
+                  },
                   "nativeType": "text",
                   "nullable": false
                 },
@@ -6209,6 +6737,325 @@
                 ]
               },
               "uniques": []
+            },
+            "timesheet_submission": {
+              "columns": {
+                "employeeId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "rejectionComment": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "reviewedAt": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "reviewedBy": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "status": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "SUBMITTED"
+                  },
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "submissionType": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "submittedAt": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "submittedDate": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "timesheetId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "weekEnd": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "weekStart": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "timesheetId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "timesheet_submission"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "timesheet"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "employeeId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "timesheet_submission"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "employee"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "reviewedBy"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "timesheet_submission"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "employee"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "employeeId"
+                  ],
+                  "name": "timesheet_submission_employeeId_idx_087dd4a6",
+                  "prefix": "timesheet_submission_employeeId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "employeeId",
+                    "status"
+                  ],
+                  "name": "timesheet_submission_employeeId_status_idx_e746ea39",
+                  "prefix": "timesheet_submission_employeeId_status_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "reviewedBy"
+                  ],
+                  "name": "timesheet_submission_reviewedBy_idx_0b622ca2",
+                  "prefix": "timesheet_submission_reviewedBy_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "status"
+                  ],
+                  "name": "timesheet_submission_status_idx_e98638ab",
+                  "prefix": "timesheet_submission_status_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "timesheetId"
+                  ],
+                  "name": "timesheet_submission_timesheetId_idx_b8c081e5",
+                  "prefix": "timesheet_submission_timesheetId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "timesheet_submission_audit": {
+              "columns": {
+                "action": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "actorId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "comments": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "submissionId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "timestamp": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "submissionId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "timesheet_submission_audit"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "timesheet_submission"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "submissionId"
+                  ],
+                  "name": "timesheet_submission_audit_submissionId_idx_89cd3f4e",
+                  "prefix": "timesheet_submission_audit_submissionId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "timesheet_submission_entry": {
+              "columns": {
+                "submissionId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "timeEntryId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "submissionId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "timesheet_submission_entry"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "timesheet_submission"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "timeEntryId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "timesheet_submission_entry"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "time_entry"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "submissionId"
+                  ],
+                  "name": "timesheet_submission_entry_submissionId_idx_89cd3f4e",
+                  "prefix": "timesheet_submission_entry_submissionId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "timeEntryId"
+                  ],
+                  "name": "timesheet_submission_entry_timeEntryId_idx_ab846a08",
+                  "prefix": "timesheet_submission_entry_timeEntryId_idx",
+                  "unique": false
+                }
+              ],
+              "uniques": [
+                {
+                  "columns": [
+                    "submissionId",
+                    "timeEntryId"
+                  ]
+                }
+              ]
             },
             "user_preference": {
               "columns": {
@@ -6495,10 +7342,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "1f6aebc3e10c93ef4803f3efb106aeac8a8dc734ec444b1461c9d4c375a2c575"
+    "storageHash": "018ca1daf3d6cf27e0d879933f2d52b23124075078d8c4e0414df44484460d16"
   },
   "execution": {
-    "executionHash": "60035aa2c747171720d60d014102fabde88ec33e631defdd8482ec1ad952c145",
+    "executionHash": "b873037b4a66fdde73bf64afecee0794a1a2893e2d75e0bd4929554610722515",
     "mutations": {
       "defaults": [
         {
@@ -6708,6 +7555,28 @@
             "column": "id",
             "namespace": "public",
             "table": "timesheet_audit"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "timesheet_submission"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "timesheet_submission_audit"
           }
         },
         {

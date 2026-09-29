@@ -19,6 +19,7 @@ interface ProjectTasksBoardProps {
   projectIsActive: boolean;
   onViewDetail: (t: Task) => void;
   onStatusChange: (taskId: string, newStatus: string) => void;
+  currentEmployeeId?: string;
 }
 
 export const ProjectTasksBoard = ({
@@ -28,7 +29,8 @@ export const ProjectTasksBoard = ({
   isAdmin,
   projectIsActive,
   onViewDetail,
-  onStatusChange
+  onStatusChange,
+  currentEmployeeId
 }: ProjectTasksBoardProps) => {
   
   const getEmployee = (id?: string | null) => employees.find(e => e.id === id);
@@ -41,7 +43,8 @@ export const ProjectTasksBoard = ({
     
     // Check permissions / active state
     const task = tasks.find(t => t.id === draggableId);
-    if (!task || !task.isActive || !isAdmin || !projectIsActive) return;
+    if (!task || !task.isActive || !projectIsActive) return;
+    if (!isAdmin && task.assigneeId !== currentEmployeeId) return;
 
     onStatusChange(draggableId, destination.droppableId);
   };
@@ -72,7 +75,7 @@ export const ProjectTasksBoard = ({
                     }`}
                   >
                     {colTasks.map((t, index) => {
-                      const isDragDisabled = !t.isActive || !isAdmin || !projectIsActive;
+                      const isDragDisabled = !t.isActive || (!isAdmin && t.assigneeId !== currentEmployeeId) || !projectIsActive;
                       const priorityCls = priorityColors[t.priority ?? 'MEDIUM'] ?? priorityColors.MEDIUM;
                       const assignee = getEmployee(t.assigneeId);
                       const overdue = isOverdue(t.dueDate, t.status);

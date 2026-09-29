@@ -445,6 +445,38 @@ export const apiSlice = createApi({
     }),
 
     // ==========================================
+    // TIMESHEET SUBMISSIONS (per-entry approval)
+    // ==========================================
+    getMySubmissions: builder.query<any, void>({
+      query: () => '/timesheet-submissions/my',
+      providesTags: ['Timesheet', 'TimeEntry'],
+    }),
+    getPendingSubmissions: builder.query<any, void>({
+      query: () => '/timesheet-submissions/pending',
+      providesTags: ['Timesheet', 'TimeEntry'],
+    }),
+    getSubmissionDetail: builder.query<any, string>({
+      query: (id) => `/timesheet-submissions/${id}`,
+      providesTags: (_result, _error, id) => [{ type: 'Timesheet', id }],
+    }),
+    submitToday: builder.mutation<any, { date: string }>({
+      query: (body) => ({ url: '/timesheet-submissions/submit-today', method: 'POST', body }),
+      invalidatesTags: ['Timesheet', 'TimeEntry'],
+    }),
+    submitWeek: builder.mutation<any, { weekDate: string }>({
+      query: (body) => ({ url: '/timesheet-submissions/submit-week', method: 'POST', body }),
+      invalidatesTags: ['Timesheet', 'TimeEntry'],
+    }),
+    approveSubmission: builder.mutation<any, string>({
+      query: (id) => ({ url: `/timesheet-submissions/${id}/approve`, method: 'PATCH' }),
+      invalidatesTags: ['Timesheet', 'TimeEntry'],
+    }),
+    rejectSubmission: builder.mutation<any, { id: string; comment: string }>({
+      query: ({ id, comment }) => ({ url: `/timesheet-submissions/${id}/reject`, method: 'PATCH', body: { comment } }),
+      invalidatesTags: ['Timesheet', 'TimeEntry'],
+    }),
+
+    // ==========================================
     // REPORTS
     // ==========================================
     getEmployeeSummaryReport: builder.query<any, { startDate: string; endDate: string; targetEmployeeId?: string }>({
@@ -697,4 +729,13 @@ export const {
   useGetMyNotificationsQuery,
   useMarkNotificationAsReadMutation,
   useMarkAllNotificationsAsReadMutation,
+
+  // Timesheet Submissions (per-entry approval)
+  useGetMySubmissionsQuery,
+  useGetPendingSubmissionsQuery,
+  useGetSubmissionDetailQuery,
+  useSubmitTodayMutation,
+  useSubmitWeekMutation,
+  useApproveSubmissionMutation,
+  useRejectSubmissionMutation,
 } = apiSlice;

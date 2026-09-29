@@ -25,7 +25,8 @@ import {
   Clock, 
   CalendarDays, 
   LogOut,
-  Settings
+  Settings,
+  ClipboardCheck
 } from 'lucide-react';
 import { NotificationsMenu } from './NotificationsMenu';
 import { ProfileModal } from './ProfileModal';
@@ -163,6 +164,7 @@ export const AppLayout = () => {
       title: 'Approvals',
       items: [
         { name: 'Timesheet Approvals', path: '/approvals', icon: CheckSquare, roles: ['MANAGER'] },
+        { name: 'Entry Approvals', path: '/submission-approvals', icon: ClipboardCheck, roles: ['MANAGER', 'ADMIN'] },
       ]
     },
     {

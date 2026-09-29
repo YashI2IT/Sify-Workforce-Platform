@@ -54,6 +54,7 @@ interface ProjectTasksTabProps {
   onAdd: (initialData?: any) => void;
   onEdit: (t: Task) => void;
   onViewDetail: (t: Task) => void;
+  currentEmployeeId?: string;
 }
 
 const STATUS_OPTIONS = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'];
@@ -69,6 +70,7 @@ export const ProjectTasksTab = ({
   onAdd,
   onEdit,
   onViewDetail,
+  currentEmployeeId,
 }: ProjectTasksTabProps) => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
@@ -326,6 +328,7 @@ export const ProjectTasksTab = ({
           projectIsActive={projectIsActive}
           onViewDetail={onViewDetail}
           onStatusChange={handleStatusChange}
+          currentEmployeeId={currentEmployeeId}
         />
       ) : viewMode === 'board' ? (
         <ProjectTasksBoard
@@ -336,6 +339,7 @@ export const ProjectTasksTab = ({
           projectIsActive={projectIsActive}
           onViewDetail={onViewDetail}
           onStatusChange={handleStatusChange}
+          currentEmployeeId={currentEmployeeId}
         />
       ) : (
         <ProjectTasksTimeline

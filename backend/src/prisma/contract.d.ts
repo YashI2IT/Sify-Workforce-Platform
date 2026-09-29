@@ -33,9 +33,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'1f6aebc3e10c93ef4803f3efb106aeac8a8dc734ec444b1461c9d4c375a2c575'>;
+  StorageHashBase<'018ca1daf3d6cf27e0d879933f2d52b23124075078d8c4e0414df44484460d16'>;
 export type ExecutionHash =
-  ExecutionHashBase<'60035aa2c747171720d60d014102fabde88ec33e631defdd8482ec1ad952c145'>;
+  ExecutionHashBase<'b873037b4a66fdde73bf64afecee0794a1a2893e2d75e0bd4929554610722515'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -441,6 +441,8 @@ export type FieldOutputTypes = {
       readonly date: CodecTypes['pg/text@1']['output'];
       readonly hours: CodecTypes['pg/float8@1']['output'];
       readonly remarks: CodecTypes['pg/text@1']['output'] | null;
+      readonly approvalStatus: CodecTypes['pg/text@1']['output'];
+      readonly submissionId: CodecTypes['pg/text@1']['output'] | null;
       readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
       readonly updatedAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
     };
@@ -461,6 +463,32 @@ export type FieldOutputTypes = {
       readonly action: CodecTypes['pg/text@1']['output'];
       readonly comments: CodecTypes['pg/text@1']['output'] | null;
       readonly timestamp: CodecTypes['pg/timestamptz-temporal@1']['output'];
+    };
+    readonly TimesheetSubmission: {
+      readonly id: CodecTypes['pg/text@1']['output'];
+      readonly timesheetId: CodecTypes['pg/text@1']['output'];
+      readonly employeeId: CodecTypes['pg/text@1']['output'];
+      readonly submissionType: CodecTypes['pg/text@1']['output'];
+      readonly submittedDate: CodecTypes['pg/text@1']['output'] | null;
+      readonly weekStart: CodecTypes['pg/text@1']['output'] | null;
+      readonly weekEnd: CodecTypes['pg/text@1']['output'] | null;
+      readonly status: CodecTypes['pg/text@1']['output'];
+      readonly rejectionComment: CodecTypes['pg/text@1']['output'] | null;
+      readonly submittedAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
+      readonly reviewedAt: CodecTypes['pg/timestamptz-temporal@1']['output'] | null;
+      readonly reviewedBy: CodecTypes['pg/text@1']['output'] | null;
+    };
+    readonly TimesheetSubmissionAudit: {
+      readonly id: CodecTypes['pg/text@1']['output'];
+      readonly submissionId: CodecTypes['pg/text@1']['output'];
+      readonly actorId: CodecTypes['pg/text@1']['output'];
+      readonly action: CodecTypes['pg/text@1']['output'];
+      readonly comments: CodecTypes['pg/text@1']['output'] | null;
+      readonly timestamp: CodecTypes['pg/timestamptz-temporal@1']['output'];
+    };
+    readonly TimesheetSubmissionEntry: {
+      readonly submissionId: CodecTypes['pg/text@1']['output'];
+      readonly timeEntryId: CodecTypes['pg/text@1']['output'];
     };
     readonly UserPreference: {
       readonly id: CodecTypes['pg/text@1']['output'];
@@ -692,6 +720,8 @@ export type FieldInputTypes = {
       readonly date: CodecTypes['pg/text@1']['input'];
       readonly hours: CodecTypes['pg/float8@1']['input'];
       readonly remarks: CodecTypes['pg/text@1']['input'] | null;
+      readonly approvalStatus: CodecTypes['pg/text@1']['input'];
+      readonly submissionId: CodecTypes['pg/text@1']['input'] | null;
       readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['input'];
       readonly updatedAt: CodecTypes['pg/timestamptz-temporal@1']['input'];
     };
@@ -712,6 +742,32 @@ export type FieldInputTypes = {
       readonly action: CodecTypes['pg/text@1']['input'];
       readonly comments: CodecTypes['pg/text@1']['input'] | null;
       readonly timestamp: CodecTypes['pg/timestamptz-temporal@1']['input'];
+    };
+    readonly TimesheetSubmission: {
+      readonly id: CodecTypes['pg/text@1']['input'];
+      readonly timesheetId: CodecTypes['pg/text@1']['input'];
+      readonly employeeId: CodecTypes['pg/text@1']['input'];
+      readonly submissionType: CodecTypes['pg/text@1']['input'];
+      readonly submittedDate: CodecTypes['pg/text@1']['input'] | null;
+      readonly weekStart: CodecTypes['pg/text@1']['input'] | null;
+      readonly weekEnd: CodecTypes['pg/text@1']['input'] | null;
+      readonly status: CodecTypes['pg/text@1']['input'];
+      readonly rejectionComment: CodecTypes['pg/text@1']['input'] | null;
+      readonly submittedAt: CodecTypes['pg/timestamptz-temporal@1']['input'];
+      readonly reviewedAt: CodecTypes['pg/timestamptz-temporal@1']['input'] | null;
+      readonly reviewedBy: CodecTypes['pg/text@1']['input'] | null;
+    };
+    readonly TimesheetSubmissionAudit: {
+      readonly id: CodecTypes['pg/text@1']['input'];
+      readonly submissionId: CodecTypes['pg/text@1']['input'];
+      readonly actorId: CodecTypes['pg/text@1']['input'];
+      readonly action: CodecTypes['pg/text@1']['input'];
+      readonly comments: CodecTypes['pg/text@1']['input'] | null;
+      readonly timestamp: CodecTypes['pg/timestamptz-temporal@1']['input'];
+    };
+    readonly TimesheetSubmissionEntry: {
+      readonly submissionId: CodecTypes['pg/text@1']['input'];
+      readonly timeEntryId: CodecTypes['pg/text@1']['input'];
     };
     readonly UserPreference: {
       readonly id: CodecTypes['pg/text@1']['input'];
@@ -935,6 +991,7 @@ export type StorageColumnTypes = {
     };
     readonly time_entry: {
       readonly activityId: CodecTypes['pg/text@1']['output'];
+      readonly approvalStatus: CodecTypes['pg/text@1']['output'];
       readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
       readonly date: CodecTypes['pg/text@1']['output'];
       readonly employeeId: CodecTypes['pg/text@1']['output'];
@@ -942,6 +999,7 @@ export type StorageColumnTypes = {
       readonly id: CodecTypes['pg/text@1']['output'];
       readonly projectId: CodecTypes['pg/text@1']['output'];
       readonly remarks: CodecTypes['pg/text@1']['output'] | null;
+      readonly submissionId: CodecTypes['pg/text@1']['output'] | null;
       readonly taskId: CodecTypes['pg/text@1']['output'];
       readonly timesheetId: CodecTypes['pg/text@1']['output'];
       readonly updatedAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
@@ -963,6 +1021,32 @@ export type StorageColumnTypes = {
       readonly id: CodecTypes['pg/text@1']['output'];
       readonly timesheetId: CodecTypes['pg/text@1']['output'];
       readonly timestamp: CodecTypes['pg/timestamptz-temporal@1']['output'];
+    };
+    readonly timesheet_submission: {
+      readonly employeeId: CodecTypes['pg/text@1']['output'];
+      readonly id: CodecTypes['pg/text@1']['output'];
+      readonly rejectionComment: CodecTypes['pg/text@1']['output'] | null;
+      readonly reviewedAt: CodecTypes['pg/timestamptz-temporal@1']['output'] | null;
+      readonly reviewedBy: CodecTypes['pg/text@1']['output'] | null;
+      readonly status: CodecTypes['pg/text@1']['output'];
+      readonly submissionType: CodecTypes['pg/text@1']['output'];
+      readonly submittedAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
+      readonly submittedDate: CodecTypes['pg/text@1']['output'] | null;
+      readonly timesheetId: CodecTypes['pg/text@1']['output'];
+      readonly weekEnd: CodecTypes['pg/text@1']['output'] | null;
+      readonly weekStart: CodecTypes['pg/text@1']['output'] | null;
+    };
+    readonly timesheet_submission_audit: {
+      readonly action: CodecTypes['pg/text@1']['output'];
+      readonly actorId: CodecTypes['pg/text@1']['output'];
+      readonly comments: CodecTypes['pg/text@1']['output'] | null;
+      readonly id: CodecTypes['pg/text@1']['output'];
+      readonly submissionId: CodecTypes['pg/text@1']['output'];
+      readonly timestamp: CodecTypes['pg/timestamptz-temporal@1']['output'];
+    };
+    readonly timesheet_submission_entry: {
+      readonly submissionId: CodecTypes['pg/text@1']['output'];
+      readonly timeEntryId: CodecTypes['pg/text@1']['output'];
     };
     readonly user_preference: {
       readonly dateFormat: CodecTypes['pg/text@1']['output'];
@@ -1186,6 +1270,7 @@ export type StorageColumnInputTypes = {
     };
     readonly time_entry: {
       readonly activityId: CodecTypes['pg/text@1']['input'];
+      readonly approvalStatus: CodecTypes['pg/text@1']['input'];
       readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['input'];
       readonly date: CodecTypes['pg/text@1']['input'];
       readonly employeeId: CodecTypes['pg/text@1']['input'];
@@ -1193,6 +1278,7 @@ export type StorageColumnInputTypes = {
       readonly id: CodecTypes['pg/text@1']['input'];
       readonly projectId: CodecTypes['pg/text@1']['input'];
       readonly remarks: CodecTypes['pg/text@1']['input'] | null;
+      readonly submissionId: CodecTypes['pg/text@1']['input'] | null;
       readonly taskId: CodecTypes['pg/text@1']['input'];
       readonly timesheetId: CodecTypes['pg/text@1']['input'];
       readonly updatedAt: CodecTypes['pg/timestamptz-temporal@1']['input'];
@@ -1214,6 +1300,32 @@ export type StorageColumnInputTypes = {
       readonly id: CodecTypes['pg/text@1']['input'];
       readonly timesheetId: CodecTypes['pg/text@1']['input'];
       readonly timestamp: CodecTypes['pg/timestamptz-temporal@1']['input'];
+    };
+    readonly timesheet_submission: {
+      readonly employeeId: CodecTypes['pg/text@1']['input'];
+      readonly id: CodecTypes['pg/text@1']['input'];
+      readonly rejectionComment: CodecTypes['pg/text@1']['input'] | null;
+      readonly reviewedAt: CodecTypes['pg/timestamptz-temporal@1']['input'] | null;
+      readonly reviewedBy: CodecTypes['pg/text@1']['input'] | null;
+      readonly status: CodecTypes['pg/text@1']['input'];
+      readonly submissionType: CodecTypes['pg/text@1']['input'];
+      readonly submittedAt: CodecTypes['pg/timestamptz-temporal@1']['input'];
+      readonly submittedDate: CodecTypes['pg/text@1']['input'] | null;
+      readonly timesheetId: CodecTypes['pg/text@1']['input'];
+      readonly weekEnd: CodecTypes['pg/text@1']['input'] | null;
+      readonly weekStart: CodecTypes['pg/text@1']['input'] | null;
+    };
+    readonly timesheet_submission_audit: {
+      readonly action: CodecTypes['pg/text@1']['input'];
+      readonly actorId: CodecTypes['pg/text@1']['input'];
+      readonly comments: CodecTypes['pg/text@1']['input'] | null;
+      readonly id: CodecTypes['pg/text@1']['input'];
+      readonly submissionId: CodecTypes['pg/text@1']['input'];
+      readonly timestamp: CodecTypes['pg/timestamptz-temporal@1']['input'];
+    };
+    readonly timesheet_submission_entry: {
+      readonly submissionId: CodecTypes['pg/text@1']['input'];
+      readonly timeEntryId: CodecTypes['pg/text@1']['input'];
     };
     readonly user_preference: {
       readonly dateFormat: CodecTypes['pg/text@1']['input'];
@@ -3013,6 +3125,20 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
                 };
+                readonly approvalStatus: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'DRAFT'>;
+                  };
+                };
+                readonly submissionId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
                 readonly createdAt: {
                   readonly nativeType: 'timestamptz';
                   readonly codecId: 'pg/timestamptz-temporal@1';
@@ -3045,6 +3171,18 @@ type ContractBase = Omit<
                   readonly name: 'time_entry_projectId_date_idx_b6c806bf';
                   readonly prefix: 'time_entry_projectId_date_idx';
                   readonly columns: readonly ['projectId', 'date'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'time_entry_approvalStatus_idx_d15e1cde';
+                  readonly prefix: 'time_entry_approvalStatus_idx';
+                  readonly columns: readonly ['approvalStatus'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'time_entry_submissionId_idx_89cd3f4e';
+                  readonly prefix: 'time_entry_submissionId_idx';
+                  readonly columns: readonly ['submissionId'];
                   readonly unique: false;
                 },
                 {
@@ -3133,6 +3271,18 @@ type ContractBase = Omit<
                     readonly columns: readonly ['id'];
                   };
                 },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'time_entry';
+                    readonly columns: readonly ['submissionId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'timesheet_submission';
+                    readonly columns: readonly ['id'];
+                  };
+                },
               ];
             };
             readonly timesheet: {
@@ -3161,6 +3311,10 @@ type ContractBase = Omit<
                   readonly nativeType: 'text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'DRAFT'>;
+                  };
                 };
                 readonly rejectionComment: {
                   readonly nativeType: 'text';
@@ -3295,6 +3449,261 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'employee';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly timesheet_submission: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly timesheetId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly employeeId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly submissionType: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly submittedDate: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly weekStart: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly weekEnd: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly status: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'SUBMITTED'>;
+                  };
+                };
+                readonly rejectionComment: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly submittedAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-temporal@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+                readonly reviewedAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-temporal@1';
+                  readonly nullable: true;
+                };
+                readonly reviewedBy: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'timesheet_submission_timesheetId_idx_b8c081e5';
+                  readonly prefix: 'timesheet_submission_timesheetId_idx';
+                  readonly columns: readonly ['timesheetId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'timesheet_submission_employeeId_status_idx_e746ea39';
+                  readonly prefix: 'timesheet_submission_employeeId_status_idx';
+                  readonly columns: readonly ['employeeId', 'status'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'timesheet_submission_status_idx_e98638ab';
+                  readonly prefix: 'timesheet_submission_status_idx';
+                  readonly columns: readonly ['status'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'timesheet_submission_employeeId_idx_087dd4a6';
+                  readonly prefix: 'timesheet_submission_employeeId_idx';
+                  readonly columns: readonly ['employeeId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'timesheet_submission_reviewedBy_idx_0b622ca2';
+                  readonly prefix: 'timesheet_submission_reviewedBy_idx';
+                  readonly columns: readonly ['reviewedBy'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'timesheet_submission';
+                    readonly columns: readonly ['timesheetId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'timesheet';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'timesheet_submission';
+                    readonly columns: readonly ['employeeId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'employee';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'timesheet_submission';
+                    readonly columns: readonly ['reviewedBy'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'employee';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly timesheet_submission_audit: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly submissionId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly actorId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly action: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly comments: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly timestamp: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-temporal@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'timesheet_submission_audit_submissionId_idx_89cd3f4e';
+                  readonly prefix: 'timesheet_submission_audit_submissionId_idx';
+                  readonly columns: readonly ['submissionId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'timesheet_submission_audit';
+                    readonly columns: readonly ['submissionId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'timesheet_submission';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly timesheet_submission_entry: {
+              columns: {
+                readonly submissionId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly timeEntryId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+              };
+              uniques: readonly [{ readonly columns: readonly ['submissionId', 'timeEntryId'] }];
+              indexes: readonly [
+                {
+                  readonly name: 'timesheet_submission_entry_submissionId_idx_89cd3f4e';
+                  readonly prefix: 'timesheet_submission_entry_submissionId_idx';
+                  readonly columns: readonly ['submissionId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'timesheet_submission_entry_timeEntryId_idx_ab846a08';
+                  readonly prefix: 'timesheet_submission_entry_timeEntryId_idx';
+                  readonly columns: readonly ['timeEntryId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'timesheet_submission_entry';
+                    readonly columns: readonly ['submissionId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'timesheet_submission';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'timesheet_submission_entry';
+                    readonly columns: readonly ['timeEntryId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'time_entry';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -3581,6 +3990,18 @@ type ContractBase = Omit<
     readonly time_entry: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'TimeEntry';
+    };
+    readonly timesheet_submission: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'TimesheetSubmission';
+    };
+    readonly timesheet_submission_entry: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'TimesheetSubmissionEntry';
+    };
+    readonly timesheet_submission_audit: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'TimesheetSubmissionAudit';
     };
     readonly timesheet: { readonly namespace: 'public' & NamespaceId; readonly model: 'Timesheet' };
     readonly timesheet_audit: {
@@ -3920,6 +4341,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['employeeId'];
                 };
               };
+              readonly reviewedSubmissions: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimesheetSubmission';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['reviewedBy'];
+                };
+              };
               readonly taskComments: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -3959,6 +4391,17 @@ type ContractBase = Omit<
                 readonly on: {
                   readonly localFields: readonly ['id'];
                   readonly targetFields: readonly ['actorId'];
+                };
+              };
+              readonly timesheetSubmissions: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimesheetSubmission';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['employeeId'];
                 };
               };
               readonly workingTime: {
@@ -5458,6 +5901,14 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly approvalStatus: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly submissionId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -5507,6 +5958,28 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['id'];
                 };
               };
+              readonly submission: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimesheetSubmission';
+                };
+                readonly cardinality: 'N:1';
+                readonly on: {
+                  readonly localFields: readonly ['submissionId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly submissionLinks: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimesheetSubmissionEntry';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['timeEntryId'];
+                };
+              };
               readonly task: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'Task' };
                 readonly cardinality: 'N:1';
@@ -5540,6 +6013,8 @@ type ContractBase = Omit<
                 readonly date: { readonly column: 'date' };
                 readonly hours: { readonly column: 'hours' };
                 readonly remarks: { readonly column: 'remarks' };
+                readonly approvalStatus: { readonly column: 'approvalStatus' };
+                readonly submissionId: { readonly column: 'submissionId' };
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
               };
@@ -5613,6 +6088,17 @@ type ContractBase = Omit<
                 readonly on: {
                   readonly localFields: readonly ['employeeId'];
                   readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly submissions: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimesheetSubmission';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['timesheetId'];
                 };
               };
               readonly timeEntries: {
@@ -5706,6 +6192,250 @@ type ContractBase = Omit<
                 readonly action: { readonly column: 'action' };
                 readonly comments: { readonly column: 'comments' };
                 readonly timestamp: { readonly column: 'timestamp' };
+              };
+            };
+          };
+          readonly TimesheetSubmission: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly timesheetId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly employeeId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly submissionType: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly submittedDate: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly weekStart: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly weekEnd: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly status: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly rejectionComment: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly submittedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-temporal@1';
+                };
+              };
+              readonly reviewedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-temporal@1';
+                };
+              };
+              readonly reviewedBy: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly audits: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimesheetSubmissionAudit';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['submissionId'];
+                };
+              };
+              readonly employee: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Employee';
+                };
+                readonly cardinality: 'N:1';
+                readonly on: {
+                  readonly localFields: readonly ['employeeId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly entries: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimeEntry';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['submissionId'];
+                };
+              };
+              readonly reviewer: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Employee';
+                };
+                readonly cardinality: 'N:1';
+                readonly on: {
+                  readonly localFields: readonly ['reviewedBy'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly submissionEntries: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimesheetSubmissionEntry';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['submissionId'];
+                };
+              };
+              readonly timesheet: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Timesheet';
+                };
+                readonly cardinality: 'N:1';
+                readonly on: {
+                  readonly localFields: readonly ['timesheetId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'timesheet_submission';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly timesheetId: { readonly column: 'timesheetId' };
+                readonly employeeId: { readonly column: 'employeeId' };
+                readonly submissionType: { readonly column: 'submissionType' };
+                readonly submittedDate: { readonly column: 'submittedDate' };
+                readonly weekStart: { readonly column: 'weekStart' };
+                readonly weekEnd: { readonly column: 'weekEnd' };
+                readonly status: { readonly column: 'status' };
+                readonly rejectionComment: { readonly column: 'rejectionComment' };
+                readonly submittedAt: { readonly column: 'submittedAt' };
+                readonly reviewedAt: { readonly column: 'reviewedAt' };
+                readonly reviewedBy: { readonly column: 'reviewedBy' };
+              };
+            };
+          };
+          readonly TimesheetSubmissionAudit: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly submissionId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly actorId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly action: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly comments: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly timestamp: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-temporal@1';
+                };
+              };
+            };
+            readonly relations: {
+              readonly submission: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimesheetSubmission';
+                };
+                readonly cardinality: 'N:1';
+                readonly on: {
+                  readonly localFields: readonly ['submissionId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'timesheet_submission_audit';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly submissionId: { readonly column: 'submissionId' };
+                readonly actorId: { readonly column: 'actorId' };
+                readonly action: { readonly column: 'action' };
+                readonly comments: { readonly column: 'comments' };
+                readonly timestamp: { readonly column: 'timestamp' };
+              };
+            };
+          };
+          readonly TimesheetSubmissionEntry: {
+            readonly fields: {
+              readonly submissionId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly timeEntryId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly submission: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimesheetSubmission';
+                };
+                readonly cardinality: 'N:1';
+                readonly on: {
+                  readonly localFields: readonly ['submissionId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly timeEntry: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimeEntry';
+                };
+                readonly cardinality: 'N:1';
+                readonly on: {
+                  readonly localFields: readonly ['timeEntryId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'timesheet_submission_entry';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly submissionId: { readonly column: 'submissionId' };
+                readonly timeEntryId: { readonly column: 'timeEntryId' };
               };
             };
           };
@@ -6060,6 +6790,22 @@ type ContractBase = Omit<
           readonly ref: {
             readonly namespace: 'public';
             readonly table: 'timesheet_audit';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'timesheet_submission';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'timesheet_submission_audit';
             readonly column: 'id';
           };
           readonly onCreate: { readonly kind: 'generator'; readonly id: 'uuidv4' };

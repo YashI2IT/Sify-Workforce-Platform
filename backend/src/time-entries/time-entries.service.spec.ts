@@ -180,14 +180,20 @@ describe('TimeEntriesService', () => {
     });
 
     describe('Copy / Log Again Edge Cases', () => {
-      it('1. should reject create (copy) if target week is APPROVED', async () => {
+      it('1. should ALLOW create even if the weekly container had some APPROVED entries (new entry is DRAFT)', async () => {
+        // Business rule: approving Monday does NOT lock Tuesday-Sunday
+        // A new entry creates a brand-new DRAFT record regardless of other entries' status
         setupMocks({ timesheet: { id: 'ts_approved', status: 'APPROVED' } });
-        await expect(service.create(validDto, authCtx)).rejects.toThrow(BadRequestException);
+        vi.mocked(db.orm.public.TimeEntry.create).mockResolvedValueOnce({ id: 'te_new', ...validDto, approvalStatus: 'DRAFT', remarks: null } as any);
+        const result = await service.create(validDto, authCtx);
+        expect(result.id).toBe('te_new');
       });
 
-      it('2. should reject create (copy) if target week is SUBMITTED', async () => {
+      it('2. should ALLOW create even if the weekly container is SUBMITTED (new entries are independent)', async () => {
         setupMocks({ timesheet: { id: 'ts_submitted', status: 'SUBMITTED' } });
-        await expect(service.create(validDto, authCtx)).rejects.toThrow(BadRequestException);
+        vi.mocked(db.orm.public.TimeEntry.create).mockResolvedValueOnce({ id: 'te_new2', ...validDto, approvalStatus: 'DRAFT', remarks: null } as any);
+        const result = await service.create(validDto, authCtx);
+        expect(result.id).toBe('te_new2');
       });
 
       it('3. should allow create (copy) if target week is DRAFT even if duplicate project/task', async () => {
@@ -205,9 +211,6 @@ describe('TimeEntriesService', () => {
       });
 
       it('5. should allow copying an approved historical entry into a new editable week (DRAFT target)', async () => {
-        // The backend `create` endpoint is stateless and unaware of the source entry.
-        // If the frontend calls `create` with a target date belonging to a DRAFT week,
-        // it simply succeeds as a normal creation, regardless of where the data was copied from.
         setupMocks({ timesheet: { id: 'ts_new_draft', status: 'DRAFT' } });
         vi.mocked(db.orm.public.TimeEntry.create).mockResolvedValueOnce({ id: 'te_copy_from_approved', ...validDto, remarks: null } as any);
         const result = await service.create(validDto, authCtx);
@@ -329,7 +332,7 @@ describe('TimeEntriesService', () => {
     const authCtx: AuthenticatedContext = { userId: 'u1', employeeId: 'e1', organizationId: 'org1', roles: [] };
 
     it('should update successfully with full revalidation', async () => {
-      vi.mocked((db.orm.public.TimeEntry.where({} as any) as any).first).mockResolvedValueOnce({ id: 'te1', employeeId: 'e1', projectId: 'p1', taskId: 't1', activityId: 'a1', date: '2026-09-15' } as any);
+      vi.mocked((db.orm.public.TimeEntry.where({} as any) as any).first).mockResolvedValueOnce({ id: 'te1', employeeId: 'e1', projectId: 'p1', taskId: 't1', activityId: 'a1', date: '2026-09-15', approvalStatus: 'DRAFT' } as any);
       setupMocks();
       vi.mocked(db.orm.public.TimeEntry.update).mockResolvedValueOnce({ id: 'te1', hours: 4 } as any);
 
@@ -338,23 +341,25 @@ describe('TimeEntriesService', () => {
       expect(db.orm.public.TimeEntry.update).toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException if timesheet is SUBMITTED', async () => {
-      vi.mocked((db.orm.public.TimeEntry.where({} as any) as any).first).mockResolvedValueOnce({ id: 'te1', employeeId: 'e1', projectId: 'p1', taskId: 't1', activityId: 'a1', date: '2026-09-15', timesheetId: 'ts1' } as any);
-      setupMocks({ timesheet: { id: 'ts1', status: 'SUBMITTED' } });
+    it('should throw BadRequestException if the entry approvalStatus is SUBMITTED', async () => {
+      vi.mocked((db.orm.public.TimeEntry.where({} as any) as any).first).mockResolvedValueOnce({
+        id: 'te1', employeeId: 'e1', projectId: 'p1', taskId: 't1', activityId: 'a1', date: '2026-09-15', approvalStatus: 'SUBMITTED'
+      } as any);
       await expect(service.update('te1', { hours: 4 }, authCtx)).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException if timesheet is APPROVED', async () => {
-      vi.mocked(db.orm.public.TimeEntry.where({} as any).first).mockResolvedValueOnce({ id: 'te1', employeeId: 'e1', projectId: 'p1', taskId: 't1', activityId: 'a1', date: '2026-09-15', timesheetId: 'ts1' } as any);
-      setupMocks({ timesheet: { id: 'ts1', status: 'APPROVED' } });
+    it('should throw BadRequestException if the entry approvalStatus is APPROVED', async () => {
+      vi.mocked((db.orm.public.TimeEntry.where({} as any) as any).first).mockResolvedValueOnce({
+        id: 'te1', employeeId: 'e1', projectId: 'p1', taskId: 't1', activityId: 'a1', date: '2026-09-15', approvalStatus: 'APPROVED'
+      } as any);
       await expect(service.update('te1', { hours: 4 }, authCtx)).rejects.toThrow(BadRequestException);
     });
 
     it('should return existing if empty update', async () => {
-      vi.mocked(db.orm.public.TimeEntry.where({} as any).first).mockResolvedValueOnce({ id: 'te1', employeeId: 'e1', projectId: 'p1', taskId: 't1', activityId: 'a1', date: '2026-09-10', timesheetId: 'ts1' } as any);
+      vi.mocked(db.orm.public.TimeEntry.where({} as any).first).mockResolvedValueOnce({ id: 'te1', employeeId: 'e1', projectId: 'p1', taskId: 't1', activityId: 'a1', date: '2026-09-10', timesheetId: 'ts1', approvalStatus: 'DRAFT' } as any);
       setupMocks();
       const result = await service.update('te1', {}, authCtx);
-      expect(result).toEqual({ id: 'te1', employeeId: 'e1', projectId: 'p1', taskId: 't1', activityId: 'a1', date: '2026-09-10', timesheetId: 'ts1' });
+      expect(result).toEqual({ id: 'te1', employeeId: 'e1', projectId: 'p1', taskId: 't1', activityId: 'a1', date: '2026-09-10', timesheetId: 'ts1', approvalStatus: 'DRAFT' });
       expect(db.orm.public.TimeEntry.update).not.toHaveBeenCalled();
     });
   });
@@ -362,15 +367,13 @@ describe('TimeEntriesService', () => {
   describe('remove', () => {
     const authCtx: AuthenticatedContext = { userId: 'u1', employeeId: 'e1', organizationId: 'org1', roles: [] };
 
-    it('should throw BadRequestException if timesheet is SUBMITTED', async () => {
-      vi.mocked(db.orm.public.TimeEntry.where({} as any).first).mockResolvedValueOnce({ id: 'te1', employeeId: 'e1', timesheetId: 'ts1' } as any);
-      setupMocks({ timesheet: { id: 'ts1', status: 'SUBMITTED' } });
+    it('should throw BadRequestException if entry approvalStatus is SUBMITTED', async () => {
+      vi.mocked(db.orm.public.TimeEntry.where({} as any).first).mockResolvedValueOnce({ id: 'te1', employeeId: 'e1', timesheetId: 'ts1', approvalStatus: 'SUBMITTED' } as any);
       await expect(service.remove('te1', authCtx)).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException if timesheet is APPROVED', async () => {
-      vi.mocked(db.orm.public.TimeEntry.where({} as any).first).mockResolvedValueOnce({ id: 'te1', employeeId: 'e1', timesheetId: 'ts1' } as any);
-      setupMocks({ timesheet: { id: 'ts1', status: 'APPROVED' } });
+    it('should throw BadRequestException if entry approvalStatus is APPROVED', async () => {
+      vi.mocked(db.orm.public.TimeEntry.where({} as any).first).mockResolvedValueOnce({ id: 'te1', employeeId: 'e1', timesheetId: 'ts1', approvalStatus: 'APPROVED' } as any);
       await expect(service.remove('te1', authCtx)).rejects.toThrow(BadRequestException);
     });
   });
@@ -397,7 +400,8 @@ describe('TimeEntriesService', () => {
       expect(result.id).toBe('te1');
       // Verify that it tried to create, failed, and fell back to first()
       expect(db.orm.public.Timesheet.create).toHaveBeenCalledTimes(1);
-      expect(db.orm.public.Timesheet.first).toHaveBeenCalledTimes(3);
+      // first() is called once for the initial check before create attempt + once for the retry after P2002
+      expect(db.orm.public.Timesheet.first).toHaveBeenCalledTimes(2);
     });
 
     it('should calculate timesheet boundaries using organization timezone', async () => {
@@ -419,24 +423,12 @@ describe('TimeEntriesService', () => {
       }));
     });
 
-    it('should validate cross-week move, checking both source and target timesheet states', async () => {
-      // te1 is originally on 2026-09-15
-      vi.mocked(db.orm.public.TimeEntry.where({} as any).first).mockResolvedValue({ id: 'te1', employeeId: 'e1', projectId: 'p1', taskId: 't1', activityId: 'a1', date: '2026-09-15', timesheetId: 'ts1' } as any);
-      setupMocks();
-
-      // We move it to 2026-09-25 (different week)
-      // First getOrCreateTimesheet (for 2026-09-25) returns 'ts2' (which is APPROVED)
-      // Second getOrCreateTimesheet (for 2026-09-15) returns 'ts1' (which is DRAFT)
-      
-      vi.mocked(db.orm.public.Timesheet.where).mockImplementation((): any => {
-        return {
-          first: vi.fn().mockImplementation(async () => {
-             // For the new week
-             return { id: 'ts2', status: 'APPROVED' };
-          })
-        };
-      });
-
+    it('should throw BadRequestException if dragging an APPROVED entry to a new date', async () => {
+      // Drag/drop to a new date: update() with { date: newDate } on an APPROVED entry must be rejected
+      vi.mocked(db.orm.public.TimeEntry.where({} as any).first).mockResolvedValue({
+        id: 'te1', employeeId: 'e1', projectId: 'p1', taskId: 't1', activityId: 'a1',
+        date: '2026-09-15', timesheetId: 'ts1', approvalStatus: 'APPROVED'
+      } as any);
       await expect(service.update('te1', { date: '2026-09-25' }, authCtx)).rejects.toThrow(BadRequestException);
     });
   });

@@ -83,6 +83,8 @@ model Employee {
   auditLogs      AuditLog[]
   taskComments   TaskComment[]
   notifications  Notification[]
+  timesheetSubmissions TimesheetSubmission[] @relation("EmployeeSubmissions")
+  reviewedSubmissions  TimesheetSubmission[] @relation("ReviewerSubmissions")
 
   @@unique([organizationId, employeeCode])
   @@index([organizationId])
@@ -288,28 +290,86 @@ model EmployeeProject {
 }
 
 model TimeEntry {
-  id          String   @id @default(uuid())
-  employeeId  String
-  projectId   String
-  taskId      String
-  activityId  String
-  timesheetId String
-  date        String
-  hours       Float
-  remarks     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now())
+  id             String   @id @default(uuid())
+  employeeId     String
+  projectId      String
+  taskId         String
+  activityId     String
+  timesheetId    String
+  date           String
+  hours          Float
+  remarks        String?
+  approvalStatus String   @default("DRAFT") // DRAFT | SUBMITTED | APPROVED | REJECTED
+  submissionId   String?  // FK to the TimesheetSubmission that last submitted this entry
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
 
   employee    Employee  @relation(fields:[employeeId], references:[id])
   project     Project   @relation(fields:[projectId], references:[id])
   task        Task      @relation(fields:[taskId], references:[id])
   activity    Activity  @relation(fields:[activityId], references:[id])
   timesheet   Timesheet @relation(fields:[timesheetId], references:[id])
+  submission  TimesheetSubmission? @relation("SubmissionEntries", fields:[submissionId], references:[id])
+  submissionLinks TimesheetSubmissionEntry[]
 
   @@index([employeeId, date])
   @@index([timesheetId])
   @@index([projectId, date])
+  @@index([approvalStatus])
+  @@index([submissionId])
   @@map("time_entry")
+}
+
+model TimesheetSubmission {
+  id               String   @id @default(uuid())
+  timesheetId      String
+  employeeId       String
+  submissionType   String   // DAILY | WEEKLY
+  submittedDate    String?  // for DAILY: the specific date
+  weekStart        String?  // for WEEKLY: monday YYYY-MM-DD
+  weekEnd          String?  // for WEEKLY: sunday YYYY-MM-DD
+  status           String   @default("SUBMITTED") // SUBMITTED | APPROVED | REJECTED
+  rejectionComment String?
+  submittedAt      DateTime @default(now())
+  reviewedAt       DateTime?
+  reviewedBy       String?  // employeeId of the manager/admin who reviewed
+
+  timesheet   Timesheet  @relation(fields:[timesheetId], references:[id])
+  employee    Employee   @relation("EmployeeSubmissions", fields:[employeeId], references:[id])
+  reviewer    Employee?  @relation("ReviewerSubmissions", fields:[reviewedBy], references:[id])
+  entries     TimeEntry[] @relation("SubmissionEntries")
+  submissionEntries TimesheetSubmissionEntry[]
+  audits      TimesheetSubmissionAudit[]
+
+  @@index([timesheetId])
+  @@index([employeeId, status])
+  @@index([status])
+  @@map("timesheet_submission")
+}
+
+model TimesheetSubmissionEntry {
+  submissionId  String
+  timeEntryId   String
+
+  submission    TimesheetSubmission @relation(fields:[submissionId], references:[id], onDelete: Cascade)
+  timeEntry     TimeEntry           @relation(fields:[timeEntryId], references:[id], onDelete: Cascade)
+
+  @@unique([submissionId, timeEntryId])
+  @@map("timesheet_submission_entry")
+}
+
+model TimesheetSubmissionAudit {
+  id           String   @id @default(uuid())
+  submissionId String
+  actorId      String
+  action       String   // SUBMITTED | APPROVED | REJECTED | RESUBMITTED
+  comments     String?
+  timestamp    DateTime @default(now())
+
+  submission   TimesheetSubmission @relation(fields:[submissionId], references:[id])
+
+  @@index([submissionId])
+  @@map("timesheet_submission_audit")
 }
 
 model Timesheet {
@@ -317,7 +377,7 @@ model Timesheet {
   employeeId       String
   startDate        DateTime
   endDate          DateTime
-  status           String
+  status           String      @default("DRAFT") // Container-level: DRAFT | ACTIVE (kept for reporting)
   rejectionComment String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @default(now())
@@ -325,6 +385,7 @@ model Timesheet {
   employee         Employee    @relation(fields:[employeeId], references:[id])
   timeEntries      TimeEntry[]
   audits           TimesheetAudit[]
+  submissions      TimesheetSubmission[]
 
   @@unique([employeeId, startDate])
   @@index([status])

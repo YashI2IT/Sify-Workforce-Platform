@@ -152,8 +152,19 @@ export class AssignmentsService {
       if (!auth.employeeId) {
         throw new NotFoundException('Project not found');
       }
-      const myAssignment = await db.orm.public.EmployeeProject.where({ projectId, employeeId: auth.employeeId }).first();
-      if (!myAssignment) {
+      let targetEmployeeIds = [auth.employeeId];
+      if (auth.roles.includes('MANAGER')) {
+        const managedTeams = await db.orm.public.Team.where({ organizationId: auth.organizationId, managerId: auth.employeeId }).all();
+        const teamIds = managedTeams.map(t => t.id);
+        if (teamIds.length > 0) {
+          const teamMembers = await db.orm.public.Employee.where(e => (e as any).teamId.in(teamIds)).all();
+          targetEmployeeIds.push(...teamMembers.map(emp => emp.id));
+        }
+      }
+      
+      const assignments = await db.orm.public.EmployeeProject.where({ projectId }).all();
+      const assignment = assignments.find(a => targetEmployeeIds.includes(a.employeeId));
+      if (!assignment) {
         throw new NotFoundException('Project not found');
       }
     }

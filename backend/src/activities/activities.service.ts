@@ -16,7 +16,20 @@ export class ActivitiesService {
       if (!auth.employeeId) {
         throw new NotFoundException('Project not found');
       }
-      const assignment = await db.orm.public.EmployeeProject.where({ projectId, employeeId: auth.employeeId }).first();
+      
+      let targetEmployeeIds = [auth.employeeId];
+      if (auth.roles.includes('MANAGER')) {
+        const managedTeams = await db.orm.public.Team.where({ organizationId: auth.organizationId, managerId: auth.employeeId }).all();
+        const teamIds = managedTeams.map(t => t.id);
+        if (teamIds.length > 0) {
+          const teamMembers = await db.orm.public.Employee.where(e => (e as any).teamId.in(teamIds)).all();
+          targetEmployeeIds.push(...teamMembers.map(emp => emp.id));
+        }
+      }
+      
+      const assignments = await db.orm.public.EmployeeProject.where({ projectId }).all();
+      const assignment = assignments.find(a => targetEmployeeIds.includes(a.employeeId));
+      
       if (!assignment) {
         throw new NotFoundException('Project not found');
       }
@@ -40,7 +53,18 @@ export class ActivitiesService {
       if (!auth.employeeId) {
         throw new NotFoundException('Activity not found');
       }
-      const assignment = await db.orm.public.EmployeeProject.where({ projectId: activity.projectId, employeeId: auth.employeeId }).first();
+      let targetEmployeeIds = [auth.employeeId];
+      if (auth.roles.includes('MANAGER')) {
+        const managedTeams = await db.orm.public.Team.where({ organizationId: auth.organizationId, managerId: auth.employeeId }).all();
+        const teamIds = managedTeams.map(t => t.id);
+        if (teamIds.length > 0) {
+          const teamMembers = await db.orm.public.Employee.where(e => (e as any).teamId.in(teamIds)).all();
+          targetEmployeeIds.push(...teamMembers.map(emp => emp.id));
+        }
+      }
+      
+      const assignments = await db.orm.public.EmployeeProject.where({ projectId: activity.projectId }).all();
+      const assignment = assignments.find(a => targetEmployeeIds.includes(a.employeeId));
       if (!assignment) {
         throw new NotFoundException('Activity not found');
       }
@@ -61,7 +85,18 @@ export class ActivitiesService {
     const isAdmin = auth.roles && auth.roles.includes('ADMIN');
     if (!isAdmin) {
       if (!auth.employeeId) throw new NotFoundException('Project not found');
-      const assignment = await db.orm.public.EmployeeProject.where({ projectId, employeeId: auth.employeeId }).first();
+      let targetEmployeeIds = [auth.employeeId];
+      if (auth.roles.includes('MANAGER')) {
+        const managedTeams = await db.orm.public.Team.where({ organizationId: auth.organizationId, managerId: auth.employeeId }).all();
+        const teamIds = managedTeams.map(t => t.id);
+        if (teamIds.length > 0) {
+          const teamMembers = await db.orm.public.Employee.where(e => (e as any).teamId.in(teamIds)).all();
+          targetEmployeeIds.push(...teamMembers.map(emp => emp.id));
+        }
+      }
+      
+      const assignments = await db.orm.public.EmployeeProject.where({ projectId }).all();
+      const assignment = assignments.find(a => targetEmployeeIds.includes(a.employeeId));
       if (!assignment) throw new NotFoundException('Project not found');
     }
 
@@ -100,7 +135,18 @@ export class ActivitiesService {
     const isAdmin = auth.roles && auth.roles.includes('ADMIN');
     if (!isAdmin) {
       if (!auth.employeeId) throw new NotFoundException('Activity not found');
-      const assignment = await db.orm.public.EmployeeProject.where({ projectId: activity.projectId, employeeId: auth.employeeId }).first();
+      let targetEmployeeIds = [auth.employeeId];
+      if (auth.roles.includes('MANAGER')) {
+        const managedTeams = await db.orm.public.Team.where({ organizationId: auth.organizationId, managerId: auth.employeeId }).all();
+        const teamIds = managedTeams.map(t => t.id);
+        if (teamIds.length > 0) {
+          const teamMembers = await db.orm.public.Employee.where(e => (e as any).teamId.in(teamIds)).all();
+          targetEmployeeIds.push(...teamMembers.map(emp => emp.id));
+        }
+      }
+      
+      const assignments = await db.orm.public.EmployeeProject.where({ projectId: activity.projectId }).all();
+      const assignment = assignments.find(a => targetEmployeeIds.includes(a.employeeId));
       if (!assignment) throw new NotFoundException('Activity not found');
     }
 

@@ -38,6 +38,7 @@ import { PublicHolidaysModule } from './public-holidays/public-holidays.module.j
 import { UserPreferencesModule } from './user-preferences/user-preferences.module.js';
 import { AuditLogsModule } from './audit-logs/audit-logs.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
+import { TimesheetSubmissionsModule } from './timesheet-submissions/timesheet-submissions.module.js';
 
 
 const authGuardProvider = [
@@ -68,6 +69,7 @@ const authGuardProvider = [
     UserPreferencesModule,
     AuditLogsModule,
     NotificationsModule,
+    TimesheetSubmissionsModule,
 
   ],
   controllers: [AppController, AuthController],

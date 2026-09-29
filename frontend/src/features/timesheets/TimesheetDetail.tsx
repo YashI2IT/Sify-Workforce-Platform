@@ -4,7 +4,7 @@ import { apiClient } from '../../lib/apiClient';
 import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
 import {
   ArrowLeft, Send, PlusCircle, CheckCircle2,
-  Clock, AlertTriangle, AlertCircle, RefreshCw, CalendarDays
+  Clock, AlertTriangle, AlertCircle, RefreshCw, CalendarDays, Edit2
 } from 'lucide-react';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { formatDateRange } from '../../utils/date';
@@ -406,17 +406,30 @@ export const TimesheetDetail = () => {
 
         {/* State Banners */}
         {timesheet.status === 'REJECTED' && (
-          <div className="p-4.5 bg-rose-50/80 border border-rose-200 rounded-2xl flex items-start gap-3.5 animate-fadeIn">
-            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-rose-900">Timesheet Rejected by Manager</h3>
-              <p className="text-xs sm:text-sm text-rose-700">
-                {timesheet.rejectionComment || 'No rejection comment provided by your manager.'}
-              </p>
-              <p className="text-xs text-rose-600 font-mono mt-1">
-                Please make necessary entry changes and submit the timesheet again.
-              </p>
+          <div className="p-4.5 bg-rose-50/80 border border-rose-200 rounded-2xl flex flex-col sm:flex-row sm:items-start gap-4 animate-fadeIn">
+            <div className="flex items-start gap-3.5 flex-1">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-rose-900">Timesheet Rejected by Manager</h3>
+                <p className="text-xs sm:text-sm text-rose-700">
+                  {timesheet.rejectionComment || 'No rejection comment provided by your manager.'}
+                </p>
+                <p className="text-xs text-rose-600 font-mono mt-1">
+                  Please make necessary entry changes and submit the timesheet again.
+                </p>
+              </div>
             </div>
+            {!isManagerViewing && (
+              <div className="shrink-0 self-start sm:self-center">
+                <Link
+                  to="/time-entries"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 shadow-2xs transition-colors"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  Edit & Resubmit
+                </Link>
+              </div>
+            )}
           </div>
         )}
 

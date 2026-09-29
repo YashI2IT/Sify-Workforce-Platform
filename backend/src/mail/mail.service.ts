@@ -187,4 +187,216 @@ ${frontendUrl}
       throw new InternalServerErrorException('Failed to deliver invitation email. Please try again later.');
     }
   }
+
+  async sendTimesheetApprovalEmail(params: {
+    email: string;
+    employeeName: string;
+    weekStart: string;
+    weekEnd: string;
+  }) {
+    const { email, employeeName, weekStart, weekEnd } = params;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    
+    const textContent = `
+Hello ${employeeName},
+
+Your timesheet for the week of ${weekStart} to ${weekEnd} has been approved.
+It is now read-only.
+
+Log in to view details: ${frontendUrl}/timesheets
+
+Thank you,
+The Sify Workforce Team
+    `;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+        <h2 style="color: #10b981;">Timesheet Approved</h2>
+        <p>Hello <strong>${employeeName}</strong>,</p>
+        <p>Your timesheet for the week of <strong>${weekStart} to ${weekEnd}</strong> has been approved.</p>
+        <p>Your timesheet is now locked and read-only.</p>
+        
+        <div style="margin: 30px 0;">
+          <a href="${frontendUrl}/timesheets" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">View Timesheet</a>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.MAIL_FROM || '"Sify Workforce" <noreply@sifyworkforce.com>',
+        to: email,
+        subject: `Timesheet Approved – [${weekStart} to ${weekEnd}]`,
+        text: textContent,
+        html: htmlContent,
+      });
+      console.log(`[MailService] Sent Timesheet Approval Email to ${email}`);
+    } catch (error) {
+      console.error(`[MailService] Failed to send Timesheet Approval Email to ${email}:`, error);
+    }
+  }
+
+  async sendTimesheetRejectionEmail(params: {
+    email: string;
+    employeeName: string;
+    weekStart: string;
+    weekEnd: string;
+    remark: string;
+  }) {
+    const { email, employeeName, weekStart, weekEnd, remark } = params;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    
+    const textContent = `
+Hello ${employeeName},
+
+Your timesheet for the week of ${weekStart} to ${weekEnd} has been REJECTED.
+
+Manager's Remark: "${remark}"
+
+Please correct your time entries and resubmit your timesheet as soon as possible.
+
+Log in to edit: ${frontendUrl}/time-entries
+
+Thank you,
+The Sify Workforce Team
+    `;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+        <h2 style="color: #ef4444;">Timesheet Rejected – Action Required</h2>
+        <p>Hello <strong>${employeeName}</strong>,</p>
+        <p>Your timesheet for the week of <strong>${weekStart} to ${weekEnd}</strong> has been rejected.</p>
+        
+        <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; margin: 20px 0;">
+          <p style="margin: 0; color: #991b1b;"><strong>Manager's Remark:</strong><br/>"${remark}"</p>
+        </div>
+        
+        <p>Please correct your time entries and resubmit your timesheet.</p>
+        
+        <div style="margin: 30px 0;">
+          <a href="${frontendUrl}/time-entries" style="background-color: #ef4444; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Edit & Resubmit</a>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.MAIL_FROM || '"Sify Workforce" <noreply@sifyworkforce.com>',
+        to: email,
+        subject: `Timesheet Rejected – Action Required – [${weekStart} to ${weekEnd}]`,
+        text: textContent,
+        html: htmlContent,
+      });
+      console.log(`[MailService] Sent Timesheet Rejection Email to ${email}`);
+    } catch (error) {
+      console.error(`[MailService] Failed to send Timesheet Rejection Email to ${email}:`, error);
+    }
+  }
+
+  async sendTimesheetResubmissionEmail(params: {
+    managerEmail: string;
+    employeeName: string;
+    weekStart: string;
+    weekEnd: string;
+    action: 'submitted' | 'resubmitted';
+  }) {
+    const { managerEmail, employeeName, weekStart, weekEnd, action } = params;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    
+    const Title = action === 'resubmitted' ? 'Timesheet Resubmitted' : 'Timesheet Submitted';
+    
+    const textContent = `
+Hello,
+
+${employeeName} has ${action} their timesheet for the week of ${weekStart} to ${weekEnd}.
+
+Please log in to review and approve/reject.
+
+Log in to review: ${frontendUrl}/approvals
+
+Thank you,
+The Sify Workforce Team
+    `;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+        <h2 style="color: #3b82f6;">${Title}</h2>
+        <p><strong>${employeeName}</strong> has ${action} their timesheet for the week of <strong>${weekStart} to ${weekEnd}</strong>.</p>
+        <p>Please log in to review and approve or reject.</p>
+        
+        <div style="margin: 30px 0;">
+          <a href="${frontendUrl}/approvals" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Review Timesheet</a>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.MAIL_FROM || '"Sify Workforce" <noreply@sifyworkforce.com>',
+        to: managerEmail,
+        subject: `${Title} – ${employeeName} [${weekStart} to ${weekEnd}]`,
+        text: textContent,
+        html: htmlContent,
+      });
+      console.log(`[MailService] Sent Timesheet Submission Email to ${managerEmail}`);
+    } catch (error) {
+      console.error(`[MailService] Failed to send Timesheet Submission Email to ${managerEmail}:`, error);
+    }
+  }
+
+  async sendTimesheetReminderEmail(params: {
+    email: string;
+    employeeName: string;
+    weekStart: string;
+    weekEnd: string;
+    totalHours: number;
+  }) {
+    const { email, employeeName, weekStart, weekEnd, totalHours } = params;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+    const textContent = `
+Hello ${employeeName},
+
+A reminder that you have ${totalHours}h of time entries logged for the week of ${weekStart} to ${weekEnd} that have not yet been submitted for manager approval.
+
+Please submit your timesheet at: ${frontendUrl}/time-entries
+
+Thank you,
+The Sify Workforce Team
+    `;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+        <div style="background: #f8b500; padding: 20px 30px; border-radius: 8px 8px 0 0;">
+          <h2 style="color: #fff; margin: 0;">⏰ Timesheet Reminder</h2>
+        </div>
+        <div style="background: #fff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+          <p>Hello <strong>${employeeName}</strong>,</p>
+          <p>This is a friendly reminder that you have <strong>${totalHours} hours</strong> of time entries for the week of <strong>${weekStart}</strong> to <strong>${weekEnd}</strong> that have not yet been submitted for approval.</p>
+          <div style="margin: 24px 0; text-align: center;">
+            <a href="${frontendUrl}/time-entries" style="background:#2563eb;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">
+              Submit My Timesheet
+            </a>
+          </div>
+          <p style="color:#6b7280;font-size:13px;">If you have already submitted or have no hours to report, please disregard this message.</p>
+          <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
+          <p style="color:#9ca3af;font-size:12px;">Sify Workforce Platform</p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.MAIL_FROM || '"Sify Workforce" <noreply@sifyworkforce.com>',
+        to: email,
+        subject: `Timesheet Reminder: ${weekStart} – ${weekEnd} pending submission`,
+        text: textContent,
+        html: htmlContent,
+      });
+      console.log(`[MailService] Sent reminder email to ${email}`);
+    } catch (error) {
+      console.error(`[MailService] Failed to send reminder to ${email}:`, error);
+    }
+  }
 }
+

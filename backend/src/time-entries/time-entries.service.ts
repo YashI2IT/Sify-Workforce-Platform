@@ -96,14 +96,22 @@ export class TimeEntriesService {
     return timesheet.id;
   }
 
-  private async ensureMutableTimesheet(timesheetId: string, auth: AuthenticatedContext, targetDate?: string) {
-    const timesheet = await db.orm.public.Timesheet.where({ id: timesheetId }).first();
-    if (timesheet && (timesheet.status === 'SUBMITTED' || timesheet.status === 'APPROVED')) {
-      if (targetDate) {
-        throw new BadRequestException(`Cannot log time on ${targetDate} because the timesheet for that week is already ${timesheet.status}.`);
-      } else {
-        throw new BadRequestException(`Cannot modify time entries because the timesheet is already ${timesheet.status}.`);
-      }
+  /**
+   * Check an individual TimeEntry's approvalStatus.
+   * SUBMITTED → entry is pending manager review; cannot be edited.
+   * APPROVED → entry is locked permanently.
+   * DRAFT / REJECTED → entry is editable.
+   * 
+   * NOTE: We no longer check the Timesheet (week container) status.
+   * This allows employees to add new entries for any day even when
+   * earlier entries in the same week are already APPROVED.
+   */
+  private assertEntryMutable(entry: any) {
+    if (entry.approvalStatus === 'APPROVED') {
+      throw new BadRequestException(`Cannot modify an approved time entry (ID: ${entry.id}). Approved entries are permanently locked.`);
+    }
+    if (entry.approvalStatus === 'SUBMITTED') {
+      throw new BadRequestException(`Cannot modify a submitted time entry (ID: ${entry.id}) while it is pending manager approval.`);
     }
   }
 
@@ -112,8 +120,8 @@ export class TimeEntriesService {
 
     await this.validateReferences(targetEmployeeId, dto.projectId, dto.taskId, dto.activityId, auth.organizationId);
 
+    // Get or create the weekly container - always allowed, even if earlier entries are APPROVED
     const timesheetId = await this.getOrCreateTimesheet(targetEmployeeId, dto.date, auth.organizationId);
-    await this.ensureMutableTimesheet(timesheetId, auth, dto.date);
 
     const timeEntry = await db.orm.public.TimeEntry.create({
       employeeId: targetEmployeeId,
@@ -124,6 +132,7 @@ export class TimeEntriesService {
       date: dto.date,
       hours: dto.hours,
       remarks: dto.remarks ?? null,
+      approvalStatus: 'DRAFT',
     });
 
     if (auth.employeeId) {
@@ -225,16 +234,12 @@ export class TimeEntriesService {
       throw new ForbiddenException('Cannot edit another employee\'s time entry');
     }
 
-    // Determine target date for timesheet validation
+    // Per-entry lock check — APPROVED is permanently locked; SUBMITTED is locked until reviewed
+    this.assertEntryMutable(existingEntry);
+
+    // For drag/drop to a new date, get or create the destination week's timesheet
     const targetDate = dto.date ?? existingEntry.date;
     const timesheetId = await this.getOrCreateTimesheet(existingEntry.employeeId, targetDate, auth.organizationId);
-    await this.ensureMutableTimesheet(timesheetId, auth, targetDate);
-
-    // If date changed, we must also verify the original timesheet was mutable
-    if (dto.date && dto.date !== existingEntry.date) {
-       const oldTsId = await this.getOrCreateTimesheet(existingEntry.employeeId, existingEntry.date, auth.organizationId);
-       await this.ensureMutableTimesheet(oldTsId, auth, existingEntry.date);
-    }
 
     const newProjectId = dto.projectId ?? existingEntry.projectId;
     const newTaskId = dto.taskId ?? existingEntry.taskId;
@@ -276,11 +281,12 @@ export class TimeEntriesService {
       throw new ForbiddenException('Cannot delete another employee\'s time entry');
     }
 
+    // Per-entry lock — APPROVED entries cannot be deleted
+    this.assertEntryMutable(existingEntry);
+
     await this.validateReferences(existingEntry.employeeId, existingEntry.projectId, existingEntry.taskId, existingEntry.activityId, auth.organizationId);
 
-    await this.ensureMutableTimesheet(existingEntry.timesheetId, auth, existingEntry.date);
-
-    const deletedEntry = await db.orm.public.TimeEntry.where({ id }).delete();
+    await db.orm.public.TimeEntry.where({ id }).delete();
     
     if (auth.employeeId) {
       await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'TIME_ENTRY_DELETED', 'TimeEntry', id);

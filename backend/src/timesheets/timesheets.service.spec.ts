@@ -4,6 +4,7 @@ import { TimesheetsService } from './timesheets.service.js';
 import { WorkingTimesService } from '../working-times/working-times.service.js';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { MailService } from '../mail/mail.service.js';
 import { db } from '../prisma/db.js';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { AuthenticatedContext } from '../auth/authenticated-context.js';
@@ -77,7 +78,8 @@ describe('TimesheetsService - Security Tests', () => {
         TimesheetsService, 
         WorkingTimesService, 
         { provide: AuditLogsService, useValue: { logEvent: vi.fn(), getOrganizationLogs: vi.fn() } },
-        { provide: NotificationsService, useValue: { createNotification: vi.fn() } }
+        { provide: NotificationsService, useValue: { createNotification: vi.fn() } },
+        { provide: MailService, useValue: { sendTimesheetApprovalEmail: vi.fn(), sendTimesheetRejectionEmail: vi.fn(), sendTimesheetResubmissionEmail: vi.fn() } }
       ],
     }).compile();
     service = module.get<TimesheetsService>(TimesheetsService);

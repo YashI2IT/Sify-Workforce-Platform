@@ -5,13 +5,15 @@ import { PaginatedResponse } from '../common/pagination.dto.js';
 import { WorkingTimesService } from '../working-times/working-times.service.js';
 import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { MailService } from '../mail/mail.service.js';
 
 @Injectable()
 export class TimesheetsService {
   constructor(
     private readonly workingTimesService: WorkingTimesService,
     private readonly auditLogsService: AuditLogsService,
-    private readonly notificationsService: NotificationsService
+    private readonly notificationsService: NotificationsService,
+    private readonly mailService: MailService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -197,7 +199,9 @@ export class TimesheetsService {
 
   async submit(id: string, auth: AuthenticatedContext) {
     const employeeId = auth.employeeId;
-    return await db.transaction(async (tx) => {
+    let mailPayload: any = null;
+
+    const updated = await db.transaction(async (tx) => {
       const timesheet = await tx.orm.public.Timesheet.where({ id }).first();
       if (!timesheet) throw new NotFoundException('Timesheet not found');
 
@@ -210,7 +214,7 @@ export class TimesheetsService {
       }
 
       const action = timesheet.status === 'REJECTED' ? 'RESUBMITTED' : 'SUBMITTED';
-      const updated = await tx.orm.public.Timesheet.where({ id }).update({ status: 'SUBMITTED', rejectionComment: null });
+      const updatedTs = await tx.orm.public.Timesheet.where({ id }).update({ status: 'SUBMITTED', rejectionComment: null });
       
       await tx.orm.public.TimesheetAudit.create({
         timesheetId: id,
@@ -226,6 +230,7 @@ export class TimesheetsService {
       if (emp.teamId) {
         const team = await tx.orm.public.Team.where({ id: emp.teamId }).first();
         if (team && team.managerId) {
+          const manager = await tx.orm.public.Employee.where({ id: team.managerId }).first();
           const notifType = action === 'RESUBMITTED' ? 'TIMESHEET_RESUBMITTED' : 'TIMESHEET_SUBMITTED';
           const notifTitle = action === 'RESUBMITTED' ? 'Timesheet Resubmitted' : 'Timesheet Submitted';
           const actionVerb = action === 'RESUBMITTED' ? 'resubmitted' : 'submitted';
@@ -238,17 +243,33 @@ export class TimesheetsService {
             relatedEntityType: 'TIMESHEET',
             relatedEntityId: timesheet.id,
           }, tx);
+
+          if (manager && manager.email) {
+            mailPayload = {
+              managerEmail: manager.email,
+              employeeName: emp.name,
+              weekStart: this.extractDateString(timesheet.startDate),
+              weekEnd: this.extractDateString(timesheet.endDate),
+              action: actionVerb,
+            };
+          }
         }
       }
 
-      return updated;
+      return updatedTs;
     });
+
+    if (mailPayload) {
+      this.mailService.sendTimesheetResubmissionEmail(mailPayload).catch(console.error);
+    }
+    return updated;
   }
 
   async approve(id: string, auth: AuthenticatedContext) {
     const managerId = auth.employeeId;
+    let mailPayload: any = null;
 
-    return await db.transaction(async (tx) => {
+    const updated = await db.transaction(async (tx) => {
       const timesheet = await tx.orm.public.Timesheet.where({ id }).first();
       if (!timesheet) throw new NotFoundException('Timesheet not found');
 
@@ -267,7 +288,7 @@ export class TimesheetsService {
         throw new BadRequestException('Only SUBMITTED timesheets can be approved');
       }
 
-      const updated = await tx.orm.public.Timesheet.where({ id }).update({ status: 'APPROVED' });
+      const updatedTs = await tx.orm.public.Timesheet.where({ id }).update({ status: 'APPROVED' });
       
       await tx.orm.public.TimesheetAudit.create({
         timesheetId: id,
@@ -289,10 +310,24 @@ export class TimesheetsService {
           relatedEntityType: 'TIMESHEET',
           relatedEntityId: timesheet.id,
         }, tx);
+
+        if (emp.email) {
+          mailPayload = {
+            email: emp.email,
+            employeeName: emp.name,
+            weekStart: this.extractDateString(timesheet.startDate),
+            weekEnd: this.extractDateString(timesheet.endDate),
+          };
+        }
       }
 
-      return updated;
+      return updatedTs;
     });
+
+    if (mailPayload) {
+      this.mailService.sendTimesheetApprovalEmail(mailPayload).catch(console.error);
+    }
+    return updated;
   }
 
   async reject(id: string, auth: AuthenticatedContext, comment: string) {
@@ -300,8 +335,9 @@ export class TimesheetsService {
     if (!comment || comment.trim() === '') {
       throw new BadRequestException('Rejection requires a non-empty comment');
     }
+    let mailPayload: any = null;
 
-    return await db.transaction(async (tx) => {
+    const updated = await db.transaction(async (tx) => {
       const timesheet = await tx.orm.public.Timesheet.where({ id }).first();
       if (!timesheet) throw new NotFoundException('Timesheet not found');
 
@@ -320,7 +356,7 @@ export class TimesheetsService {
         throw new BadRequestException('Only SUBMITTED timesheets can be rejected');
       }
 
-      const updated = await tx.orm.public.Timesheet.where({ id }).update({ status: 'REJECTED', rejectionComment: comment.trim() });
+      const updatedTs = await tx.orm.public.Timesheet.where({ id }).update({ status: 'REJECTED', rejectionComment: comment.trim() });
 
       await tx.orm.public.TimesheetAudit.create({
         timesheetId: id,
@@ -344,10 +380,25 @@ export class TimesheetsService {
           relatedEntityType: 'TIMESHEET',
           relatedEntityId: timesheet.id,
         }, tx);
+
+        if (emp.email) {
+          mailPayload = {
+            email: emp.email,
+            employeeName: emp.name,
+            weekStart: this.extractDateString(timesheet.startDate),
+            weekEnd: this.extractDateString(timesheet.endDate),
+            remark: comment.trim()
+          };
+        }
       }
 
-      return updated;
+      return updatedTs;
     });
+
+    if (mailPayload) {
+      this.mailService.sendTimesheetRejectionEmail(mailPayload).catch(console.error);
+    }
+    return updated;
   }
 
   async getHistory(id: string, auth: AuthenticatedContext) {

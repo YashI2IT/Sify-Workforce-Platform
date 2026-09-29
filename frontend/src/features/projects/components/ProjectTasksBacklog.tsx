@@ -13,6 +13,7 @@ interface ProjectTasksBacklogProps {
   projectIsActive: boolean;
   onViewDetail: (t: Task) => void;
   onStatusChange: (taskId: string, newStatus: string) => void;
+  currentEmployeeId?: string;
 }
 
 const PRIORITY_WEIGHT: Record<string, number> = {
@@ -29,7 +30,8 @@ export const ProjectTasksBacklog = ({
   isAdmin,
   projectIsActive,
   onViewDetail,
-  onStatusChange
+  onStatusChange,
+  currentEmployeeId
 }: ProjectTasksBacklogProps) => {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     COMPLETED: true // Collapse completed by default
@@ -48,7 +50,8 @@ export const ProjectTasksBacklog = ({
     if (destination.droppableId === source.droppableId) return; // No manual sorting within sections
     
     const task = tasks.find(t => t.id === draggableId);
-    if (!task || !task.isActive || !isAdmin || !projectIsActive) return;
+    if (!task || !task.isActive || !projectIsActive) return;
+    if (!isAdmin && task.assigneeId !== currentEmployeeId) return;
 
     let newStatus = 'TODO';
     if (destination.droppableId === 'ACTIVE_WORK') newStatus = 'IN_PROGRESS';
@@ -105,7 +108,7 @@ export const ProjectTasksBacklog = ({
                       }`}
                     >
                       {section.tasks.map((t, index) => {
-                        const isDragDisabled = !t.isActive || !isAdmin || !projectIsActive;
+                        const isDragDisabled = !t.isActive || (!isAdmin && t.assigneeId !== currentEmployeeId) || !projectIsActive;
                         const priorityCls = priorityColors[t.priority ?? 'MEDIUM'] ?? priorityColors.MEDIUM;
                         const statusCls = statusColors[t.status] ?? statusColors.TODO;
                         const assignee = getEmployee(t.assigneeId);
