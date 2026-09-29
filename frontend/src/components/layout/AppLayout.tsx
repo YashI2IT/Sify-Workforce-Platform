@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
@@ -17,6 +17,7 @@ import {
   Building,
   SlidersHorizontal,
   ShieldAlert,
+  User,
   PieChart, 
   TrendingUp, 
   LayoutDashboard, 
@@ -27,6 +28,7 @@ import {
   Settings
 } from 'lucide-react';
 import { NotificationsMenu } from './NotificationsMenu';
+import { ProfileModal } from './ProfileModal';
 
 export const AppLayout = () => {
   const dispatch = useDispatch();
@@ -34,7 +36,22 @@ export const AppLayout = () => {
   const location = useLocation();
   const { employee } = useCurrentEmployee();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
   const { data: preferences } = useGetMyPreferencesQuery();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    if (profileOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [profileOpen]);
 
   useEffect(() => {
     const applyTheme = (theme: string) => {
@@ -151,10 +168,7 @@ export const AppLayout = () => {
     {
       title: 'Reports',
       items: [
-        { name: 'Advanced Analytics', path: '/reports/advanced-analytics', icon: TrendingUp, roles: ['EMPLOYEE', 'MANAGER'] },
-        { name: 'Employee Summary', path: '/reports/employee-summary', icon: PieChart, roles: ['MANAGER'] },
-        { name: 'Team Utilization', path: '/reports/team-utilization', icon: TrendingUp, roles: ['MANAGER'] },
-        { name: 'Resource Allocation', path: '/reports/resource-allocation', icon: UsersRound, roles: ['MANAGER'] },
+        { name: 'REPORTS & ANALYTICS', path: '/reports', icon: TrendingUp, roles: ['EMPLOYEE', 'MANAGER'] },
       ]
     },
     {
@@ -300,45 +314,15 @@ export const AppLayout = () => {
           ))}
         </nav>
 
-        {/* Footer Identity & Sign Out */}
-        <div className="p-3.5 border-t border-slate-200/80 shrink-0 bg-slate-50/50 space-y-2.5">
-          {employee && (
-            <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
-              <div className="w-8 h-8 rounded-lg bg-slate-950 text-white font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-slate-800 shadow-2xs">
-                {getInitials(employee.name)}
-              </div>
-              <div className="min-w-0 flex-1">
-                <span className="text-xs font-bold text-slate-900 truncate block">
-                  {employee.name}
-                </span>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200/80">
-                    {employee.role || employee.roles?.[0] || 'EMPLOYEE'}
-                  </span>
-                  <span className="text-[10px] font-mono text-slate-400 truncate">
-                    {employee.employeeCode}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!env.VITE_DEV_AUTH_BYPASS && (
-            <button
-              onClick={handleLogout}
-              className="flex items-center justify-center gap-2 px-3 py-2 w-full text-center rounded-xl text-xs font-semibold text-slate-600 hover:text-rose-600 hover:bg-rose-50/80 border border-slate-200/60 hover:border-rose-200/80 transition-all cursor-pointer active:scale-[0.99]"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              Sign Out
-            </button>
-          )}
-          {env.VITE_DEV_AUTH_BYPASS && (
+        {/* Footer */}
+        {env.VITE_DEV_AUTH_BYPASS && (
+          <div className="p-3.5 border-t border-slate-200/80 shrink-0 bg-slate-50/50">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50/60 rounded-xl border border-amber-200/70 text-xs text-amber-800">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
               <span className="truncate font-medium text-[11px]">Active Context: {employee?.name || 'Dev User'}</span>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </aside>
 
       {/* Main Content Area */}
@@ -364,12 +348,66 @@ export const AppLayout = () => {
             <NotificationsMenu />
             
             {employee && (
-              <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-50/80 border border-slate-200/80 rounded-full text-xs text-slate-700 shadow-2xs">
-                <div className="w-5 h-5 rounded-full bg-slate-950 text-white font-mono font-bold text-[10px] flex items-center justify-center">
-                  {getInitials(employee.name)}
-                </div>
-                <span className="font-semibold text-slate-900 hidden sm:inline">{employee.name}</span>
-                <span className="text-slate-400 font-mono hidden lg:inline">({employee.employeeCode})</span>
+              <div className="relative" ref={profileRef}>
+                <button
+                  onClick={() => setProfileOpen(!profileOpen)}
+                  className="flex items-center gap-2.5 px-2 py-1 sm:px-3 sm:py-1.5 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-full text-xs text-slate-700 shadow-xs transition-colors cursor-pointer"
+                >
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-950 text-white font-mono font-bold text-[10px] sm:text-xs flex items-center justify-center">
+                    {getInitials(employee.name)}
+                  </div>
+                  <span className="font-semibold text-slate-900 hidden sm:inline">{employee.name.split(' ')[0]}</span>
+                </button>
+
+                {profileOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">
+                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+                      <p className="text-sm font-bold text-slate-900 truncate">{employee.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-200/70 text-slate-700">
+                          {employee.role || employee.roles?.[0] || 'EMPLOYEE'}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-500 truncate">
+                          {employee.employeeCode}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setProfileOpen(false);
+                          setProfileModalOpen(true);
+                        }}
+                        className="flex items-center gap-2.5 px-4 py-2 w-full text-left text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                      >
+                        <User className="w-4 h-4 text-slate-400" />
+                        Profile Settings
+                      </button>
+                      <Link
+                        to="/preferences"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                      >
+                        <Settings className="w-4 h-4 text-slate-400" />
+                        Preferences
+                      </Link>
+                    </div>
+
+                    <div className="py-1 border-t border-slate-100">
+                      <button
+                        onClick={() => {
+                          setProfileOpen(false);
+                          handleLogout();
+                        }}
+                        className="flex items-center gap-2.5 px-4 py-2 w-full text-left text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -380,6 +418,13 @@ export const AppLayout = () => {
           <Outlet />
         </main>
       </div>
+      
+      {employee && (
+        <ProfileModal 
+          isOpen={profileModalOpen} 
+          onClose={() => setProfileModalOpen(false)} 
+        />
+      )}
     </div>
   );
 };

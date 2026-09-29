@@ -962,11 +962,11 @@ export class ReportsService {
       return capacity;
     };
 
-    const activeTasks = await db.orm.public.Task
+    const activeTasksRaw = await db.orm.public.Task
       .where((e: any) => e.assigneeId.in(targetEmployeeIds))
       .where({ isActive: true })
-      .where((e: any) => e.status.notEquals('DONE'))
       .all();
+    const activeTasks = activeTasksRaw.filter((e: any) => e.status !== 'DONE' && e.status !== 'COMPLETED');
 
     const projectIds = Array.from(new Set(activeTasks.map((t: any) => t.projectId)));
     let projects: any[] = [];

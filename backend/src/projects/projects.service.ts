@@ -232,7 +232,8 @@ export class ProjectsService {
         empCapacity.set(empId, cap);
       }
       
-      const empActiveTasks = await db.orm.public.Task.where((e: any) => (e as any).assigneeId.in(assignedEmployeeIds)).where({ isActive: true }).where((e: any) => (e as any).status.notEquals('DONE')).all();
+      const empActiveTasksRaw = await db.orm.public.Task.where((e: any) => (e as any).assigneeId.in(assignedEmployeeIds)).where({ isActive: true }).all();
+      const empActiveTasks = empActiveTasksRaw.filter((e: any) => e.status !== 'DONE' && e.status !== 'COMPLETED');
       const empDemand = new Map<string, number>();
       for (const t of empActiveTasks) {
          if (t.assigneeId) {

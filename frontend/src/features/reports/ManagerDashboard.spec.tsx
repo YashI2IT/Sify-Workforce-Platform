@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '../../test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
 import { BrowserRouter } from 'react-router-dom';
 import { ManagerDashboard } from './ManagerDashboard';
 

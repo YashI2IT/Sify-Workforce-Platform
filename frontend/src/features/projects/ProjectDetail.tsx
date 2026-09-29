@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -73,6 +73,23 @@ export const ProjectDetail = () => {
   const [detailTask, setDetailTask] = useState<any>(null);
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const taskIdFromUrl = searchParams.get('taskId');
+
+  useEffect(() => {
+    if (taskIdFromUrl && tasks.length > 0) {
+      const task = tasks.find((t: any) => t.id === taskIdFromUrl);
+      if (task) {
+        setActiveTab('tasks');
+        setDetailTask(task);
+        setDetailPanelOpen(true);
+        // Clear param so it doesn't reopen if they close it and refresh
+        searchParams.delete('taskId');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+  }, [taskIdFromUrl, tasks, searchParams, setSearchParams]);
+
   const fetchProjectData = () => {
     refetchProject();
     refetchTasks();
@@ -123,7 +140,7 @@ export const ProjectDetail = () => {
     { id: 'overview', name: 'Overview', icon: FileText, count: null },
     { id: 'tasks', name: 'Tasks', icon: CheckSquare, count: tasks.length },
     { id: 'activities', name: 'Activities', icon: Edit2, count: activities.length },
-    { id: 'time', name: 'Deadlines', icon: CalendarDays, count: null },
+    ...(isManagerOrAdmin ? [{ id: 'time', name: 'Deadlines', icon: CalendarDays, count: null }] : []),
     { id: 'employees', name: 'Members', icon: Users, count: assignedEmployees.length },
   ];
 
@@ -244,7 +261,7 @@ export const ProjectDetail = () => {
         {activeTab === 'activities' && (
           <ProjectActivitiesTab
             activities={activities}
-            isAdmin={isAdmin}
+            isAdmin={isManagerOrAdmin}
             projectIsActive={project.isActive}
             onAdd={() => { setEditingAct(null); setActModalOpen(true); }}
             onEdit={(a) => { setEditingAct(a); setActModalOpen(true); }}

@@ -1,5 +1,5 @@
 import { AlertTriangle, AlertCircle } from 'lucide-react';
-import { AiSummaryCard } from '@/components/AiSummaryCard';
+
 
 interface ProjectOverviewTabProps {
   project: any;
@@ -27,7 +27,6 @@ export const ProjectOverviewTab = ({
         </p>
       </div>
 
-      <AiSummaryCard type="PROJECT" entityId={project.id} />
 
       {project.description && (
         <div className="p-4 bg-slate-50/50 border border-slate-200/80 rounded-xl shadow-2xs">

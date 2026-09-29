@@ -201,7 +201,7 @@ export class TasksService {
               title: 'New Task Assigned',
               message: `You have been assigned to task: ${task.ticketId} - ${task.name}`,
               relatedEntityType: 'TASK',
-              relatedEntityId: task.id,
+              relatedEntityId: `${task.projectId}:${task.id}`,
             }, tx);
           }
         });
@@ -371,7 +371,7 @@ export class TasksService {
               title: 'Task Assigned To You',
               message: `You have been assigned to task: ${(updated as any).ticketId} - ${(updated as any).name}`,
               relatedEntityType: 'TASK',
-              relatedEntityId: (updated as any).id,
+              relatedEntityId: `${(updated as any).projectId}:${(updated as any).id}`,
             }, tx);
           }
           
@@ -387,7 +387,7 @@ export class TasksService {
                  title: 'Task Status Changed',
                  message: `Task ${updated.ticketId} status changed to ${status}`,
                  relatedEntityType: 'TASK',
-                 relatedEntityId: updated.id,
+                 relatedEntityId: `${updated.projectId}:${updated.id}`,
                }, tx);
              }
           }
@@ -494,7 +494,7 @@ export class TasksService {
           title: 'New Dependency Added',
           message: `Task ${predecessor.ticketId} is now a predecessor to your task ${successor.ticketId}.`,
           relatedEntityType: 'TASK',
-          relatedEntityId: successorId,
+          relatedEntityId: `${predecessor.projectId}:${successorId}`,
         }, tx);
       }
       return created;
@@ -557,7 +557,7 @@ export class TasksService {
           title: 'Dependency Removed',
           message: `Task ${task.ticketId} is no longer a predecessor to your task ${successor.ticketId}.`,
           relatedEntityType: 'TASK',
-          relatedEntityId: successorId,
+          relatedEntityId: `${task.projectId}:${successorId}`,
         }, tx);
       }
       return { success: true };
@@ -633,7 +633,36 @@ export class TasksService {
           title: 'New Comment on Task',
           message: `${author?.name || 'Someone'} commented on task: ${task.ticketId}`,
           relatedEntityType: 'TASK',
-          relatedEntityId: task.id,
+          relatedEntityId: `${task.projectId}:${task.id}`,
+        }, tx);
+      }
+
+      const mentionRegex = /@\[.*?\]\((.*?)\)/g;
+      const mentionedIds = new Set<string>();
+      let match;
+      while ((match = mentionRegex.exec(comment)) !== null) {
+        mentionedIds.add(match[1]);
+      }
+      
+      const validMentionedIds = new Set<string>();
+      if (mentionedIds.size > 0) {
+        const mentionedEmployees = await tx.orm.public.Employee.where(e => (e as any).id.in(Array.from(mentionedIds))).all();
+        for (const emp of mentionedEmployees) {
+          const e = emp as any;
+          if (e.id !== auth.employeeId) {
+            validMentionedIds.add(e.id);
+          }
+        }
+      }
+
+      for (const mid of validMentionedIds) {
+        await this.notificationsService.createNotification({
+          recipientId: mid,
+          type: 'COMMENT_MENTION',
+          title: 'Mentioned in Task',
+          message: `You were mentioned in a comment on task: ${task.name || task.ticketId}`,
+          relatedEntityType: 'TASK',
+          relatedEntityId: `${task.projectId}:${task.id}`,
         }, tx);
       }
 

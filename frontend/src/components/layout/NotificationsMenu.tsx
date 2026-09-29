@@ -33,8 +33,13 @@ export const NotificationsMenu = () => {
     setIsOpen(false);
     
     // Navigate based on type/related entity
-    if (notification.relatedEntityType === 'TASK' || notification.type === 'TASK_ASSIGNED' || notification.type === 'COMMENT_ADDED') {
-      navigate(`/projects`);
+    if (notification.relatedEntityType === 'TASK' || notification.type === 'TASK_ASSIGNED' || notification.type === 'COMMENT_ADDED' || notification.type === 'COMMENT_MENTION') {
+      const parts = notification.relatedEntityId?.split(':') || [];
+      if (parts.length === 2) {
+        navigate(`/projects/${parts[0]}?taskId=${parts[1]}`);
+      } else {
+        navigate(`/projects`);
+      }
     } else if (notification.relatedEntityType === 'TIMESHEET' || notification.type.includes('TIMESHEET')) {
       navigate(`/timesheets`);
     }
@@ -43,6 +48,7 @@ export const NotificationsMenu = () => {
   const getIcon = (type: string) => {
     if (type === 'TASK_ASSIGNED') return <Briefcase className="w-4 h-4 text-indigo-500" />;
     if (type === 'COMMENT_ADDED') return <MessageSquare className="w-4 h-4 text-emerald-500" />;
+    if (type === 'COMMENT_MENTION') return <MessageSquare className="w-4 h-4 text-indigo-600" />;
     if (type === 'TIMESHEET_APPROVED') return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
     if (type === 'TIMESHEET_REJECTED') return <AlertCircle className="w-4 h-4 text-rose-500" />;
     if (type === 'TIMESHEET_RESUBMITTED') return <Clock className="w-4 h-4 text-amber-500" />;

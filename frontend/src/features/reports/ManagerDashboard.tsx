@@ -5,7 +5,7 @@ import { ReportLayout, ReportEmptyState } from './components/ReportLayout';
 import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
 import { useGetManagerDashboardReportQuery, useGetResourceAllocationReportQuery } from '../../store/apiSlice';
 
-import { AiSummaryCard } from '../../components/AiSummaryCard';
+
 
 export const ManagerDashboard = () => {
   const { employee } = useCurrentEmployee();
@@ -77,7 +77,6 @@ export const ManagerDashboard = () => {
         <ReportEmptyState message="No data to display. Adjust date range and refresh." />
       ) : (
         <div className="p-6 space-y-6">
-          <AiSummaryCard type="MANAGER" startDate={startDate} endDate={endDate} />
 
           {/* Summary Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

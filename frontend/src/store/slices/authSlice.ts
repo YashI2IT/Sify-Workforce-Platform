@@ -86,6 +86,9 @@ const authSlice = createSlice({
       }
       authStorage.setOrgId(action.payload.orgId);
     },
+    setEmployee: (state, action: PayloadAction<any>) => {
+      state.employee = action.payload;
+    },
     logout: (state) => {
       state.isInitialized = true;
       state.isAuthenticated = false;
@@ -101,5 +104,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { setAuth, setInitialized, setUserData, logout } = authSlice.actions;
+export const { setAuth, setInitialized, setUserData, setEmployee, logout } = authSlice.actions;
 export default authSlice.reducer;

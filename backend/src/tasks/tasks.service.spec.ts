@@ -181,7 +181,7 @@ describe('TasksService', () => {
       } as any);
       
       const empAuth: AuthenticatedContext = { userId: 'u2', employeeId: 'e2', organizationId: 'org1', roles: ['EMPLOYEE'] };
-      await expect(service.create('p1', { name: 'T1', status: 'TODO' }, empAuth))
+      await expect(service.create('p1', { name: 'T1', status: 'TODO', isActive: true }, empAuth))
         .rejects.toThrow('Only Admins and Managers can create new tasks');
     });
 
@@ -198,7 +198,7 @@ describe('TasksService', () => {
       } as any);
 
       const mgrAuth: AuthenticatedContext = { userId: 'u3', employeeId: 'm1', organizationId: 'org1', roles: ['MANAGER'] };
-      await expect(service.create('p1', { name: 'T1', status: 'TODO' }, mgrAuth))
+      await expect(service.create('p1', { name: 'T1', status: 'TODO', isActive: true }, mgrAuth))
         .rejects.toThrow('You are not authorized to modify tasks in this project');
     });
 

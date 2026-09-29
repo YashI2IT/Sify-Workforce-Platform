@@ -76,7 +76,7 @@ export const ProjectTasksTab = ({
   const [assigneeFilter, setAssigneeFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [taskTemplatesModalOpen, setTaskTemplatesModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'board' | 'backlog' | 'timeline'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'board' | 'backlog' | 'timeline'>('board');
   const [updateTask] = useUpdateProjectTaskMutation();
   const { showToast } = useToast();
 

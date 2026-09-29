@@ -73,13 +73,13 @@ describe('UserPreferencesService', () => {
     vi.mocked(db.transaction).mockImplementation(async (cb) => {
       txCount++;
       if (txCount === 1) {
-        return await cb(tx);
+        return await cb(tx as any);
       } else {
         tx.orm.public.UserPreference.where = vi.fn().mockReturnValue({
           first: vi.fn().mockResolvedValue({ id: 'pref2' }),
           update: patchMock
         });
-        return await cb(tx);
+        return await cb(tx as any);
       }
     });
 

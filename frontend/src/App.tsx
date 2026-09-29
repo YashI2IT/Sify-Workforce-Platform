@@ -18,6 +18,7 @@ import { AllProjectsList } from './features/admin-projects/AllProjectsList';
 import { OrganizationOverview } from './features/organization/OrganizationOverview';
 import { OrganizationSettings } from './features/organization/OrganizationSettings';
 
+import { ReportsAndAnalytics } from './features/reports/ReportsAndAnalytics';
 import { EmployeeSummary } from './features/reports/EmployeeSummary';
 import { ManagerDashboard } from './features/reports/ManagerDashboard';
 import { TeamUtilization } from './features/reports/TeamUtilization';
@@ -72,14 +73,15 @@ function App() {
             <Route path="/admin/public-holidays" element={<PublicHolidaysConfig />} />
             
             {/* Reports Routing */}
-            <Route path="/reports" element={<Navigate to="/reports/employee-summary" replace />} />
-            <Route path="/reports/employee-summary" element={<EmployeeSummary />} />
-            <Route path="/reports/manager-dashboard" element={<ManagerDashboard />} />
-            <Route path="/reports/team-utilization" element={<TeamUtilization />} />
-            <Route path="/reports/project-hours" element={<ProjectHours />} />
-            <Route path="/reports/project-analysis" element={<ProjectAnalysis />} />
-            <Route path="/reports/advanced-analytics" element={<AdvancedAnalytics />} />
-            <Route path="/reports/resource-allocation" element={<ResourceAllocation />} />
+            <Route path="/reports" element={<ReportsAndAnalytics />}>
+              <Route path="employee-summary" element={<EmployeeSummary />} />
+              <Route path="manager-dashboard" element={<ManagerDashboard />} />
+              <Route path="team-utilization" element={<TeamUtilization />} />
+              <Route path="project-hours" element={<ProjectHours />} />
+              <Route path="project-analysis" element={<ProjectAnalysis />} />
+              <Route path="advanced-analytics" element={<AdvancedAnalytics />} />
+              <Route path="resource-allocation" element={<ResourceAllocation />} />
+            </Route>
 
             {/* System */}
             <Route path="/admin/audit-logs" element={<AuditLogsList />} />

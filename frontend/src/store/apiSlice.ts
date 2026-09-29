@@ -45,10 +45,23 @@ export const apiSlice = createApi({
   tagTypes: ['Organization', 'OrganizationSettings', 'Employee', 'Team', 'Project', 'Task', 'TaskComment', 'TaskTemplate', 'Activity', 'Requirement', 'ProjectEmployee', 'TimeEntry', 'Timesheet', 'Report', 'Milestone', 'TaskDependency', 'ProjectDependency', 'WorkingTime', 'PublicHoliday', 'UserPreference', 'AuditLog', 'Notification'],
   endpoints: (builder) => ({
     // ==========================================
+    // AUTH / PROFILE
+    // ==========================================
+    updateProfile: builder.mutation<any, any>({
+      query: (body) => ({ url: '/auth/profile', method: 'PATCH', body }),
+    }),
+    changePassword: builder.mutation<any, any>({
+      query: (body) => ({ url: '/auth/change-password', method: 'POST', body }),
+    }),
+    // ==========================================
     // EMPLOYEES
     // ==========================================
     getEmployees: builder.query<any, { limit?: number }>({
       query: (params) => ({ url: '/employees', params }),
+      providesTags: ['Employee'],
+    }),
+    getEmployeesDirectory: builder.query<any, void>({
+      query: () => '/employees/directory',
       providesTags: ['Employee'],
     }),
     createEmployee: builder.mutation<any, any>({
@@ -561,7 +574,10 @@ export const apiSlice = createApi({
 });
 
 export const {
+  useUpdateProfileMutation,
+  useChangePasswordMutation,
   useGetEmployeesQuery,
+  useGetEmployeesDirectoryQuery,
   useCreateEmployeeMutation,
   useUpdateEmployeeMutation,
   useDeleteEmployeeMutation,

@@ -21,7 +21,7 @@ export class ActivitiesController {
   }
 
   @Post('projects/:projectId/activities')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Create a new activity under a project' })
   @ApiParam({ name: 'projectId', description: 'Project UUID' })
   @ApiBody({
@@ -64,7 +64,7 @@ export class ActivitiesController {
   }
 
   @Patch('activities/:id')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Update an existing activity' })
   @ApiParam({ name: 'id', description: 'Activity UUID' })
   @ApiBody({

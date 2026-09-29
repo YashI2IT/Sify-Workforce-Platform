@@ -20,11 +20,11 @@ const mockEmployees = [
 ];
 
 const baseTasks = [
-  { id: 't-1', name: 'Setup CI Pipeline', status: 'TODO', priority: 'HIGH', isActive: true, assigneeId: 'emp-1' },
-  { id: 't-2', name: 'Write unit tests', status: 'IN_PROGRESS', priority: 'MEDIUM', isActive: true, assigneeId: 'emp-2' },
-  { id: 't-3', name: 'Deploy to staging', status: 'DONE', priority: 'LOW', isActive: true },
-  { id: 't-4', name: 'Subtask of CI', status: 'TODO', priority: 'MEDIUM', isActive: true, parentTaskId: 't-1' },
-];
+  { id: 't-1', ticketId: 'TSK-001', projectId: 'test-proj-1', name: 'Setup CI Pipeline', status: 'TODO', priority: 'HIGH', isActive: true, assigneeId: 'emp-1' },
+  { id: 't-2', ticketId: 'TSK-002', projectId: 'test-proj-1', name: 'Write unit tests', status: 'IN_PROGRESS', priority: 'MEDIUM', isActive: true, assigneeId: 'emp-2' },
+  { id: 't-3', ticketId: 'TSK-003', projectId: 'test-proj-1', name: 'Deploy to staging', status: 'DONE', priority: 'LOW', isActive: true },
+  { id: 't-4', ticketId: 'TSK-004', projectId: 'test-proj-1', name: 'Subtask of CI', status: 'TODO', priority: 'MEDIUM', isActive: true, parentTaskId: 't-1' },
+] as any[];
 
 const noop = () => {};
 
@@ -170,6 +170,7 @@ describe('ProjectTasksTab', () => {
         onViewDetail={onViewDetail}
       />
     );
+    fireEvent.click(screen.getByTitle('List View'));
     fireEvent.click(screen.getByTestId('task-row-t-1'));
     expect(onViewDetail).toHaveBeenCalledWith(expect.objectContaining({ id: 't-1' }));
   });
@@ -187,6 +188,7 @@ describe('ProjectTasksTab', () => {
         onViewDetail={noop}
       />
     );
+    fireEvent.click(screen.getByTitle('List View'));
     expect(screen.getByText('Subtask of CI')).toBeDefined();
   });
 

@@ -57,6 +57,13 @@ export class ActivitiesService {
     if (!project) {
       throw new NotFoundException('Project not found');
     }
+    
+    const isAdmin = auth.roles && auth.roles.includes('ADMIN');
+    if (!isAdmin) {
+      if (!auth.employeeId) throw new NotFoundException('Project not found');
+      const assignment = await db.orm.public.EmployeeProject.where({ projectId, employeeId: auth.employeeId }).first();
+      if (!assignment) throw new NotFoundException('Project not found');
+    }
 
     // Reject creation under an inactive Project
     if (!project.isActive) {
@@ -88,6 +95,13 @@ export class ActivitiesService {
     const project = await db.orm.public.Project.where({ id: activity.projectId, organizationId: auth.organizationId }).first();
     if (!project) {
       throw new NotFoundException('Activity not found');
+    }
+    
+    const isAdmin = auth.roles && auth.roles.includes('ADMIN');
+    if (!isAdmin) {
+      if (!auth.employeeId) throw new NotFoundException('Activity not found');
+      const assignment = await db.orm.public.EmployeeProject.where({ projectId: activity.projectId, employeeId: auth.employeeId }).first();
+      if (!assignment) throw new NotFoundException('Activity not found');
     }
 
     const { name, description, isActive } = updateActivityDto;

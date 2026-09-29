@@ -9,6 +9,13 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 export class EmployeesService {
   constructor(private auditLogsService: AuditLogsService) {}
 
+  async getDirectory(auth: AuthenticatedContext) {
+    return await db.orm.public.Employee.where({ organizationId: auth.organizationId, isActive: true })
+      .orderBy(m => (m as any).name.asc())
+      .select('id', 'name', 'email')
+      .all();
+  }
+
   async findAll(auth: AuthenticatedContext, page: number = 1, limit: number = 50): Promise<PaginatedResponse<any>> {
     const offset = (page - 1) * limit;
     const organizationId = auth.organizationId;

@@ -12,6 +12,13 @@ import { Roles } from '../auth/roles.decorator.js';
 export class EmployeesController {
   constructor(private readonly employeesService: EmployeesService) {}
 
+  @Get('directory')
+  @Roles('ADMIN', 'MANAGER', 'EMPLOYEE')
+  @ApiOperation({ summary: 'Get employee directory for mentions' })
+  async getDirectory(@GetAuthContext() auth: AuthenticatedContext) {
+    return this.employeesService.getDirectory(auth);
+  }
+
   @Get()
   @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'List employees in organization' })

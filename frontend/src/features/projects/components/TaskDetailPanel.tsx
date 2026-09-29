@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Edit2, Clock, Calendar, AlertCircle, Send, Trash2, Edit3, MessageSquare, Link, Plus } from 'lucide-react';
 import { useCurrentEmployee } from '../../../hooks/useCurrentEmployee';
-import { useGetTaskCommentsQuery, useCreateTaskCommentMutation, useUpdateTaskCommentMutation, useDeleteTaskCommentMutation, useGetTaskDependenciesQuery, useCreateTaskDependencyMutation, useDeleteTaskDependencyMutation } from '../../../store/apiSlice';
+import { useGetTaskCommentsQuery, useCreateTaskCommentMutation, useUpdateTaskCommentMutation, useDeleteTaskCommentMutation, useGetTaskDependenciesQuery, useCreateTaskDependencyMutation, useDeleteTaskDependencyMutation, useGetEmployeesDirectoryQuery } from '../../../store/apiSlice';
 import { useToast } from '../../../context/ToastContext';
 
 interface Task {
@@ -92,7 +92,61 @@ export const TaskDetailPanel = ({
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
 
-  // Dependencies API
+  const [mentionQuery, setMentionQuery] = useState<{ active: boolean, text: string, startIndex: number }>({ active: false, text: '', startIndex: -1 });
+  const [selectedMentions, setSelectedMentions] = useState<{name: string, id: string}[]>([]);
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setNewComment(val);
+    
+    const cursorPosition = e.target.selectionStart;
+    const textBeforeCursor = val.slice(0, cursorPosition);
+    const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtSymbol !== -1) {
+      if (lastAtSymbol === 0 || textBeforeCursor[lastAtSymbol - 1] === ' ' || textBeforeCursor[lastAtSymbol - 1] === '\n') {
+        const query = textBeforeCursor.slice(lastAtSymbol + 1);
+        if (!query.includes(' ')) {
+          setMentionQuery({ active: true, text: query, startIndex: lastAtSymbol });
+          return;
+        }
+      }
+    }
+    setMentionQuery({ active: false, text: '', startIndex: -1 });
+  };
+
+  const handleMentionSelect = (emp: Employee) => {
+    const before = newComment.slice(0, mentionQuery.startIndex);
+    const after = newComment.slice(mentionQuery.startIndex + mentionQuery.text.length + 1);
+    setNewComment(`${before}@${emp.name} ${after}`);
+    setSelectedMentions(prev => {
+      if (!prev.find(m => m.id === emp.id)) {
+        return [...prev, { name: emp.name, id: emp.id }];
+      }
+      return prev;
+    });
+    setMentionQuery({ active: false, text: '', startIndex: -1 });
+  };
+
+  const { data: allEmployeesRes } = useGetEmployeesDirectoryQuery(undefined, { skip: !isOpen || !mentionQuery.active });
+  const allEmployees = allEmployeesRes || [];
+
+  const mentionCandidates = allEmployees.length > 0 ? allEmployees : employees;
+  const filteredMentions = mentionCandidates
+    .filter((e: any) => e.id !== employee?.id)
+    .filter((e: any) => e.name.toLowerCase().includes(mentionQuery.text.toLowerCase()));
+
+  // Render mentions elegantly
+  const renderCommentText = (text: string) => {
+    const parts = text.split(/(@\[.*?\]\(.*?\))/g);
+    return parts.map((part, i) => {
+      const match = part.match(/@\[(.*?)\]\((.*?)\)/);
+      if (match) {
+        return <span key={i} className="text-indigo-600 font-semibold bg-indigo-50 px-1 rounded shadow-sm">@{match[1]}</span>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
   const { data: depsData, isLoading: depsLoading, refetch: refetchDeps } = useGetTaskDependenciesQuery(
     task?.id ?? '',
     { skip: !isOpen || !task }
@@ -419,8 +473,14 @@ export const TaskDetailPanel = ({
                           <button
                             onClick={async () => {
                               try {
-                                await updateComment({ projectId, taskId: task.id, commentId: c.id, comment: editContent }).unwrap();
+                                let finalComment = editContent;
+                                selectedMentions.forEach(m => {
+                                  const regex = new RegExp(`@${m.name}(?!\\w)`, 'g');
+                                  finalComment = finalComment.replace(regex, `@[${m.name}](${m.id})`);
+                                });
+                                await updateComment({ projectId, taskId: task.id, commentId: c.id, comment: finalComment }).unwrap();
                                 setEditingCommentId(null);
+                                setSelectedMentions([]);
                               } catch (err) {
                                 showToast('Failed to update comment', 'error');
                               }
@@ -450,7 +510,19 @@ export const TaskDetailPanel = ({
                           </div>
                           {canEdit && (
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => { setEditingCommentId(c.id); setEditContent(c.comment); }} className="p-1 text-slate-400 hover:text-indigo-600 rounded">
+                              <button onClick={() => { 
+                                setEditingCommentId(c.id);
+                                let raw = c.comment;
+                                const mentions: {name: string, id: string}[] = [];
+                                const regex = /@\[(.*?)\]\((.*?)\)/g;
+                                let match;
+                                while ((match = regex.exec(c.comment)) !== null) {
+                                  mentions.push({ name: match[1], id: match[2] });
+                                }
+                                raw = raw.replace(/@\[(.*?)\]\((.*?)\)/g, '@$1');
+                                setEditContent(raw);
+                                setSelectedMentions(mentions);
+                              }} className="p-1 text-slate-400 hover:text-indigo-600 rounded">
                                 <Edit3 className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={async () => {
@@ -467,7 +539,7 @@ export const TaskDetailPanel = ({
                             </div>
                           )}
                         </div>
-                        <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{c.comment}</p>
+                        <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{renderCommentText(c.comment)}</p>
                       </div>
                     </div>
                   );
@@ -479,17 +551,44 @@ export const TaskDetailPanel = ({
               <div className="relative">
                 <textarea
                   value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Add a comment..."
+                  onChange={handleTextChange}
+                  placeholder="Add a comment... (Type @ to mention)"
                   rows={2}
                   className="w-full px-4 py-3 pr-12 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100/50 transition-colors resize-none"
                 />
+                
+                {mentionQuery.active && filteredMentions.length > 0 && (
+                  <div className="absolute bottom-full left-0 mb-1 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                    {filteredMentions.map((emp: any) => (
+                      <button
+                        key={emp.id}
+                        onClick={() => handleMentionSelect(emp)}
+                        className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                      >
+                        {emp.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <button
-                  disabled={!newComment.trim() || isCreating}
+                  disabled={(() => {
+                    let text = newComment;
+                    selectedMentions.forEach(m => {
+                      const regex = new RegExp(`@${m.name}(?!\\w)`, 'g');
+                      text = text.replace(regex, '');
+                    });
+                    return text.trim().length === 0 || isCreating;
+                  })()}
                   onClick={async () => {
                     try {
-                      await createComment({ projectId, taskId: task.id, comment: newComment.trim() }).unwrap();
+                      let finalComment = newComment;
+                      selectedMentions.forEach(m => {
+                        const regex = new RegExp(`@${m.name}(?!\\w)`, 'g');
+                        finalComment = finalComment.replace(regex, `@[${m.name}](${m.id})`);
+                      });
+                      await createComment({ projectId, taskId: task.id, comment: finalComment.trim() }).unwrap();
                       setNewComment('');
+                      setSelectedMentions([]);
                     } catch (err) {
                       showToast('Failed to post comment', 'error');
                     }
