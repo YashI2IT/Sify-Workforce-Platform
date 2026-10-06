@@ -27,13 +27,13 @@ export const ProjectRequirementsTab = ({
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-slate-900 font-display">Project Requirements</h3>
-          <p className="text-xs text-slate-500 font-mono mt-0.5">Functional and operational scope definitions.</p>
+          <h3 className="text-base font-bold text-slate-900 font-sans tracking-tight">Project Requirements</h3>
+          <p className="text-xs text-slate-500 font-sans mt-0.5">Functional and operational scope definitions.</p>
         </div>
         {isAdmin && projectIsActive && (
           <button
             onClick={onAdd}
-            className="inline-flex items-center gap-2 bg-slate-950 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl font-medium text-xs sm:text-sm shadow-xs transition-all cursor-pointer active:scale-95"
+            className="inline-flex items-center gap-2 bg-[#12161F] hover:bg-slate-800 text-white px-5 py-2 rounded-full font-bold text-xs shadow-xs transition-all duration-200 active:scale-[0.97] cursor-pointer font-sans"
           >
             <Plus className="w-4 h-4" /> Add Requirement
           </button>
@@ -41,7 +41,7 @@ export const ProjectRequirementsTab = ({
       </div>
 
       {requirements.length === 0 ? (
-        <div className="py-16 text-center text-slate-500 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+        <div className="py-16 text-center text-slate-500 border border-dashed border-slate-200 rounded-[14px] bg-slate-50/50">
           <ListTodo className="w-10 h-10 mx-auto text-slate-300 mb-2" />
           <p className="text-sm font-bold text-slate-800 font-display">No requirements defined yet</p>
           <p className="text-xs text-slate-400 mt-1">
@@ -51,7 +51,7 @@ export const ProjectRequirementsTab = ({
       ) : (
         <div className="space-y-3">
           {requirements.map((req) => (
-            <div key={req.id} className="p-4 border border-slate-200/80 rounded-2xl hover:bg-slate-50/70 transition-colors flex items-start justify-between gap-4 shadow-2xs bg-white">
+            <div key={req.id} className="p-4 border border-slate-200/80 rounded-[14px] hover:bg-slate-50/70 transition-colors flex items-start justify-between gap-4 shadow-2xs bg-white">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h4 className="text-sm font-bold text-slate-900 font-display">{req.title}</h4>

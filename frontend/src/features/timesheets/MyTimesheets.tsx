@@ -85,7 +85,7 @@ export const MyTimesheets = () => {
           <div className="flex items-center gap-3">
             <div>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
+                <h1 className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                   My Timesheets
                 </h1>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
@@ -103,17 +103,19 @@ export const MyTimesheets = () => {
         <div className="flex items-center gap-2.5 shrink-0">
           <button
             onClick={fetchTimesheets}
-            className="p-2.5 border border-slate-200/90 rounded-xl hover:bg-slate-50 text-slate-600 transition-all shadow-2xs cursor-pointer active:scale-95"
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
             title="Refresh timesheets"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 text-slate-500 transition-transform duration-500 group-hover:rotate-180 group-active:rotate-180 ${loading ? 'animate-spin text-slate-900' : ''}`} />
+            <span>Refresh</span>
           </button>
           <button
             onClick={() => navigate('/time-entries')}
-            className="inline-flex items-center gap-2 bg-slate-950 hover:bg-slate-800 text-white font-medium px-4 py-2.5 rounded-xl text-sm transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+            className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:scale-[0.98]"
           >
             <Clock className="w-4 h-4" />
-            Log Time
+            <span>Log Time</span>
           </button>
         </div>
       </div>
@@ -121,7 +123,7 @@ export const MyTimesheets = () => {
       {/* Executive Telemetry Row (4 Cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Timesheet Cycles */}
-        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Recorded Cycles
@@ -130,7 +132,7 @@ export const MyTimesheets = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+              <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                 {loading ? '—' : timesheets.length}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">weeks</span>
@@ -143,7 +145,7 @@ export const MyTimesheets = () => {
         </div>
 
         {/* Card 2: Approved Timesheets */}
-        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Approved Cycles
@@ -152,7 +154,7 @@ export const MyTimesheets = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+              <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                 {loading ? '—' : approvedCount}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">({approvedRate}%)</span>
@@ -168,7 +170,7 @@ export const MyTimesheets = () => {
         </div>
 
         {/* Card 3: Pending Review */}
-        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Pending Review
@@ -177,7 +179,7 @@ export const MyTimesheets = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+              <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                 {loading ? '—' : submittedCount}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">submitted</span>
@@ -193,7 +195,7 @@ export const MyTimesheets = () => {
         </div>
 
         {/* Card 4: Draft / Open */}
-        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Draft & Open
@@ -208,7 +210,7 @@ export const MyTimesheets = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+              <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                 {loading ? '—' : draftCount}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">draft cycles</span>
@@ -225,7 +227,7 @@ export const MyTimesheets = () => {
       </div>
 
       {/* Timesheets List Card */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+      <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs">
         {loading ? (
           <div className="py-20 text-center text-slate-500 space-y-3">
             <LoadingSpinner size="md" />
@@ -277,7 +279,7 @@ export const MyTimesheets = () => {
               <tbody className="divide-y divide-slate-100">
                 {timesheets.map(ts => (
                   <tr key={ts.id} className="hover:bg-slate-50/70 transition-colors duration-150">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                       <div className="font-bold text-slate-900 text-sm ">
                         {formatWeekRange(ts.startDate)}
                       </div>
@@ -285,7 +287,7 @@ export const MyTimesheets = () => {
                         Starts: {new Date(ts.startDate).toLocaleDateString()}
                       </div>
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                       <div>
                         {renderStatusBadge(ts.status)}
                         {ts.status === 'REJECTED' && ts.rejectionComment && (
@@ -295,7 +297,7 @@ export const MyTimesheets = () => {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                       <button
                         onClick={() => navigate(`/timesheets/${ts.id}`)}
                         className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-950 hover:bg-slate-800 text-white font-medium rounded-xl text-xs transition-all shadow-xs cursor-pointer active:scale-[0.99]"

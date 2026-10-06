@@ -41,7 +41,7 @@ export class EmployeesController {
   }
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Create a new employee' })
   @ApiBody({
     schema: {
@@ -80,7 +80,7 @@ export class EmployeesController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Update an existing employee' })
   @ApiParam({ name: 'id', description: 'Employee UUID' })
   @ApiBody({

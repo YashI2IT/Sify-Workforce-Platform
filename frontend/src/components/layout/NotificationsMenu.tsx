@@ -2,15 +2,20 @@ import { useState, useRef, useEffect } from 'react';
 import { Bell, CheckCircle2, MessageSquare, Briefcase, AlertCircle, Check, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useGetMyNotificationsQuery, useMarkNotificationAsReadMutation, useMarkAllNotificationsAsReadMutation } from '../../store/apiSlice';
+import { authStorage } from '../../lib/authUtils';
 
 export const NotificationsMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   
-  const { data: notifications = [] } = useGetMyNotificationsQuery(undefined, { pollingInterval: 30000 });
+  const token = authStorage.getAccessToken();
+  const { data: notifications = [] } = useGetMyNotificationsQuery(undefined, { 
+    pollingInterval: 30000,
+    skip: !token
+  });
   const [markAsRead] = useMarkNotificationAsReadMutation();
-  const [markAllRead] = useMarkAllNotificationsAsReadMutation();
+  const [markAllRead, { isLoading: isMarkingAll }] = useMarkAllNotificationsAsReadMutation();
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -26,9 +31,24 @@ export const NotificationsMenu = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
+  const handleMarkAllRead = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isMarkingAll || unreadCount === 0) return;
+    try {
+      await markAllRead().unwrap();
+    } catch (err) {
+      console.error('Failed to mark all notifications as read:', err);
+    }
+  };
+
   const handleNotificationClick = async (notification: any) => {
     if (!notification.isRead) {
-      await markAsRead(notification.id).unwrap();
+      try {
+        await markAsRead(notification.id).unwrap();
+      } catch (err) {
+        console.error('Failed to mark notification as read:', err);
+      }
     }
     setIsOpen(false);
     
@@ -59,25 +79,49 @@ export const NotificationsMenu = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors focus:outline-none"
+        className={`relative flex items-center justify-center w-[36px] h-[36px] sm:w-[38px] sm:h-[38px] bg-white hover:bg-slate-50 border border-[#e2e8f0] rounded-full transition-colors cursor-pointer focus:outline-none ${isOpen ? 'ring-2 ring-[#12161F]/10' : ''}`}
+        aria-label="Notifications"
       >
-        <Bell className="w-5 h-5" />
+        <Bell className={`w-[18px] h-[18px] sm:w-[19px] sm:h-[19px] text-[#12161F]`} strokeWidth={1.75} />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white"></span>
+          <span className="absolute top-[7px] right-[8px] w-[8px] h-[8px] bg-[#fb3b67] rounded-full ring-2 ring-white"></span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-lg border border-slate-200/60 overflow-hidden z-50">
+        <div className="absolute right-0 mt-2.5 w-72 sm:w-80 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 animate-dropdown">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
-            <h3 className="font-semibold text-sm text-slate-800">Notifications</h3>
-            {unreadCount > 0 && (
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-sm text-slate-800">Notifications</h3>
+              {unreadCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold font-mono bg-rose-50 text-rose-600 border border-rose-200/80">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+            {unreadCount > 0 ? (
               <button
-                onClick={() => markAllRead().unwrap()}
-                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                type="button"
+                id="mark-all-read-btn"
+                onClick={handleMarkAllRead}
+                disabled={isMarkingAll}
+                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50/80 px-2 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 select-none active:scale-[0.96]"
+                title="Mark all notifications as read"
               >
-                <Check className="w-3 h-3" /> Mark all read
+                {isMarkingAll ? (
+                  <>
+                    <span className="w-2.5 h-2.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin shrink-0" />
+                    <span>Marking...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3 h-3 shrink-0" />
+                    <span>Mark all read</span>
+                  </>
+                )}
               </button>
+            ) : (
+              <span className="text-[11px] font-medium text-slate-400">All caught up</span>
             )}
           </div>
           
@@ -100,13 +144,18 @@ export const NotificationsMenu = () => {
                       {getIcon(n.type)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start mb-0.5">
+                      <div className="flex justify-between items-start mb-0.5 gap-2">
                         <p className={`text-sm truncate pr-2 ${!n.isRead ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'}`}>
                           {n.title}
                         </p>
-                        <span className="text-[10px] text-slate-400 font-mono whitespace-nowrap shrink-0 mt-0.5">
-                          {new Date(n.createdAt).toLocaleDateString()}
-                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                          {!n.isRead && (
+                            <span className="w-2 h-2 rounded-full bg-blue-600" title="Unread" />
+                          )}
+                          <span className="text-[10px] text-slate-400 font-mono whitespace-nowrap">
+                            {new Date(n.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
                       </div>
                       <p className={`text-xs line-clamp-2 ${!n.isRead ? 'text-slate-600 font-medium' : 'text-slate-500'}`}>
                         {n.message}

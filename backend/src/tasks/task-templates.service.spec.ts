@@ -43,10 +43,10 @@ describe('TaskTemplatesService', () => {
   let service: TaskTemplatesService;
 
   const mockAuth: AuthenticatedContext = {
+    userId: 'user-1',
     employeeId: 'emp-1',
     organizationId: 'org-1',
-    email: 'test@example.com',
-    role: 'ADMIN',
+    roles: ['ADMIN'],
   };
 
   beforeEach(async () => {
@@ -99,7 +99,7 @@ describe('TaskTemplatesService', () => {
       (db.orm.public.TaskTemplate.update as any).mockResolvedValue({ id: 'tpl-1', name: 'T2' });
 
       const result = await service.update('proj-1', 'tpl-1', { name: 'T2' } as any, mockAuth);
-      expect(result.name).toBe('T2');
+      expect(result?.name).toBe('T2');
     });
   });
 

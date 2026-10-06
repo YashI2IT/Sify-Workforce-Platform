@@ -3,6 +3,7 @@ import { CalendarDays, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { Select } from '../../../components/ui/Select';
 import { DatePicker } from '../../../components/ui/DatePicker';
+import { statusColors } from './taskUtils';
 
 interface Task {
   id: string;
@@ -62,15 +63,15 @@ export const ProjectTimeTab = ({ projectId, tasks = [], employees = [] }: Projec
 
   if (tasks.length === 0) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-5 sm:p-6 space-y-4">
         <div>
-          <h3 className="text-base font-bold text-slate-900 font-display">Task Deadlines</h3>
-          <p className="text-xs text-slate-500 font-mono mt-0.5">Assign start and due dates to project tasks.</p>
+          <h3 className="text-base font-bold text-slate-900 font-sans tracking-tight">Task Deadlines</h3>
+          <p className="text-xs text-slate-500 font-sans mt-0.5">Assign start and due dates to project tasks.</p>
         </div>
-        <div className="py-16 text-center text-slate-500 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+        <div className="py-12 text-center text-slate-500 border border-dashed border-slate-200/80 rounded-[14px] bg-slate-50/50">
           <CalendarDays className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-          <p className="text-sm font-bold text-slate-800 font-display">No tasks found</p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-sm font-bold text-slate-800 font-sans">No tasks found</p>
+          <p className="text-xs text-slate-400 font-sans mt-1">
             Create tasks first to assign deadlines.
           </p>
         </div>
@@ -79,41 +80,46 @@ export const ProjectTimeTab = ({ projectId, tasks = [], employees = [] }: Projec
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-5 sm:p-6 space-y-4">
       <div>
-        <h3 className="text-base font-bold text-slate-900 font-display">Task Deadlines</h3>
-        <p className="text-xs text-slate-500 font-mono mt-0.5">Assign start and due dates to project tasks. Changes save automatically.</p>
+        <h3 className="text-base font-bold text-slate-900 font-sans tracking-tight">Task Deadlines</h3>
+        <p className="text-xs text-slate-500 font-sans mt-0.5">Assign start and due dates to project tasks. Changes save automatically.</p>
       </div>
 
-      <div className="border border-slate-200/80 rounded-xl bg-white shadow-2xs pb-[200px]">
+      <div className="border border-slate-200/80 rounded-[14px] bg-white shadow-2xs overflow-visible">
         <div className="overflow-x-visible">
           <table className="w-full text-left text-sm whitespace-nowrap min-w-[700px]">
             <thead className="bg-slate-50/80 border-b border-slate-200/80">
               <tr>
-                <th className="px-4 py-3 font-mono font-bold text-[10px] uppercase tracking-wider text-slate-500 w-1/2">Task</th>
-                <th className="px-4 py-3 font-mono font-bold text-[10px] uppercase tracking-wider text-slate-500">Status</th>
-                <th className="px-4 py-3 font-mono font-bold text-[10px] uppercase tracking-wider text-slate-500">Assignee</th>
-                <th className="px-4 py-3 font-mono font-bold text-[10px] uppercase tracking-wider text-slate-500">Start Date</th>
-                <th className="px-4 py-3 font-mono font-bold text-[10px] uppercase tracking-wider text-slate-500">Due Date</th>
+                <th className="px-5 py-3 font-sans font-bold text-[11px] uppercase tracking-wider text-slate-500">Task</th>
+                <th className="px-5 py-3 font-sans font-bold text-[11px] uppercase tracking-wider text-slate-500">Status</th>
+                <th className="px-5 py-3 font-sans font-bold text-[11px] uppercase tracking-wider text-slate-500">Assignee</th>
+                <th className="px-5 py-3 font-sans font-bold text-[11px] uppercase tracking-wider text-slate-500">Start Date</th>
+                <th className="px-5 py-3 font-sans font-bold text-[11px] uppercase tracking-wider text-slate-500">Due Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {tasks.map(task => {
                 const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'DONE';
+                const statusCls = statusColors[task.status] ?? statusColors.TODO;
                 return (
-                  <tr key={task.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-slate-900 font-display truncate max-w-[200px]" title={task.name}>
-                        <span className="text-slate-400 font-mono mr-1.5 font-normal text-xs">{task.ticketId}</span>
-                        {task.name}
-                      </p>
+                  <tr key={task.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200/80 shrink-0 shadow-2xs">
+                          {task.ticketId}
+                        </span>
+                        <span className="font-semibold text-slate-900 font-sans text-sm" title={task.name}>
+                          {task.name}
+                        </span>
+                      </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold font-mono bg-slate-100 text-slate-600">
+                    <td className="px-5 py-3.5">
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold font-sans border ${statusCls}`}>
                         {task.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="px-4 py-3 min-w-[160px]">
+                    <td className="px-5 py-3.5 min-w-[170px]">
                       <Select
                         options={[
                           { value: '', label: 'Unassigned' },
@@ -124,14 +130,14 @@ export const ProjectTimeTab = ({ projectId, tasks = [], employees = [] }: Projec
                         placeholder="Assignee..."
                       />
                     </td>
-                    <td className="px-4 py-3 min-w-[140px]">
+                    <td className="px-5 py-3.5 min-w-[150px]">
                       <DatePicker
                         value={task.startDate}
                         onChange={(value) => handleDateChange(task.id, 'startDate', value)}
                         placeholder="Start Date"
                       />
                     </td>
-                    <td className="px-4 py-3 min-w-[180px]">
+                    <td className="px-5 py-3.5 min-w-[190px]">
                       <div className="flex items-center gap-2">
                         <DatePicker
                           value={task.dueDate}
@@ -140,10 +146,10 @@ export const ProjectTimeTab = ({ projectId, tasks = [], employees = [] }: Projec
                           isOverdue={!!isOverdue}
                         />
                         {isOverdue && (
-                          <span title="Overdue"><AlertCircle className="w-5 h-5 text-rose-500 shrink-0 drop-shadow-sm" /></span>
+                          <span title="Overdue"><AlertCircle className="w-5 h-5 text-rose-500 shrink-0 drop-shadow-xs" /></span>
                         )}
                         {task.status === 'DONE' && (
-                          <span title="Completed"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 drop-shadow-sm" /></span>
+                          <span title="Completed"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 drop-shadow-xs" /></span>
                         )}
                       </div>
                     </td>

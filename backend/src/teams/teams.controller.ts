@@ -36,7 +36,7 @@ export class TeamsController {
   }
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Create a new team' })
   @ApiBody({
     schema: {
@@ -69,7 +69,7 @@ export class TeamsController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Update an existing team' })
   @ApiParam({ name: 'id', description: 'Team UUID' })
   @ApiBody({

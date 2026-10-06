@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { db } from '../prisma/db.js';
 import { AuthenticatedContext } from '../auth/authenticated-context.js';
+import { MailService } from '../mail/mail.service.js';
 
 export interface CreateNotificationDto {
   recipientId: string;
@@ -13,6 +14,8 @@ export interface CreateNotificationDto {
 
 @Injectable()
 export class NotificationsService {
+  constructor(private readonly mailService: MailService) {}
+
   async getMyNotifications(auth: AuthenticatedContext) {
     return db.orm.public.Notification.where({
       recipientId: auth.employeeId,
@@ -55,6 +58,8 @@ export class NotificationsService {
 
   // Internal method to be called by other services
   async createNotification(dto: CreateNotificationDto, externalTx?: any) {
+    let isDuplicate = false;
+
     const runInTx = async (tx: any) => {
       if (dto.relatedEntityType && dto.relatedEntityId) {
         const existing = await tx.orm.public.Notification.where({
@@ -67,6 +72,7 @@ export class NotificationsService {
 
         if (existing) {
           // Prevent duplicate unread notifications for the same entity and type
+          isDuplicate = true;
           return existing;
         }
       }
@@ -82,10 +88,47 @@ export class NotificationsService {
       });
     };
 
+    let notification;
     if (externalTx) {
-      return await runInTx(externalTx);
+      notification = await runInTx(externalTx);
     } else {
-      return await db.transaction(runInTx);
+      notification = await db.transaction(runInTx);
     }
+
+    if (!isDuplicate) {
+      // Fire-and-forget email dispatch
+      this.dispatchEmailIfEnabled(dto).catch(err => {
+        console.error('[NotificationsService] Background email dispatch failed:', err);
+      });
+    }
+
+    return notification;
+  }
+
+  private async dispatchEmailIfEnabled(dto: CreateNotificationDto) {
+    // 1. Resolve preference (defaults to true)
+    const pref = await db.orm.public.UserPreference.where({ employeeId: dto.recipientId }).first();
+    const emailEnabled = pref?.emailNotifications ?? true;
+    
+    if (!emailEnabled) {
+      return; // Do not send email
+    }
+
+    // 2. Resolve employee details
+    const employee = await db.orm.public.Employee.where({ id: dto.recipientId }).first();
+    if (!employee || !employee.email) {
+      return;
+    }
+
+    const name = employee.name ? employee.name.trim() : 'Team Member';
+    
+    // 3. Dispatch through MailService
+    await this.mailService.sendNotificationEmail({
+      email: employee.email,
+      name,
+      title: dto.title,
+      message: dto.message,
+      relatedEntityId: dto.relatedEntityId,
+    });
   }
 }

@@ -55,6 +55,7 @@ export const OrganizationSetup: React.FC = () => {
   // Form State
   const [name, setName] = useState('');
   const [organizationType, setOrganizationType] = useState('TECHNOLOGY');
+  const [customIndustry, setCustomIndustry] = useState('');
   const [description, setDescription] = useState('');
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; organizationType?: string; description?: string }>({});
   const [error, setError] = useState('');
@@ -71,7 +72,16 @@ export const OrganizationSetup: React.FC = () => {
   useEffect(() => {
     if (orgData) {
       setName(orgData.name || '');
-      setOrganizationType(orgData.organizationType || 'TECHNOLOGY');
+      
+      const isStandardType = orgTypes.some(t => t.value === orgData.organizationType);
+      if (isStandardType) {
+        setOrganizationType(orgData.organizationType || 'TECHNOLOGY');
+        setCustomIndustry('');
+      } else {
+        setOrganizationType('OTHER');
+        setCustomIndustry(orgData.organizationType || '');
+      }
+
       setDescription(orgData.description || '');
 
       // Check state persistence across refresh
@@ -120,9 +130,13 @@ export const OrganizationSetup: React.FC = () => {
     setError('');
     setFieldErrors({});
 
+    const finalOrganizationType = organizationType === 'OTHER' && customIndustry.trim() !== '' 
+      ? customIndustry.trim() 
+      : organizationType;
+
     const validation = orgProfileSchema.safeParse({
       name,
-      organizationType,
+      organizationType: finalOrganizationType,
       description: description || undefined,
     });
 
@@ -140,7 +154,7 @@ export const OrganizationSetup: React.FC = () => {
     try {
       await updateCurrentOrg({
         name: name.trim(),
-        organizationType,
+        organizationType: finalOrganizationType,
         description: description?.trim() || undefined,
       }).unwrap();
 
@@ -316,7 +330,7 @@ export const OrganizationSetup: React.FC = () => {
                 disabled={!step1Saved || !step2Saved}
                 onClick={handleCompleteSetup}
                 title={!step1Saved || !step2Saved ? "Complete all setup steps to continue" : "Complete setup and continue to Workforce"}
-                className={`inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-medium px-4 py-2.5 rounded-xl shadow-sm transition-all shrink-0 ${
+                className={`inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-medium px-4 py-2.5 rounded-xl shadow-xs transition-all shrink-0 ${
                   step1Saved && step2Saved
                     ? 'bg-[#1E232E] hover:bg-[#151821] text-white cursor-pointer'
                     : 'bg-[#1E232E] text-white opacity-40 cursor-not-allowed'
@@ -345,11 +359,11 @@ export const OrganizationSetup: React.FC = () => {
                   type="button"
                   onClick={() => handleStepClick(step.id)}
                   aria-disabled={isLocked}
-                  className={`p-3.5 rounded-2xl border text-left transition-all relative flex items-center gap-3.5 ${
+                  className={`p-3.5 rounded-[14px] border text-left transition-all relative flex items-center gap-3.5 ${
                     isLocked
                       ? 'bg-slate-100/60 border-slate-200/60 text-slate-400 cursor-not-allowed opacity-75'
                       : isActive
-                      ? 'bg-white border-slate-900 ring-2 ring-slate-950/10 shadow-sm cursor-pointer'
+                      ? 'bg-white border-slate-900 ring-2 ring-slate-950/10 shadow-xs cursor-pointer'
                       : isCompleted
                       ? 'bg-white/80 border-slate-200 hover:border-slate-300 hover:bg-white text-slate-700 cursor-pointer'
                       : 'bg-white/50 border-slate-200/70 hover:border-slate-300 text-slate-500 cursor-pointer'
@@ -438,7 +452,7 @@ export const OrganizationSetup: React.FC = () => {
                         setName(e.target.value);
                         if (fieldErrors.name) setFieldErrors(prev => ({ ...prev, name: undefined }));
                       }}
-                      className={`w-full h-11 rounded-xl border bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all shadow-2xs ${
+                      className={`w-full h-9 rounded-xl border bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all shadow-2xs ${
                         fieldErrors.name 
                           ? 'border-rose-400 focus:ring-2 focus:ring-rose-500/20' 
                           : 'border-slate-200/90 focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900'
@@ -477,7 +491,7 @@ export const OrganizationSetup: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setDropdownOpen(!dropdownOpen)}
-                        className={`w-full h-11 rounded-xl border bg-white px-3.5 text-sm text-slate-900 flex items-center justify-between transition-all shadow-2xs cursor-pointer ${
+                        className={`w-full h-9 rounded-xl border bg-white px-3.5 text-sm text-slate-900 flex items-center justify-between transition-all shadow-2xs cursor-pointer ${
                           dropdownOpen
                             ? 'border-slate-900 ring-2 ring-slate-950/15'
                             : fieldErrors.organizationType
@@ -533,6 +547,26 @@ export const OrganizationSetup: React.FC = () => {
                     </div>
                     {fieldErrors.organizationType && (
                       <p className="text-xs text-rose-600 font-medium">{fieldErrors.organizationType}</p>
+                    )}
+
+                    {organizationType === 'OTHER' && (
+                      <div className="pt-2 animate-slideDownFade">
+                        <input
+                          type="text"
+                          value={customIndustry}
+                          onChange={(e) => {
+                            setCustomIndustry(e.target.value);
+                            if (fieldErrors.organizationType) setFieldErrors(prev => ({ ...prev, organizationType: undefined }));
+                          }}
+                          className={`w-full h-9 rounded-xl border bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all shadow-2xs ${
+                            fieldErrors.organizationType
+                              ? 'border-rose-400 focus:ring-2 focus:ring-rose-500/20'
+                              : 'border-slate-200/90 focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900'
+                          }`}
+                          placeholder="Please specify your industry..."
+                          required
+                        />
+                      </div>
                     )}
                   </div>
 

@@ -74,7 +74,7 @@ export class ProjectsController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Update an existing project' })
   @ApiParam({ name: 'id', description: 'Project UUID' })
   @ApiBody({
@@ -117,7 +117,7 @@ export class ProjectsController {
   }
 
   @Post(':id/requirements')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Create project requirement' })
   @ApiParam({ name: 'id', description: 'Project UUID' })
   @ApiBody({ schema: { type: 'object', required: ['title'], properties: { title: { type: 'string' }, description: { type: 'string' }, isMandatory: { type: 'boolean' }, status: { type: 'string' } } } })
@@ -148,7 +148,7 @@ export class ProjectsController {
   }
 
   @Post(':id/milestones')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Create a project milestone' })
   @ApiParam({ name: 'id', description: 'Project UUID' })
   @ApiBody({ schema: { type: 'object', required: ['name'], properties: { name: { type: 'string' }, description: { type: 'string' }, targetDate: { type: 'string', format: 'date-time' }, status: { type: 'string' } } } })
@@ -158,7 +158,7 @@ export class ProjectsController {
   }
 
   @Patch(':id/milestones/:milestoneId')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Update a project milestone' })
   @ApiParam({ name: 'id', description: 'Project UUID' })
   @ApiParam({ name: 'milestoneId', description: 'Milestone UUID' })
@@ -173,7 +173,7 @@ export class ProjectsController {
   }
 
   @Delete(':id/milestones/:milestoneId')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Delete a project milestone' })
   @ApiParam({ name: 'id', description: 'Project UUID' })
   @ApiParam({ name: 'milestoneId', description: 'Milestone UUID' })

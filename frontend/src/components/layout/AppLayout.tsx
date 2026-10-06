@@ -25,8 +25,7 @@ import {
   Clock, 
   CalendarDays, 
   LogOut,
-  Settings,
-  ClipboardCheck
+  Settings
 } from 'lucide-react';
 import { NotificationsMenu } from './NotificationsMenu';
 import { ProfileModal } from './ProfileModal';
@@ -112,7 +111,7 @@ export const AppLayout = () => {
     {
       title: 'ORGANIZATION',
       items: [
-        { name: 'Overview', path: '/organization/overview', icon: Building },
+        { name: 'Organization', path: '/organization', icon: Building },
         { name: 'Settings', path: '/organization/settings', icon: SlidersHorizontal },
       ]
     },
@@ -131,7 +130,6 @@ export const AppLayout = () => {
         { name: 'Working Times', path: '/admin/working-times', icon: Clock },
         { name: 'Public Holidays', path: '/admin/public-holidays', icon: CalendarDays },
         { name: 'Audit Logs', path: '/admin/audit-logs', icon: ShieldAlert },
-        { name: 'Preferences', path: '/preferences', icon: Settings },
       ]
     }
   ];
@@ -163,21 +161,19 @@ export const AppLayout = () => {
     {
       title: 'Approvals',
       items: [
-        { name: 'Timesheet Approvals', path: '/approvals', icon: CheckSquare, roles: ['MANAGER'] },
-        { name: 'Entry Approvals', path: '/submission-approvals', icon: ClipboardCheck, roles: ['MANAGER', 'ADMIN'] },
+        { name: 'Pending Approvals', path: '/approvals', icon: CheckSquare, roles: ['MANAGER'] },
       ]
     },
     {
       title: 'Reports',
       items: [
-        { name: 'REPORTS & ANALYTICS', path: '/reports', icon: TrendingUp, roles: ['EMPLOYEE', 'MANAGER'] },
+        { name: 'Reports', path: '/reports', icon: TrendingUp, roles: ['EMPLOYEE', 'MANAGER'] },
       ]
     },
     {
       title: 'Settings',
       items: [
         { name: 'Timesheet Settings', path: '/settings/timesheets', icon: Clock, roles: ['MANAGER'] },
-        { name: 'Preferences', path: '/preferences', icon: Settings, roles: ['EMPLOYEE', 'MANAGER'] },
       ]
     }
   ];
@@ -211,17 +207,30 @@ export const AppLayout = () => {
     }
 
     // Organization active checks
-    if (itemPath === '/organization/overview') {
+    if (itemPath === '/organization') {
       return currentPath === '/organization' || currentPath === '/organization/overview';
     }
     if (itemPath === '/organization/settings') {
-      return currentPath === '/organization/settings' || currentPath === '/admin/working-times' || currentPath === '/admin/public-holidays';
+      return currentPath === '/organization/settings' || currentPath === '/organization/profile';
     }
 
     return currentPath === itemPath || currentPath.startsWith(itemPath + '/');
   };
 
-  const currentNav = visibleGroups.flatMap(g => g.items).find(item => isItemActive(item.path));
+  const currentGroup = visibleGroups.find(g => g.items.some(item => isItemActive(item.path)));
+  const currentNav = currentGroup?.items.find(item => isItemActive(item.path));
+
+  const getSectionTitle = () => {
+    if (!currentGroup?.title) {
+      return 'Platform';
+    }
+    const t = currentGroup.title.trim();
+    if (t === t.toUpperCase()) {
+      return t.charAt(0) + t.slice(1).toLowerCase();
+    }
+    return t;
+  };
+  const sectionTitle = getSectionTitle();
 
   const closeMobileNav = () => setMobileNavOpen(false);
 
@@ -244,22 +253,22 @@ export const AppLayout = () => {
 
       {/* Enterprise Executive Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white/60 backdrop-blur-xl border-r border-slate-200/60 flex flex-col transition-transform duration-200 ease-in-out shadow-xs ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[#F9FBFC] border-r border-slate-200/60 flex flex-col transition-transform duration-200 ease-in-out shadow-xs ${
           mobileNavOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
         {/* Brand Header */}
-        <div className="h-16 flex items-center justify-between px-5 border-b border-slate-200/60 shrink-0 bg-transparent">
-          <Link to="/dashboard" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-xl bg-slate-950 text-white flex items-center justify-center font-bold text-xs shadow-xs border border-slate-800 shrink-0 relative transition-transform group-hover:scale-105">
-              <span className="font-mono tracking-wider font-extrabold text-white text-xs">SW</span>
-              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white shadow-xs" />
+        <div className="h-[68px] flex items-center justify-between px-6 border-b border-slate-200/80 shrink-0 bg-transparent">
+          <Link to="/dashboard" className="flex items-center gap-3.5 group">
+            <div className="w-[38px] h-[38px] rounded-[14px] bg-[#12161F] text-white flex items-center justify-center shadow-xs relative transition-transform group-hover:scale-105">
+              <span className="font-sans tracking-[0.15em] font-bold text-white text-[11px] ml-0.5">SW</span>
+              <span className="absolute -top-0.5 -right-0.5 w-[11px] h-[11px] rounded-full bg-[#4ade80] border-[2.5px] border-[#F9FBFC]" />
             </div>
             <div>
-              <span className="text-sm font-extrabold text-slate-950 tracking-tight font-display block leading-tight">
+              <span className="text-[15px] font-bold text-[#12161F] tracking-tight font-sans block leading-none mb-1">
                 Sify Workforce
               </span>
-              <span className="text-[10px] font-mono text-slate-400 tracking-wider uppercase font-semibold block mt-0.5">
+              <span className="text-[9px] font-sans text-[#8ba2be] tracking-[0.15em] uppercase font-bold block leading-none">
                 Enterprise OS
               </span>
             </div>
@@ -274,17 +283,17 @@ export const AppLayout = () => {
         </div>
 
         {/* Navigation List */}
-        <nav className="flex-1 p-3.5 space-y-4 overflow-y-auto">
+        <nav className="flex-1 px-3.5 py-3 space-y-2.5 overflow-y-auto sidebar-scrollbar">
           {visibleGroups.map((group, groupIndex) => (
             <div key={groupIndex} className="space-y-1">
               {group.title && (
-                <div className="px-3 pt-2 pb-1 flex items-center justify-between">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+                <div className="px-3 pt-3 pb-1">
+                  <p className="text-[10px] font-bold text-[#8ba2be] uppercase tracking-wider font-sans">
                     {group.title}
                   </p>
                 </div>
               )}
-              <div className="space-y-1">
+              <div className="space-y-1 mt-1">
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const isActive = isItemActive(item.path);
@@ -293,21 +302,18 @@ export const AppLayout = () => {
                       key={item.path}
                       to={item.path}
                       onClick={closeMobileNav}
-                      className={`group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm transition-all duration-200 ${
+                      className={`group flex items-center justify-between px-3 py-2.5 rounded-[12px] text-[14.5px] transition-all duration-300 ease-out font-sans ${
                         isActive
-                          ? 'bg-white shadow-sm border border-slate-200/60 text-slate-900 font-semibold'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/40 font-medium'
+                          ? 'bg-[#12161F] shadow-sm text-white font-medium'
+                          : 'text-[#1e3a5f] hover:bg-slate-100/70 hover:text-[#12161F] font-medium'
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Icon className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
-                          isActive ? 'text-slate-900' : 'text-slate-400 group-hover:text-slate-600'
-                        }`} />
-                        <span className="truncate">{item.name}</span>
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <Icon className={`w-[20px] h-[20px] shrink-0 transition-colors duration-300 ${
+                          isActive ? 'text-white' : 'text-[#1e3a5f] group-hover:text-[#12161F]'
+                        }`} strokeWidth={1.75} />
+                        <span className="truncate tracking-tight">{item.name}</span>
                       </div>
-                      {isActive && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 shadow-xs" />
-                      )}
                     </Link>
                   );
                 })}
@@ -330,19 +336,23 @@ export const AppLayout = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header Bar */}
-        <header className="h-16 bg-white/70 backdrop-blur-xl border-b border-slate-200/60 px-4 sm:px-6 flex items-center justify-between shrink-0 z-10 shadow-sm sticky top-0">
+        <header className="h-[68px] bg-white border-b border-slate-200/80 px-4 sm:px-6 flex items-center justify-between shrink-0 z-10 sticky top-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileNavOpen(true)}
-              className="lg:hidden text-slate-500 hover:text-slate-800 p-1.5 -ml-1 rounded-xl hover:bg-slate-100 cursor-pointer transition-colors"
+              className="lg:hidden text-[#1e3a5f] hover:bg-slate-100 p-1.5 -ml-1 rounded-xl cursor-pointer transition-colors"
               aria-label="Open sidebar"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-5 h-5" strokeWidth={1.75} />
             </button>
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500">
-              <span className="text-slate-400 font-medium">Workforce</span>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
-              <span className="font-bold text-slate-900 font-display">{currentNav?.name || 'Platform'}</span>
+            <div className="flex items-center gap-2.5 text-[13.5px]">
+              <span className="text-[#8ba2be] font-medium font-sans">{sectionTitle}</span>
+              {currentNav?.name && currentNav.name.toLowerCase() !== sectionTitle.toLowerCase() && (
+                <>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300" strokeWidth={2.5} />
+                  <span className="font-bold text-[#12161F] font-sans">{currentNav.name}</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -353,16 +363,16 @@ export const AppLayout = () => {
               <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => setProfileOpen(!profileOpen)}
-                  className="flex items-center gap-2.5 px-2 py-1 sm:px-3 sm:py-1.5 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-full text-xs text-slate-700 shadow-xs transition-colors cursor-pointer"
+                  className="flex items-center gap-2.5 px-1.5 py-1.5 sm:px-2.5 sm:py-2 bg-white hover:bg-slate-50 border border-[#e2e8f0] rounded-full transition-colors cursor-pointer"
                 >
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-950 text-white font-mono font-bold text-[10px] sm:text-xs flex items-center justify-center">
+                  <div className="w-[26px] h-[26px] rounded-full bg-[#12161F] text-white font-sans font-bold text-[10px] flex items-center justify-center tracking-wider">
                     {getInitials(employee.name)}
                   </div>
-                  <span className="font-semibold text-slate-900 hidden sm:inline">{employee.name.split(' ')[0]}</span>
+                  <span className="font-bold text-[#12161F] font-sans pr-1.5 text-[13.5px] hidden sm:inline leading-none pt-0.5">{employee.name.split(' ')[0]}</span>
                 </button>
 
                 {profileOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-dropdown">
                     <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
                       <p className="text-sm font-bold text-slate-900 truncate">{employee.name}</p>
                       <div className="flex items-center gap-2 mt-1">
@@ -396,13 +406,13 @@ export const AppLayout = () => {
                       </Link>
                     </div>
 
-                    <div className="py-1 border-t border-slate-100">
+                    <div className="border-t border-slate-100">
                       <button
                         onClick={() => {
                           setProfileOpen(false);
                           handleLogout();
                         }}
-                        className="flex items-center gap-2.5 px-4 py-2 w-full text-left text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        className="flex items-center gap-2.5 px-4 py-3 w-full text-left text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                       >
                         <LogOut className="w-4 h-4" />
                         Sign Out
@@ -415,9 +425,11 @@ export const AppLayout = () => {
           </div>
         </header>
 
-        {/* Scrollable Page Outlet */}
-        <main className="flex-1 overflow-auto bg-slate-50/50">
-          <Outlet />
+        {/* Scrollable Page Outlet with Smooth Transition */}
+        <main className="flex-1 overflow-hidden bg-slate-50/50 relative">
+          <div id="main-scroll-container" key={location.pathname} className="animate-pageTransition absolute inset-0 overflow-auto">
+            <Outlet />
+          </div>
         </main>
       </div>
       

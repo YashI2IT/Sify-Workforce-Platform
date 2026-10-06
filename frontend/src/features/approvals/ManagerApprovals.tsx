@@ -124,7 +124,7 @@ export const ManagerApprovals = () => {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
-  const uniqueMemberCount = new Set(timesheets.map(t => t.employeeId)).size;
+  const uniqueMemberCount = timesheetsData?.meta?.totalTeamMembers ?? new Set(timesheets.map(t => t.employeeId)).size;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -134,7 +134,7 @@ export const ManagerApprovals = () => {
           <div className="flex items-center gap-3">
             <div>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
+                <h1 className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                   Pending Approvals
                 </h1>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
@@ -155,7 +155,7 @@ export const ManagerApprovals = () => {
             className="p-2.5 border border-slate-200/90 rounded-xl hover:bg-slate-50 text-slate-600 transition-all shadow-2xs cursor-pointer active:scale-95"
             title="Refresh approvals"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 transition-transform duration-500 group-hover:rotate-180 group-active:rotate-180 ${loading ? 'animate-spin text-slate-900' : 'text-slate-500'}`} />
           </button>
         </div>
       </div>
@@ -163,7 +163,7 @@ export const ManagerApprovals = () => {
       {/* Executive Telemetry Row (3 Cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Card 1: Pending Queue */}
-        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Pending Queue
@@ -172,7 +172,7 @@ export const ManagerApprovals = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+              <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                 {loading ? '—' : timesheets.length}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">submissions</span>
@@ -185,7 +185,7 @@ export const ManagerApprovals = () => {
         </div>
 
         {/* Card 2: Team Members in Queue */}
-        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Team Members
@@ -194,7 +194,7 @@ export const ManagerApprovals = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+              <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                 {loading ? '—' : uniqueMemberCount}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">members</span>
@@ -210,7 +210,7 @@ export const ManagerApprovals = () => {
         </div>
 
         {/* Card 3: Governance Audit */}
-        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Audit Readiness
@@ -219,7 +219,7 @@ export const ManagerApprovals = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+              <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                 {loading ? '—' : timesheets.length === 0 ? 'Clear' : 'Action Required'}
               </span>
             </div>
@@ -269,7 +269,7 @@ export const ManagerApprovals = () => {
       </Modal>
 
       {/* Approvals Table Ledger */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+      <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs">
         {loading ? (
           <div className="py-20 text-center text-slate-500 space-y-3">
             <LoadingSpinner size="md" />
@@ -321,7 +321,7 @@ export const ManagerApprovals = () => {
                   
                   return (
                     <tr key={ts.id} className="hover:bg-slate-50/70 transition-colors duration-150">
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-xl bg-slate-950 text-white font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-slate-800 shadow-2xs">
                             {getInitials(emp?.name)}
@@ -338,26 +338,26 @@ export const ManagerApprovals = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                         <div className="flex items-center gap-2 font-bold text-slate-900 text-sm ">
                           <CalendarDays className="w-4 h-4 text-slate-400 shrink-0" />
                           {formatWeekRange(ts.startDate)}
                         </div>
                         <Link
-                          to={`/timesheets/${ts.id}`}
+                          to={`/approvals/timesheets/${ts.id}`}
                           className="text-xs font-mono font-semibold text-slate-600 hover:text-slate-950 hover:underline mt-1 block"
                         >
                           View entries →
                         </Link>
                       </td>
                       {/* Expected */}
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                         <span className="font-semibold text-slate-600 font-mono text-sm">
                           {ts.summary ? `${ts.summary.expectedHours}h` : '—'}
                         </span>
                       </td>
                       {/* Logged */}
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                         <span className="font-bold text-slate-900 font-mono text-sm">
                           {ts.summary
                             ? `${ts.summary.loggedHours}h`
@@ -365,7 +365,7 @@ export const ManagerApprovals = () => {
                         </span>
                       </td>
                       {/* Variance */}
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                         {ts.summary ? (
                           <span className={`font-bold font-mono text-sm ${
                             ts.summary.variance > 0 ? 'text-emerald-600' :
@@ -375,7 +375,7 @@ export const ManagerApprovals = () => {
                           </span>
                         ) : <span className="text-slate-400 font-mono text-sm">—</span>}
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleApprove(ts.id)}

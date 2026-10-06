@@ -301,8 +301,12 @@ export const MyTimeEntries = () => {
       await updateTimeEntryM({
         id: editingEntry.id,
         data: {
-          projectId: editForm.projectId, taskId: editForm.taskId, activityId: editForm.activityId,
-          date: editForm.date, hours: parsedHours, remarks: editForm.remarks.trim() || null,
+          projectId: editForm.projectId, 
+          taskId: editForm.taskId || undefined, 
+          activityId: editForm.activityId || undefined,
+          date: editForm.date, 
+          hours: parsedHours, 
+          remarks: editForm.remarks.trim() || null,
         }
       }).unwrap();
       setEditingEntry(null);
@@ -369,7 +373,7 @@ export const MyTimeEntries = () => {
       {/* PAGE HEADER */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Time Entries</h1>
+          <h1 className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">Time Entries</h1>
           <p className="text-sm text-slate-500 mt-1">Track, submit, and manage your daily project hours.</p>
         </div>
         {/* Week Nav + Actions */}
@@ -390,7 +394,7 @@ export const MyTimeEntries = () => {
             </button>
             <div className="w-px h-6 bg-slate-200 mx-1" />
             <button onClick={() => refetchEntries()} disabled={isFetching} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer disabled:opacity-50">
-              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-blue-600' : ''}`} />
+              <RefreshCw className={`w-4 h-4 transition-transform duration-500 group-hover:rotate-180 group-active:rotate-180 ${isFetching ? 'animate-spin text-slate-900' : 'text-slate-500'}`} />
             </button>
           </div>
           {/* Submit Week CTA */}
@@ -398,7 +402,7 @@ export const MyTimeEntries = () => {
             <button
               onClick={() => setConfirmSubmitWeek(true)}
               disabled={submitWeekLoading}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
             >
               <CalendarCheck className="w-3.5 h-3.5" />
               Submit Week ({totalDraftCount})
@@ -472,14 +476,14 @@ export const MyTimeEntries = () => {
 
       {/* WEEKLY TIME BOARD */}
       {isInitialLoading ? (
-        <div className="h-64 flex items-center justify-center bg-white border border-slate-200/80 rounded-2xl">
+        <div className="h-64 flex items-center justify-center bg-white border border-slate-200/80 rounded-[14px]">
           <LoadingSpinner size="md" />
         </div>
       ) : (
         <div className="relative">
           {isFetching && !isInitialLoading && (
-            <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-2xl pointer-events-none">
-              <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm text-xs font-mono text-slate-600">
+            <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-[14px] pointer-events-none">
+              <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-xs text-xs font-mono text-slate-600">
                 <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-500" />
                 Refreshing…
               </div>
@@ -547,7 +551,7 @@ export const MyTimeEntries = () => {
                                       {...provided.draggableProps}
                                       {...provided.dragHandleProps}
                                       className={`bg-white border rounded-xl p-3 flex flex-col gap-1.5 shadow-2xs group relative
-                                        ${isLocked ? 'border-slate-100 bg-slate-50/50 cursor-default' : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'}
+                                        ${isLocked ? 'border-slate-100 bg-slate-50/50 cursor-default' : 'border-slate-200 hover:border-slate-300 hover:shadow-xs'}
                                         ${entry.approvalStatus === 'REJECTED' ? 'border-rose-200 bg-rose-50/30' : ''}
                                         ${entry.approvalStatus === 'APPROVED' ? 'border-emerald-200 bg-emerald-50/20' : ''}
                                         ${snapshot.isDragging ? 'shadow-lg border-indigo-300 ring-2 ring-indigo-500/20 bg-white' : ''}`}

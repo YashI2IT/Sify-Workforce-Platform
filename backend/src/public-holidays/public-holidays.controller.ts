@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiBody } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { PublicHolidaysService } from './public-holidays.service.js';
 import { GetAuthContext } from '../auth/auth-context.decorator.js';
 import type { AuthenticatedContext } from '../auth/authenticated-context.js';
@@ -26,6 +27,21 @@ export class PublicHolidaysController {
   }, required: ['name', 'date'] }})
   async create(@GetAuthContext() auth: AuthenticatedContext, @Body() body: { name: string; date: string; isActive?: boolean }) {
     return this.publicHolidaysService.create(auth, body);
+  }
+
+  @Post('import')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Import public holidays from CSV (ADMIN)' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file'))
+  async importCsv(
+    @GetAuthContext() auth: AuthenticatedContext,
+    @UploadedFile() file: any
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    return this.publicHolidaysService.importCsv(auth, file.buffer);
   }
 
   @Put(':id')

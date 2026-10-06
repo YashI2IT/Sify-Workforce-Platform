@@ -94,9 +94,9 @@ describe('TeamsController', () => {
       expect(roles).toContain('ADMIN');
     });
 
-    it('5. MANAGER cannot create Team', () => {
+    it('5. MANAGER can create Team', () => {
       const roles = Reflect.getMetadata('roles', controller.create);
-      expect(roles).not.toContain('MANAGER');
+      expect(roles).toContain('MANAGER');
     });
 
     it('6. EMPLOYEE cannot create Team', () => {
@@ -109,9 +109,9 @@ describe('TeamsController', () => {
       expect(roles).toContain('ADMIN');
     });
 
-    it('8. MANAGER cannot update Team', () => {
+    it('8. MANAGER can update Team', () => {
       const roles = Reflect.getMetadata('roles', controller.update);
-      expect(roles).not.toContain('MANAGER');
+      expect(roles).toContain('MANAGER');
     });
 
     it('9. EMPLOYEE cannot update Team', () => {

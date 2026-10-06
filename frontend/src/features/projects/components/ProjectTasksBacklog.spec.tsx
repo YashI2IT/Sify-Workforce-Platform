@@ -1,4 +1,4 @@
-﻿import { render, screen, fireEvent } from '../../../test-utils';
+import { render, screen, fireEvent } from '../../../test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProjectTasksBacklog } from './ProjectTasksBacklog';
 import { Task } from './ProjectTasksTab';
@@ -15,10 +15,10 @@ const mockEmployees = [
 ];
 
 const mockTasks: Task[] = [
-  { id: 't-1', name: 'Backlog Task 1', status: 'TODO', isActive: true, priority: 'HIGH', assigneeId: 'emp-1' },
-  { id: 't-2', name: 'Backlog Task 2 (Urgent)', status: 'TODO', isActive: true, priority: 'URGENT' },
-  { id: 't-3', name: 'Active Task', status: 'IN_PROGRESS', isActive: true },
-  { id: 't-4', name: 'Completed Task', status: 'DONE', isActive: true },
+  { id: 't-1', ticketId: 'T-1', projectId: 'p-1', name: 'Backlog Task 1', status: 'TODO', isActive: true, priority: 'HIGH', assigneeId: 'emp-1' },
+  { id: 't-2', ticketId: 'T-2', projectId: 'p-1', name: 'Backlog Task 2 (Urgent)', status: 'TODO', isActive: true, priority: 'URGENT' },
+  { id: 't-3', ticketId: 'T-3', projectId: 'p-1', name: 'Active Task', status: 'IN_PROGRESS', isActive: true },
+  { id: 't-4', ticketId: 'T-4', projectId: 'p-1', name: 'Completed Task', status: 'DONE', isActive: true },
 ];
 
 describe('ProjectTasksBacklog', () => {
@@ -39,9 +39,10 @@ describe('ProjectTasksBacklog', () => {
     onStatusChange,
   };
 
-  it('renders all three backlog sections', () => {
+  it('renders all backlog sections including In Review', () => {
     render(<ProjectTasksBacklog {...defaultProps} />);
     expect(screen.getByText('Active Work')).toBeDefined();
+    expect(screen.getByText('In Review')).toBeDefined();
     expect(screen.getByText('Backlog')).toBeDefined();
     expect(screen.getByText('Completed')).toBeDefined();
   });

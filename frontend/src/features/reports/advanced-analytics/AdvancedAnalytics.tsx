@@ -80,7 +80,7 @@ export const AdvancedAnalytics = () => {
           {/* Period-over-Period Summary */}
           {data.periodOverPeriod && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs">
+              <div className="bg-white border border-slate-200/90 rounded-[14px] p-5 shadow-2xs">
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Total Logged Hours</p>
                 <div className="mt-2 flex items-baseline space-x-2">
                   <h3 className="text-3xl font-extrabold text-slate-950 font-display">
@@ -107,7 +107,7 @@ export const AdvancedAnalytics = () => {
               {!data.trendData || data.trendData.length === 0 ? (
                 <ReportEmptyState message="No trend data available." />
               ) : (
-                <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+                <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs">
                   <table className="w-full text-sm text-left">
                     <thead className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                       <tr>
@@ -140,7 +140,7 @@ export const AdvancedAnalytics = () => {
               {!data.estimatedVsActual || data.estimatedVsActual.length === 0 ? (
                 <ReportEmptyState message="No tasks logged in this period." />
               ) : (
-                <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs max-h-96 overflow-y-auto">
+                <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs max-h-96 overflow-y-auto">
                   <table className="w-full text-sm text-left">
                     <thead className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                       <tr>
@@ -169,7 +169,7 @@ export const AdvancedAnalytics = () => {
               {!data.projectHoursTrend || data.projectHoursTrend.length === 0 ? (
                 <ReportEmptyState message="No project hours logged in this period." />
               ) : (
-                <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs max-h-96 overflow-y-auto">
+                <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs max-h-96 overflow-y-auto">
                   <table className="w-full text-sm text-left">
                     <thead className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                       <tr>
@@ -198,7 +198,7 @@ export const AdvancedAnalytics = () => {
               {!data.overdueTaskTrend || data.overdueTaskTrend.length === 0 ? (
                 <ReportEmptyState message="No overdue tasks." />
               ) : (
-                <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+                <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs">
                   <table className="w-full text-sm text-left">
                     <thead className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                       <tr>

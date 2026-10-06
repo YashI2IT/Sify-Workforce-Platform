@@ -105,33 +105,41 @@ export const RequirementFormModal = ({
             {error}
           </div>
         )}
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Title *</label>
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold text-slate-700 tracking-tight font-sans">
+            Requirement Title <span className="text-rose-500">*</span>
+          </label>
           <input
             type="text"
             required
+            placeholder="e.g. SOC2 Type II Compliance"
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 sm:text-sm"
+            className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 bg-white shadow-2xs transition-all font-sans text-slate-900 placeholder:text-slate-400 font-medium"
           />
         </div>
         
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Description</label>
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold text-slate-700 tracking-tight font-sans">
+            Description
+          </label>
           <textarea
             rows={3}
+            placeholder="Detailed scope and acceptance criteria..."
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 sm:text-sm"
+            className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 bg-white shadow-2xs transition-all font-sans text-slate-900 placeholder:text-slate-400 font-medium resize-none"
           />
         </div>
 
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Status</label>
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold text-slate-700 tracking-tight font-sans">
+            Status
+          </label>
           <select
             value={form.status}
             onChange={(e) => setForm({ ...form, status: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 sm:text-sm bg-white"
+            className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 bg-white shadow-2xs transition-all font-sans text-slate-900 font-medium"
           >
             <option value="ACTIVE">ACTIVE</option>
             <option value="COMPLETED">COMPLETED</option>
@@ -139,31 +147,39 @@ export const RequirementFormModal = ({
           </select>
         </div>
 
-        <div className="flex items-center gap-2 pt-2">
-          <input
-            type="checkbox"
-            id="reqIsMandatory"
-            checked={form.isMandatory}
-            onChange={(e) => setForm({ ...form, isMandatory: e.target.checked })}
-            className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-600"
-          />
-          <label htmlFor="reqIsMandatory" className="text-sm text-slate-700">
-            Mandatory Requirement
-          </label>
-        </div>
+        <label htmlFor="reqIsMandatory" className="group flex items-center justify-between p-4 rounded-xl border border-slate-200/80 bg-white hover:border-blue-400 hover:shadow-[0_4px_12px_rgba(59,130,246,0.08)] transition-all duration-300 cursor-pointer select-none">
+          <div className="space-y-1">
+            <span className="text-[13px] font-bold text-slate-900 font-sans block group-hover:text-blue-700 transition-colors">Mandatory Requirement</span>
+            <span className="text-[11px] text-slate-500 font-sans block">Required for final project milestone sign-off</span>
+          </div>
+          <div className="relative inline-flex items-center">
+            <input
+              type="checkbox"
+              id="reqIsMandatory"
+              checked={form.isMandatory}
+              onChange={(e) => setForm({ ...form, isMandatory: e.target.checked })}
+              className="peer sr-only"
+            />
+            <div className={`w-10 h-5 rounded-full transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${form.isMandatory ? 'bg-[#12161F]' : 'bg-slate-200'}`}>
+              <div
+                className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-xs transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${form.isMandatory ? 'translate-x-5' : 'translate-x-0'}`}
+              />
+            </div>
+          </div>
+        </label>
         
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 cursor-pointer"
+            className="px-5 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-full hover:bg-slate-50 cursor-pointer shadow-xs transition-all active:scale-[0.97] font-sans"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+            className="px-5 py-2.5 text-xs font-bold text-white bg-[#12161F] hover:bg-slate-800 rounded-full disabled:opacity-50 cursor-pointer shadow-xs transition-all active:scale-[0.97] font-sans"
           >
             {submitting ? 'Saving...' : 'Save Requirement'}
           </button>

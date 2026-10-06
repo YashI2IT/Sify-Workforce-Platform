@@ -15,7 +15,7 @@ export function getMonday(d: any): Date {
 export class TimeEntriesService {
   constructor(private auditLogsService: AuditLogsService) {}
 
-  async validateReferences(employeeId: string, projectId: string, taskId: string, activityId: string, orgId: string) {
+  async validateReferences(employeeId: string, projectId: string, taskId: string, activityId: string, orgId: string, skipStrictChecks = false) {
     // Run independent lookups in parallel to avoid sequential round-trips
     const [employee, project, assignment] = await Promise.all([
       db.orm.public.Employee.where({ id: employeeId, organizationId: orgId }).first(),
@@ -26,13 +26,20 @@ export class TimeEntriesService {
     if (!employee) throw new NotFoundException('Employee not found');
     if (!employee.isActive) throw new BadRequestException('Employee is inactive');
     if (!project) throw new NotFoundException('Project not found');
-    if (!project.isActive || project.status === 'COMPLETED' || project.status === 'ON_HOLD') {
-      throw new BadRequestException('Cannot log time for an inactive or completed/on-hold project');
+    
+    if (!skipStrictChecks) {
+      if (!project.isActive || project.status === 'COMPLETED' || project.status === 'ON_HOLD') {
+        throw new BadRequestException('Cannot log time for an inactive or completed/on-hold project');
+      }
     }
+    
     if (employee.organizationId !== project.organizationId) {
       throw new BadRequestException('Cross-organization assignment is not allowed');
     }
-    if (!assignment) throw new BadRequestException('Employee is not assigned to this project');
+    
+    if (!skipStrictChecks && !assignment) {
+      throw new BadRequestException('Employee is not assigned to this project');
+    }
 
     // Task and Activity must belong to the same project — run them in parallel
     const [task, activity] = await Promise.all([
@@ -42,12 +49,18 @@ export class TimeEntriesService {
 
     if (!task) throw new NotFoundException('Task not found');
     if (task.projectId !== projectId) throw new BadRequestException('Task does not belong to the project');
-    if (!task.isActive || task.status === 'COMPLETED') {
-      throw new BadRequestException('Cannot log time for an inactive or completed task');
+    
+    if (!skipStrictChecks) {
+      if (!task.isActive || task.status === 'COMPLETED') {
+        throw new BadRequestException('Cannot log time for an inactive or completed task');
+      }
     }
+    
     if (!activity) throw new NotFoundException('Activity not found');
     if (activity.projectId !== projectId) throw new BadRequestException('Activity does not belong to the project');
-    if (!activity.isActive) throw new BadRequestException('Activity is inactive');
+    if (!skipStrictChecks && !activity.isActive) {
+      throw new BadRequestException('Activity is inactive');
+    }
   }
 
   private async getOrCreateTimesheet(employeeId: string, dateString: string, orgId: string) {
@@ -244,8 +257,10 @@ export class TimeEntriesService {
     const newProjectId = dto.projectId ?? existingEntry.projectId;
     const newTaskId = dto.taskId ?? existingEntry.taskId;
     const newActivityId = dto.activityId ?? existingEntry.activityId;
+    
+    const isProjectChanging = newProjectId !== existingEntry.projectId;
 
-    await this.validateReferences(existingEntry.employeeId, newProjectId, newTaskId, newActivityId, auth.organizationId);
+    await this.validateReferences(existingEntry.employeeId, newProjectId, newTaskId, newActivityId, auth.organizationId, !isProjectChanging);
 
     const updatedData: any = {};
     if (dto.projectId !== undefined) updatedData.projectId = dto.projectId;
@@ -283,8 +298,6 @@ export class TimeEntriesService {
 
     // Per-entry lock — APPROVED entries cannot be deleted
     this.assertEntryMutable(existingEntry);
-
-    await this.validateReferences(existingEntry.employeeId, existingEntry.projectId, existingEntry.taskId, existingEntry.activityId, auth.organizationId);
 
     await db.orm.public.TimeEntry.where({ id }).delete();
     

@@ -64,8 +64,8 @@ export class AuditLogsService {
       to?: Date;
     }
   ): Promise<PaginatedResponse<any>> {
-    if (!auth.roles.includes('ADMIN')) {
-      throw new ForbiddenException('Only Administrators can view organization audit logs');
+    if (!auth.roles.includes('ADMIN') && !auth.roles.includes('MANAGER')) {
+      throw new ForbiddenException('Only Administrators and Managers can view organization audit logs');
     }
 
     const offset = (page - 1) * limit;

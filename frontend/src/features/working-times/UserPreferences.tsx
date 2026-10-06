@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   useGetMyPreferencesQuery,
   useUpdateMyPreferencesMutation
 } from '../../store/apiSlice';
-import { 
-  Settings, 
-  Clock, 
+import {
+  Settings,
+  Clock,
   Bell,
   X,
   AlertCircle
@@ -45,15 +45,15 @@ export const UserPreferences = () => {
     setFormData(newFormData);
     setSaveSuccess(false);
     setSaveError(null);
-    
+
     // Check if dirty
     if (!preferences) return;
-    const isDirty = 
+    const isDirty =
       newFormData.theme !== (preferences.theme || 'system') ||
       newFormData.timezone !== (preferences.timezone || 'UTC') ||
       newFormData.dateFormat !== (preferences.dateFormat || 'DD/MM/YYYY') ||
       newFormData.emailNotifications !== (preferences.emailNotifications ?? true);
-      
+
     setHasChanges(isDirty);
   };
 
@@ -74,10 +74,10 @@ export const UserPreferences = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hasChanges) return;
-    
+
     setSaveError(null);
     setSaveSuccess(false);
-    
+
     try {
       await updatePreferences(formData).unwrap();
       setSaveSuccess(true);
@@ -113,8 +113,10 @@ export const UserPreferences = () => {
 
   return (
     <div className="flex-1 p-4 sm:p-6 lg:p-8 min-h-0 overflow-y-auto">
-      <div className="max-w-7xl mx-auto space-y-7 pb-20 animate-fadeIn">
-        <div>
+      <div className="max-w-7xl mx-auto space-y-7 pb-20">
+
+        {/* Page header — first to arrive */}
+        <div className="animate-slideUpFade">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Preferences
           </h1>
@@ -123,8 +125,9 @@ export const UserPreferences = () => {
           </p>
         </div>
 
+        {/* Success banner */}
         {saveSuccess && (
-          <div className="rounded-xl bg-green-50 p-4 border border-green-200">
+          <div className="animate-successPop rounded-xl bg-green-50 p-4 border border-green-200">
             <div className="flex">
               <div className="flex-shrink-0">
                 <Settings className="h-5 w-5 text-green-400" aria-hidden="true" />
@@ -135,9 +138,10 @@ export const UserPreferences = () => {
             </div>
           </div>
         )}
-        
+
+        {/* Error banner */}
         {saveError && (
-          <div className="rounded-xl bg-red-50 p-4 border border-red-200">
+          <div className="animate-successPop rounded-xl bg-red-50 p-4 border border-red-200">
             <div className="flex">
               <div className="flex-shrink-0">
                 <X className="h-5 w-5 text-red-400" aria-hidden="true" />
@@ -149,21 +153,23 @@ export const UserPreferences = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-8 divide-y divide-slate-200/80 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
-          
+        {/* Form card — slides up after header */}
+        <form
+          onSubmit={handleSubmit}
+          className="animate-slideUpFade-d1 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] overflow-hidden flex flex-col transition-shadow duration-300 hover:shadow-md"
+        >
           <div className="p-6 sm:p-8 space-y-8">
 
-
             {/* Date & Time Section */}
-            <section>
+            <section className="animate-slideUpFade-d2">
               <h3 className="text-base font-semibold leading-6 text-slate-900 mb-4 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-slate-400" />
-                Date & Time
+                Date &amp; Time
               </h3>
-              
+
               <div className="pl-7 space-y-6">
-                <div>
-                  <label className="block text-sm font-medium leading-6 text-slate-900 mb-2">Time Zone</label>
+                <div className="group">
+                  <label className="block text-sm font-medium leading-6 text-slate-900 mb-2 transition-colors group-focus-within:text-slate-700">Time Zone</label>
                   <Select
                     value={formData.timezone}
                     onChange={val => handleChange('timezone', val)}
@@ -180,16 +186,17 @@ export const UserPreferences = () => {
                       { value: 'Asia/Kolkata', label: 'Asia/Kolkata' },
                     ]}
                   />
-                  <p className="mt-2 text-xs text-slate-500">
+                  <p className="mt-2 text-xs text-slate-500 transition-opacity duration-200">
                     Your personal timezone preference for displaying dates across the platform.
                   </p>
                 </div>
 
-                <div>
+                <div className="group">
                   <label className="block text-sm font-medium leading-6 text-slate-900 mb-2">Date Format</label>
                   <Select
                     value={formData.dateFormat}
                     onChange={val => handleChange('dateFormat', val)}
+                    placement="top"
                     className="w-full max-w-md"
                     options={[
                       { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY (e.g. 31/12/2026)' },
@@ -204,32 +211,34 @@ export const UserPreferences = () => {
             <hr className="border-slate-100" />
 
             {/* Notifications Section */}
-            <section>
+            <section className="animate-slideUpFade-d3">
               <h3 className="text-base font-semibold leading-6 text-slate-900 mb-4 flex items-center gap-2">
                 <Bell className="w-5 h-5 text-slate-400" />
                 Notifications
               </h3>
-              
+
               <div className="pl-7">
-                <div className="flex items-center justify-between py-2">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium leading-6 text-slate-900">Email Notifications</span>
-                    <span className="text-xs text-slate-500">Receive important updates and alerts via email. Note: this preference will be enforced once email events are implemented.</span>
+                <div className="flex items-center justify-between py-3 px-4 rounded-xl transition-colors duration-200 hover:bg-slate-50/70">
+                  <div className="flex flex-col pr-4">
+                    <span className="text-sm font-medium leading-6 text-slate-900">Receive application notifications and alerts by email.</span>
+                    <span className="text-xs text-slate-500 mt-0.5 transition-all duration-300">
+                      {formData.emailNotifications
+                        ? 'Email copies of supported application notifications are enabled.'
+                        : 'Notifications remain available in the app, but supported notification emails are disabled.'}
+                    </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleChange('emailNotifications', !formData.emailNotifications)}
-                    className={`${
-                      formData.emailNotifications ? 'bg-slate-900' : 'bg-slate-200'
-                    } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2`}
+                    className={`${formData.emailNotifications ? 'bg-slate-900' : 'bg-slate-200'
+                      } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2`}
                     role="switch"
                     aria-checked={formData.emailNotifications}
                   >
                     <span
                       aria-hidden="true"
-                      className={`${
-                        formData.emailNotifications ? 'translate-x-5' : 'translate-x-0'
-                      } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                      className={`${formData.emailNotifications ? 'translate-x-5' : 'translate-x-0'
+                        } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-300 ease-in-out`}
                     />
                   </button>
                 </div>
@@ -237,19 +246,20 @@ export const UserPreferences = () => {
             </section>
           </div>
 
+          {/* Footer */}
           <div className="px-6 py-4 bg-slate-50/50 flex items-center justify-end gap-3 border-t border-slate-200/80">
             <button
               type="button"
               onClick={handleCancel}
               disabled={!hasChanges || isSaving}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-full hover:bg-slate-50 hover:border-slate-400 shadow-xs transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!hasChanges || isSaving}
-              className="inline-flex items-center gap-2 px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              className={`inline-flex items-center gap-2 px-6 py-2 bg-slate-900 hover:bg-slate-700 text-white text-sm font-medium rounded-full shadow-xs transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] ${hasChanges && !isSaving ? 'animate-savePulse' : ''}`}
             >
               {isSaving && <Clock className="w-4 h-4 animate-spin" />}
               Save Changes

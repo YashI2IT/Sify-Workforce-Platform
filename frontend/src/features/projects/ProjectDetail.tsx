@@ -1,8 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
 import {
   ArrowLeft, AlertCircle, FileText, CheckSquare,
   Users, Edit2, RefreshCw, CalendarDays
@@ -36,7 +34,7 @@ export const ProjectDetail = () => {
   const { employee } = useCurrentEmployee();
   const { showToast } = useToast();
   
-  const isAdmin = Boolean(employee?.roles?.includes('ADMIN') || employee?.role === 'ADMIN');
+  const isAdmin = Boolean(employee?.roles?.includes('ADMIN') || employee?.role === 'ADMIN' || employee?.roles?.includes('MANAGER') || employee?.role === 'MANAGER');
 
   const { data: projectData, isLoading: projectLoading, error: projectErr, refetch: refetchProject } = useGetProjectDetailsQuery(projectId || '', { skip: !projectId });
   const { data: tasksData, isLoading: tasksLoading, refetch: refetchTasks } = useGetProjectTasksQuery(projectId || '', { skip: !projectId });
@@ -59,6 +57,47 @@ export const ProjectDetail = () => {
   const unassignedEmployees = Array.isArray(unassignedData) ? unassignedData : [];
 
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'activities' | 'time' | 'employees'>('overview');
+
+  const navRef = useRef<HTMLElement>(null);
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number; opacity: number }>({
+    left: 0,
+    width: 0,
+    opacity: 0,
+  });
+
+  const updateIndicator = useCallback(() => {
+    const activeBtn = tabRefs.current[activeTab];
+    const nav = navRef.current;
+    if (activeBtn && nav) {
+      const navRect = nav.getBoundingClientRect();
+      const btnRect = activeBtn.getBoundingClientRect();
+      if (btnRect.width > 0) {
+        setIndicatorStyle({
+          left: btnRect.left - navRect.left + nav.scrollLeft,
+          width: btnRect.width,
+          opacity: 1,
+        });
+      }
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    updateIndicator();
+    const timer = setTimeout(updateIndicator, 40);
+    window.addEventListener('resize', updateIndicator);
+    const nav = navRef.current;
+    if (nav) {
+      nav.addEventListener('scroll', updateIndicator, { passive: true });
+    }
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateIndicator);
+      if (nav) {
+        nav.removeEventListener('scroll', updateIndicator);
+      }
+    };
+  }, [updateIndicator, tasks.length, activities.length, assignedEmployees.length, isManagerOrAdmin]);
 
   // Modal States
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -123,7 +162,7 @@ export const ProjectDetail = () => {
   if (error || !project) {
     return (
       <div className="p-8 max-w-xl mx-auto text-center space-y-4">
-        <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
+        <AlertCircle className="w-12 h-9 text-red-500 mx-auto" />
         <h2 className="text-xl font-bold text-gray-900">Failed to Load Project</h2>
         <p className="text-sm text-red-600">{error || 'Project not found.'}</p>
         <Link
@@ -151,48 +190,95 @@ export const ProjectDetail = () => {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
+  const renderProjectStatusBadge = (status: string) => {
+    switch ((status || '').toUpperCase()) {
+      case 'ACTIVE':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-sans">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            ACTIVE
+          </span>
+        );
+      case 'IN_PROGRESS':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 font-sans">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+            IN_PROGRESS
+          </span>
+        );
+      case 'PLANNING':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200/80 font-sans">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+            PLANNING
+          </span>
+        );
+      case 'ON_HOLD':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/80 font-sans">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            ON_HOLD
+          </span>
+        );
+      case 'COMPLETED':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 font-sans">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+            COMPLETED
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 font-sans">
+            {status}
+          </span>
+        );
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <Link
           to={isAdmin ? '/admin/projects' : '/projects'}
-          className="inline-flex items-center gap-2 text-xs font-mono font-semibold text-slate-600 hover:text-slate-950 transition-colors bg-white px-3 py-1.5 rounded-xl border border-slate-200/90 shadow-2xs"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 hover:text-slate-950 hover:bg-slate-50 transition-all bg-white px-4 py-2 rounded-full border border-slate-200 shadow-xs font-sans cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          Back to Projects
+          <span>Back to Projects</span>
         </Link>
-        <Button
-          variant="outline"
-          size="icon"
+        <button
           onClick={fetchProjectData}
+          disabled={loading}
           title="Refresh workspace"
+          className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
         >
-          <RefreshCw className="w-4 h-4" />
-        </Button>
+          <RefreshCw className={`w-4 h-4 text-slate-500 transition-transform duration-500 group-hover:rotate-180 group-active:rotate-180 ${loading ? 'animate-spin text-slate-900' : ''}`} />
+          <span>Refresh</span>
+        </button>
       </div>
 
       {/* Project Card Header */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs p-6 space-y-4">
+      <div className="bg-white border border-slate-200/90 rounded-[14px] shadow-2xs p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-slate-950 text-white font-mono font-bold text-sm flex items-center justify-center shrink-0 border border-slate-800 shadow-2xs">
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-9 rounded-xl bg-[#12161F] text-white font-semibold text-xs flex items-center justify-center shrink-0 shadow-2xs tracking-wider font-sans">
               {getInitials(project.code, project.name)}
             </div>
             <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 font-display tracking-tight">{project.name}</h1>
-                <Badge variant={project.status === 'ACTIVE' ? 'default' : 'secondary'} className="font-mono">
-                  {project.status}
-                </Badge>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl font-semibold text-slate-900 tracking-tight font-sans">
+                  {project.name}
+                </h1>
+                {renderProjectStatusBadge(project.status)}
                 {!project.isActive && (
-                  <Badge variant="outline" className="font-mono">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200 font-sans">
                     Inactive
-                  </Badge>
+                  </span>
                 )}
               </div>
-              <div className="mt-1.5">
-                <span className="inline-block font-mono text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80">
+              <div className="mt-1 flex items-center gap-2">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
                   {project.code}
                 </span>
               </div>
@@ -203,26 +289,51 @@ export const ProjectDetail = () => {
 
       {/* Workspace Tabs Navigation */}
       <div className="border-b border-slate-200">
-        <nav className="-mb-px flex space-x-6 overflow-x-auto">
+        <nav
+          ref={navRef}
+          aria-label="Workspace tabs"
+          className="relative -mb-px flex space-x-2 sm:space-x-5 overflow-x-auto no-scrollbar scroll-smooth"
+        >
+          {/* Animated Sliding Underline Bar */}
+          {indicatorStyle.width > 0 && (
+            <span
+              className="absolute bottom-0 h-[2.5px] bg-[#12161F] rounded-t-full transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none z-10"
+              style={{
+                transform: `translateX(${indicatorStyle.left}px)`,
+                width: `${indicatorStyle.width}px`,
+                opacity: indicatorStyle.opacity,
+              }}
+            />
+          )}
+
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
+                ref={(el) => { tabRefs.current[tab.id] = el; }}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-2 transition-colors cursor-pointer ${
+                className={`group relative whitespace-nowrap pb-3.5 pt-2 px-3 font-medium text-xs sm:text-sm flex items-center gap-2 transition-all duration-200 rounded-t-xl cursor-pointer font-sans select-none active:scale-[0.96] ${
                   isActive
-                    ? 'border-slate-950 text-slate-950 font-bold'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+                    ? `text-slate-950 font-bold ${indicatorStyle.width === 0 ? 'border-b-2 border-slate-950' : ''}`
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-slate-950' : 'text-slate-400'}`} />
-                {tab.name}
+                <Icon
+                  className={`w-4 h-4 transition-colors duration-200 ease-out ${
+                    isActive ? 'text-slate-950' : 'text-slate-400 group-hover:text-slate-700'
+                  }`}
+                />
+                <span className="tracking-tight">{tab.name}</span>
                 {tab.count !== null && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-mono font-semibold ${
-                    isActive ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-600'
-                  }`}>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-xs font-semibold font-sans transition-colors duration-300 ${
+                      isActive
+                        ? 'bg-[#12161F] text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200/90 group-hover:text-slate-900'
+                    }`}
+                  >
                     {tab.count}
                   </span>
                 )}
@@ -233,12 +344,17 @@ export const ProjectDetail = () => {
       </div>
 
       {/* Tab Contents Content */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs min-h-[400px]">
+      <div
+        key={activeTab}
+        className="animate-tabFadeSlide bg-white border border-slate-200/90 rounded-[14px] shadow-2xs"
+      >
         {activeTab === 'overview' && (
           <ProjectOverviewTab
             project={project}
             tasks={tasks}
             assignedEmployees={assignedEmployees}
+            activities={activities}
+            onNavigateTab={(tab: any) => setActiveTab(tab)}
             healthData={healthData}
           />
         )}

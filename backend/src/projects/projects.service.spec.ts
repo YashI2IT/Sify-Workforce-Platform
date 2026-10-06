@@ -135,7 +135,7 @@ describe('ProjectsService', () => {
 
       const result = await service.findAll(authCtx, 1, 50);
 
-      expect(db.orm.public.Project.where).toHaveBeenCalledWith({ organizationId: 'org1', isActive: true });
+      expect(db.orm.public.Project.where).toHaveBeenCalledWith({ organizationId: 'org1' });
       expect(result.data).toEqual(projects);
       expect(result.meta.total).toBe(1);
     });

@@ -18,7 +18,7 @@ export class ProjectRequirementsController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Update project requirement' })
   @ApiParam({ name: 'id', description: 'Requirement UUID' })
   async updateRequirement(@Param('id') id: string, @Body() body: any, @GetAuthContext() auth: AuthenticatedContext) {

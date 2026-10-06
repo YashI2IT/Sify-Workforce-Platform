@@ -398,5 +398,66 @@ The Sify Workforce Team
       console.error(`[MailService] Failed to send reminder to ${email}:`, error);
     }
   }
+
+  async sendNotificationEmail(params: {
+    email: string;
+    name: string;
+    title: string;
+    message: string;
+    relatedEntityId?: string;
+  }) {
+    const { email, name, title, message } = params;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+    const textContent = `
+Hello ${name},
+
+${title}
+
+${message}
+
+Sify Workforce Platform
+${frontendUrl}
+    `;
+
+    const htmlContent = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background-color: #090d16; padding: 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px;">Sify Workforce</h1>
+        </div>
+        <div style="padding: 32px 24px;">
+          <p style="font-size: 16px; line-height: 24px; margin-top: 0;">Hello <strong>${name}</strong>,</p>
+          
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; margin: 24px 0;">
+            <h2 style="font-size: 16px; font-weight: 600; color: #0f172a; margin-top: 0; margin-bottom: 12px;">${title}</h2>
+            <p style="font-size: 15px; color: #334155; margin: 0; white-space: pre-wrap;">${message}</p>
+          </div>
+          
+          <div style="margin: 30px 0; text-align: center;">
+            <a href="${frontendUrl}" style="background-color: #0f172a; color: white; padding: 12px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; display: inline-block;">View in Sify Workforce</a>
+          </div>
+          
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+          <p style="font-size: 13px; color: #64748b; margin: 0; text-align: center;">
+            This is an automated notification from the Sify Workforce Platform.
+          </p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.MAIL_FROM || '"Sify Workforce" <noreply@sifyworkforce.com>',
+        to: email,
+        subject: `${title} — Sify Workforce`,
+        text: textContent,
+        html: htmlContent,
+      });
+      console.log(`[MailService] Successfully sent notification email to ${email}`);
+    } catch (error) {
+      console.error(`[MailService] Failed to send notification email to ${email}:`, error);
+      // We do not throw an error here, so we don't break the business transaction
+    }
+  }
 }
 

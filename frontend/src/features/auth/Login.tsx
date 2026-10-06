@@ -1,16 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { 
-  Eye, 
-  EyeOff, 
-  ArrowLeft, 
+import {
+  Eye,
+  EyeOff,
+  ArrowLeft,
   AlertCircle,
   ChevronRight
 } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { authStorage, sanitizeReturnTo } from '../../lib/authUtils';
 import { setAuth } from '../../store/slices/authSlice';
+import { apiSlice } from '../../store/apiSlice';
 import { loginSchema } from './schemas/loginSchema';
 import type { RootState } from '../../store';
 
@@ -22,7 +23,7 @@ export const Login = () => {
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
   const [ssoNotice, setSsoNotice] = useState(false);
-  
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -71,16 +72,19 @@ export const Login = () => {
     try {
       // 1. Authenticate with UMS / Keycloak
       const result = await authService.login({ email: trimmedEmail, password });
-      
+
       // Store tokens using authStorage (keeps localStorage in sync)
       authStorage.setTokens(result.accessToken, result.refreshToken);
 
       // 2. Authoritative Workforce Employee check
       const bootstrapState = await authService.bootstrap();
-      
-      // 3. Dispatch to Redux store
-      dispatch(setAuth({ 
-        accessToken: result.accessToken, 
+
+      // 3. Clear any residual cache before establishing new identity
+      dispatch(apiSlice.util.resetApiState());
+
+      // 4. Dispatch to Redux store
+      dispatch(setAuth({
+        accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         orgId: bootstrapState.organization?.id || bootstrapState.employee?.organizationId || null,
         employee: bootstrapState.employee || null,
@@ -90,13 +94,13 @@ export const Login = () => {
       }));
 
       const pendingInvToken = sessionStorage.getItem('pending_invitation_token');
-      
+
       if (pendingInvToken) {
         navigate(`/invite/${pendingInvToken}`);
       } else if (bootstrapState.onboardingRequired) {
         navigate('/onboarding');
       } else {
-        navigate(returnTo);
+        navigate(returnTo, { replace: true });
       }
     } catch (err: any) {
       isLoggingIn.current = false;
@@ -155,7 +159,7 @@ export const Login = () => {
           <div className="p-6 sm:p-7 space-y-4">
             {/* Top Brand Logo Squircle */}
             <div className="flex justify-center pt-1">
-              <div className="w-12 h-12 rounded-[18px] bg-slate-950 flex items-center justify-center shadow-md shadow-slate-900/15 transition-transform hover:scale-105">
+              <div className="w-12 h-9 rounded-[18px] bg-slate-950 flex items-center justify-center shadow-md shadow-slate-900/15 transition-transform hover:scale-105">
                 <div className="w-7 h-7 rounded-lg bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-xs">
                   SW
                 </div>
@@ -184,7 +188,7 @@ export const Login = () => {
               <button
                 type="button"
                 onClick={handleSocialClick}
-                className="w-full h-11 flex items-center justify-center gap-2.5 px-4 rounded-xl border border-slate-200/90 bg-white text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50/80 hover:border-slate-300 shadow-2xs transition-all cursor-pointer"
+                className="w-full h-9 flex items-center justify-center gap-2.5 px-4 rounded-xl border border-slate-200/90 bg-white text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50/80 hover:border-slate-300 shadow-2xs transition-all cursor-pointer"
               >
                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -221,11 +225,10 @@ export const Login = () => {
                   type="email"
                   placeholder="Enter your email address"
                   disabled={loading}
-                  className={`w-full h-11 rounded-xl border bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all shadow-2xs ${
-                    fieldErrors.email 
-                      ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500' 
+                  className={`w-full h-9 rounded-xl border bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all shadow-2xs ${fieldErrors.email
+                      ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500'
                       : 'border-slate-200/90 focus:ring-slate-950/15 focus:border-slate-900'
-                  }`}
+                    }`}
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
@@ -249,11 +252,10 @@ export const Login = () => {
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Enter your password"
                     disabled={loading}
-                    className={`w-full h-11 rounded-xl border bg-white px-3.5 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all shadow-2xs ${
-                      fieldErrors.password 
-                        ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500' 
+                    className={`w-full h-9 rounded-xl border bg-white px-3.5 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all shadow-2xs ${fieldErrors.password
+                        ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500'
                         : 'border-slate-200/90 focus:ring-slate-950/15 focus:border-slate-900'
-                    }`}
+                      }`}
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
@@ -279,7 +281,7 @@ export const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 mt-1 bg-[#1E232E] hover:bg-[#151821] active:scale-[0.99] text-white font-medium px-4 rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 text-sm disabled:opacity-50 cursor-pointer"
+                className="w-full h-9 mt-1 bg-[#1E232E] hover:bg-[#151821] active:scale-[0.99] text-white font-medium px-4 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 text-sm disabled:opacity-50 cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -316,9 +318,6 @@ export const Login = () => {
               Sify Workforce
             </span>
           </div>
-          <p className="text-[11px] text-slate-400">
-            Authentication is handled by the internal User Management Service.
-          </p>
         </div>
       </div>
 

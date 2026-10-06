@@ -15,8 +15,8 @@ export class AuditLogsController {
   constructor(private readonly auditLogsService: AuditLogsService) { }
 
   @Get()
-  @Roles('ADMIN')
-  @ApiOperation({ summary: 'Get organization audit logs (Admin only)' })
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({ summary: 'Get organization audit logs (Admin and Manager)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'actorId', required: false, type: String })

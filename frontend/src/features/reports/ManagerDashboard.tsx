@@ -80,7 +80,7 @@ export const ManagerDashboard = () => {
 
           {/* Summary Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
+            <div className="bg-white border border-slate-200/90 rounded-[14px] p-5 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Managed Teams</p>
                 <UsersRound className="w-4 h-4 text-slate-400" />
@@ -91,7 +91,7 @@ export const ManagerDashboard = () => {
               <p className="text-[11px] text-slate-400 mt-2 font-medium">Operational squads</p>
             </div>
 
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
+            <div className="bg-white border border-slate-200/90 rounded-[14px] p-5 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Total Team Members</p>
                 <span className="w-2 h-2 rounded-full bg-slate-400" />
@@ -100,7 +100,7 @@ export const ManagerDashboard = () => {
               <p className="text-[11px] text-slate-400 mt-2 font-medium">Direct reporting staff</p>
             </div>
             
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
+            <div className="bg-white border border-slate-200/90 rounded-[14px] p-5 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Pending Approvals</p>
                 <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
@@ -109,7 +109,7 @@ export const ManagerDashboard = () => {
               <p className="text-[11px] text-slate-400 mt-2 font-medium">Awaiting review</p>
             </div>
             
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
+            <div className="bg-white border border-slate-200/90 rounded-[14px] p-5 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Finalized Hours</p>
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -120,7 +120,7 @@ export const ManagerDashboard = () => {
           </div>
 
           {/* Managed Teams Details */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-[14px] p-6 shadow-2xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 font-display">
@@ -140,7 +140,7 @@ export const ManagerDashboard = () => {
             </div>
 
             {!data.managedTeams || data.managedTeams.length === 0 ? (
-              <div className="py-12 px-4 text-center text-slate-500 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+              <div className="py-12 px-4 text-center text-slate-500 bg-slate-50/50 rounded-[14px] border border-dashed border-slate-200">
                 <UsersRound className="w-8 h-8 mx-auto text-slate-300 mb-1" />
                 <p className="text-sm font-bold text-slate-800 font-display">No Teams Assigned</p>
                 <p className="text-xs text-slate-400 mt-0.5">You are not currently assigned as manager for any team.</p>
@@ -171,7 +171,7 @@ export const ManagerDashboard = () => {
           </div>
 
           {/* Team Workload & Capacity */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-[14px] p-6 shadow-2xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 font-display">
@@ -185,7 +185,7 @@ export const ManagerDashboard = () => {
             </div>
 
             {!workloadData || workloadData.length === 0 ? (
-              <div className="py-12 px-4 text-center text-slate-500 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+              <div className="py-12 px-4 text-center text-slate-500 bg-slate-50/50 rounded-[14px] border border-dashed border-slate-200">
                 <BarChart3 className="w-8 h-8 mx-auto text-slate-300 mb-1" />
                 <p className="text-sm font-bold text-slate-800 font-display">No Workload Data</p>
                 <p className="text-xs text-slate-400 mt-0.5">There is no team workload data available for this period.</p>

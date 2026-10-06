@@ -39,7 +39,7 @@ vi.mock('../prisma/db.js', () => {
     db: {
       orm: {
         public: {
-          TimeEntry: { where: vi.fn(() => ({ all: vi.fn().mockResolvedValue([]) })) },
+          TimeEntry: { where: vi.fn(() => ({ all: vi.fn().mockResolvedValue([]), update: vi.fn() })) },
           Timesheet: mTimesheet,
           Employee: mEmployee,
           Team: mTeam,
@@ -51,7 +51,7 @@ vi.mock('../prisma/db.js', () => {
       transaction: vi.fn(async (cb: any) => cb({
         orm: {
           public: {
-            TimeEntry: { where: vi.fn(() => ({ all: vi.fn().mockResolvedValue([]) })) },
+            TimeEntry: { where: vi.fn(() => ({ all: vi.fn().mockResolvedValue([]), update: vi.fn() })) },
             Timesheet: mTimesheet,
             Employee: mEmployee,
             Team: mTeam,

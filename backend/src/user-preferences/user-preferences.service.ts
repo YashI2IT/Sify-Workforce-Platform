@@ -69,6 +69,9 @@ export class UserPreferencesService {
     if (body.dateFormat && !ALLOWED_DATE_FORMATS.includes(body.dateFormat)) {
       throw new BadRequestException(`dateFormat must be one of: ${ALLOWED_DATE_FORMATS.join(', ')}`);
     }
+    if (body.emailNotifications !== undefined && typeof body.emailNotifications !== 'boolean') {
+      throw new BadRequestException(`emailNotifications must be a boolean`);
+    }
 
     const patch: Record<string, any> = { updatedAt: (globalThis as any).Temporal.Instant.from(new Date().toISOString()) };
     if (body.timezone !== undefined) patch.timezone = body.timezone;

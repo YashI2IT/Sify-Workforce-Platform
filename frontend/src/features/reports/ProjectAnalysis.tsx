@@ -109,14 +109,14 @@ export const ProjectAnalysis = () => {
       ) : (
         <div className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
+            <div className="bg-white border border-slate-200/90 rounded-[14px] p-5 shadow-2xs flex flex-col justify-between">
               <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Total Project Hours</p>
               <h3 className="text-3xl font-extrabold text-slate-950 font-display mt-2">
                 {data.hoursByActivity?.reduce((sum: number, a: any) => sum + (a.hours || 0), 0) || 0}h
               </h3>
               <p className="text-[11px] text-slate-400 font-medium mt-2">Combined recorded work hours</p>
             </div>
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
+            <div className="bg-white border border-slate-200/90 rounded-[14px] p-5 shadow-2xs flex flex-col justify-between">
               <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Date Range Span</p>
               <h3 className="text-lg sm:text-xl font-bold text-slate-900 font-display mt-2">
                 {
@@ -143,7 +143,7 @@ export const ProjectAnalysis = () => {
               {!data.hoursByTask || data.hoursByTask.length === 0 ? (
                 <ReportEmptyState message="No tasks logged in this period." />
               ) : (
-                <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+                <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs">
                   <table className="w-full text-sm text-left">
                     <thead className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                       <tr>
@@ -170,7 +170,7 @@ export const ProjectAnalysis = () => {
               {!data.hoursByActivity || data.hoursByActivity.length === 0 ? (
                 <ReportEmptyState message="No activities logged in this period." />
               ) : (
-                <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+                <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs">
                   <table className="w-full text-sm text-left">
                     <thead className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                       <tr>
@@ -198,7 +198,7 @@ export const ProjectAnalysis = () => {
             {!data.trend || data.trend.length === 0 ? (
               <ReportEmptyState message="No trend data available." />
             ) : (
-              <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+              <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                     <tr>

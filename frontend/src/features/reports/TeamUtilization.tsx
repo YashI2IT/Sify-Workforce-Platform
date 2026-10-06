@@ -80,7 +80,7 @@ export const TeamUtilization = () => {
           {data.data.length === 0 ? (
             <ReportEmptyState message="No utilization records found for this team." />
           ) : (
-            <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+            <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
@@ -101,7 +101,7 @@ export const TeamUtilization = () => {
                       const totalHoursLogged = approved + submitted + other;
                       return (
                         <tr key={member.employeeId} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                             <div className="flex items-center gap-2.5">
                               <div className="w-8 h-8 rounded-xl bg-slate-950 text-white font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-slate-800 shadow-2xs">
                                 {getInitials(member.name)}
@@ -109,21 +109,21 @@ export const TeamUtilization = () => {
                               <span className="font-semibold text-slate-900 text-xs sm:text-sm ">{member.name}</span>
                             </div>
                           </td>
-                          <td className="px-5 py-4 text-slate-500 font-mono text-xs">
+                          <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                             <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 font-bold text-slate-700">
                               {member.employeeCode}
                             </span>
                           </td>
-                          <td className="px-5 py-4 text-right text-emerald-700 font-mono font-bold text-xs sm:text-sm">
+                          <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                             {approved > 0 ? `${approved}h` : '—'}
                           </td>
-                          <td className="px-5 py-4 text-right text-blue-600 font-mono font-semibold text-xs sm:text-sm">
+                          <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                             {submitted > 0 ? `${submitted}h` : '—'}
                           </td>
-                          <td className="px-5 py-4 text-right text-slate-400 font-mono text-xs sm:text-sm">
+                          <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                             {other > 0 ? `${other}h` : '—'}
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                             <span className="inline-flex items-center font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/80 text-xs shadow-2xs">
                               {totalHoursLogged}h
                             </span>

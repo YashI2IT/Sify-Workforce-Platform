@@ -80,6 +80,8 @@ export const TimeEntryForm = ({ onSuccess, defaultValues, selectedDate, embedded
       const savedProject = localStorage.getItem('last_project_id');
       if (savedProject && projects.find((p: any) => p.id === savedProject)) {
         setSelectedProject(savedProject);
+      } else if (projects.length === 1) {
+        setSelectedProject(projects[0].id);
       }
     }
   }, [employee, defaultValues, projects, reuseId]);
@@ -196,7 +198,7 @@ export const TimeEntryForm = ({ onSuccess, defaultValues, selectedDate, embedded
   };
 
   return (
-    <div className={embedded ? "w-full" : "bg-white border border-slate-200/90 rounded-2xl p-6 mb-6 shadow-2xs"}>
+    <div className={embedded ? "w-full" : "bg-white border border-slate-200/90 rounded-[14px] p-6 mb-6 shadow-2xs"}>
       {!embedded && (
         <div className="flex items-center justify-between border-b border-slate-100 pb-3.5 mb-5">
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 font-display">

@@ -136,7 +136,7 @@ export const Invite = () => {
   if (detailsError) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-        <div className="w-full max-w-md bg-white rounded-lg shadow-sm border p-8 text-center">
+        <div className="w-full max-w-md bg-white rounded-lg shadow-xs border p-8 text-center">
           <h2 className="text-xl font-bold text-red-600 mb-2">Invalid Invitation</h2>
           <p className="text-gray-600 mb-6">{detailsError}</p>
           <Link to="/" className="text-blue-600 hover:underline">Go to Home</Link>
@@ -150,7 +150,7 @@ export const Invite = () => {
   if (details.status === 'EXPIRED') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-        <div className="w-full max-w-md bg-white rounded-lg shadow-sm border p-8 text-center">
+        <div className="w-full max-w-md bg-white rounded-lg shadow-xs border p-8 text-center">
           <h2 className="text-xl font-bold text-red-600 mb-2">Invitation Expired</h2>
           <p className="text-gray-600 mb-6">This invitation expired on {new Date(details.expiresAt).toLocaleDateString()}. Please request a new invitation.</p>
         </div>
@@ -161,7 +161,7 @@ export const Invite = () => {
   if (details.status === 'CANCELLED') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-        <div className="w-full max-w-md bg-white rounded-lg shadow-sm border p-8 text-center">
+        <div className="w-full max-w-md bg-white rounded-lg shadow-xs border p-8 text-center">
           <h2 className="text-xl font-bold text-red-600 mb-2">Invitation Cancelled</h2>
           <p className="text-gray-600 mb-6">This invitation has been cancelled by the organization administrator.</p>
         </div>
@@ -172,7 +172,7 @@ export const Invite = () => {
   if (details.status === 'ACCEPTED') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-        <div className="w-full max-w-md bg-white rounded-lg shadow-sm border p-8 text-center">
+        <div className="w-full max-w-md bg-white rounded-lg shadow-xs border p-8 text-center">
           <h2 className="text-xl font-bold text-blue-600 mb-2">Already Accepted</h2>
           <p className="text-gray-600 mb-6">This invitation has already been accepted.</p>
           <Link to="/login" className="text-blue-600 hover:underline">Log In</Link>
@@ -184,8 +184,8 @@ export const Invite = () => {
   if (success) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-        <div className="w-full max-w-md bg-white rounded-lg shadow-sm border p-8 text-center">
-          <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="w-full max-w-md bg-white rounded-lg shadow-xs border p-8 text-center">
+          <div className="w-12 h-9 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
@@ -201,7 +201,7 @@ export const Invite = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-sm border p-8 text-center">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-xs border p-8 text-center">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Organization Invitation</h1>
         <p className="text-gray-600 mb-6">
           <strong>{details.inviterName}</strong> has invited you to join <strong>{details.organizationName}</strong> on Sify Workforce.

@@ -51,7 +51,7 @@ describe('TaskDetailPanel', () => {
   it('renders task name and status badge', () => {
     render(<TaskDetailPanel {...defaultProps} />);
     expect(screen.getByText('Main Task')).toBeDefined();
-    expect(screen.getByText('IN PROGRESS')).toBeDefined();
+    expect(screen.getAllByText('IN PROGRESS').length).toBeGreaterThan(0);
   });
 
   it('renders priority badge', () => {

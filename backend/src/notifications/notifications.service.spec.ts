@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsService } from './notifications.service.js';
+import { MailService } from '../mail/mail.service.js';
 import { db } from '../prisma/db.js';
 import { NotFoundException } from '@nestjs/common';
 
@@ -7,12 +8,21 @@ vi.mock('../prisma/db.js', () => {
   const mNotification = {
     where: vi.fn(),
     create: vi.fn(),
+    update: vi.fn(),
+  };
+  const mUserPreference = {
+    where: vi.fn(() => ({ first: vi.fn().mockResolvedValue({ emailNotifications: true }) })),
+  };
+  const mEmployee = {
+    where: vi.fn(() => ({ first: vi.fn().mockResolvedValue({ email: 'test@example.com', name: 'Test User' }) })),
   };
   return {
     db: {
       orm: {
         public: {
-          Notification: mNotification
+          Notification: mNotification,
+          UserPreference: mUserPreference,
+          Employee: mEmployee,
         }
       },
       transaction: vi.fn(async (cb: any) => cb({
@@ -31,8 +41,15 @@ describe('NotificationsService', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    const mockMailService = {
+      sendNotificationEmail: vi.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [NotificationsService],
+      providers: [
+        NotificationsService,
+        { provide: MailService, useValue: mockMailService }
+      ],
     }).compile();
 
     service = module.get<NotificationsService>(NotificationsService);

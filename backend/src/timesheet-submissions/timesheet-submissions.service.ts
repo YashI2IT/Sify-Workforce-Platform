@@ -8,7 +8,6 @@ import { db } from '../prisma/db.js';
 import { AuthenticatedContext } from '../auth/authenticated-context.js';
 import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
-import { MailService } from '../mail/mail.service.js';
 import { getUtcMonday } from '../common/date.utils.js';
 
 @Injectable()
@@ -16,7 +15,6 @@ export class TimesheetSubmissionsService {
   constructor(
     private readonly auditLogsService: AuditLogsService,
     private readonly notificationsService: NotificationsService,
-    private readonly mailService: MailService,
   ) {}
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -82,8 +80,6 @@ export class TimesheetSubmissionsService {
       throw new BadRequestException(`No editable time entries found for ${date}. All may already be submitted or approved.`);
     }
 
-    let mailPayload: any = null;
-
     const submission = await db.transaction(async (tx) => {
       // Create the submission record
       const sub = await tx.orm.public.TimesheetSubmission.create({
@@ -117,6 +113,12 @@ export class TimesheetSubmissionsService {
         action: 'SUBMITTED',
       });
 
+      // UPDATE the actual Timesheet status so it shows up in Pending Approvals
+      await tx.orm.public.Timesheet.where({ id: timesheetId }).update({
+        status: 'SUBMITTED',
+        rejectionComment: null
+      });
+
       await this.auditLogsService.logEvent(auth.organizationId, employeeId, 'SUBMISSION_CREATED', 'TimesheetSubmission', sub.id, { type: 'DAILY', date }, tx);
 
       // In-app notification to manager
@@ -134,24 +136,11 @@ export class TimesheetSubmissionsService {
             relatedEntityId: sub.id,
           }, tx);
 
-          if (manager?.email) {
-            mailPayload = {
-              managerEmail: manager.email,
-              employeeName: emp.name,
-              weekStart: date,
-              weekEnd: date,
-              action: 'submitted' as const,
-            };
-          }
         }
       }
 
       return sub;
     });
-
-    if (mailPayload) {
-      this.mailService.sendTimesheetResubmissionEmail(mailPayload).catch(console.error);
-    }
 
     return { ...submission, entryCount: entries.length };
   }
@@ -172,8 +161,6 @@ export class TimesheetSubmissionsService {
     if (entries.length === 0) {
       throw new BadRequestException('No unsubmitted time entries found for this week. All may already be submitted or approved.');
     }
-
-    let mailPayload: any = null;
 
     const submission = await db.transaction(async (tx) => {
       const totalHours = entries.reduce((s: number, e: any) => s + Number(e.hours), 0);
@@ -206,6 +193,12 @@ export class TimesheetSubmissionsService {
         action: 'SUBMITTED',
       });
 
+      // UPDATE the actual Timesheet status so it shows up in Pending Approvals
+      await tx.orm.public.Timesheet.where({ id: timesheetId }).update({
+        status: 'SUBMITTED',
+        rejectionComment: null
+      });
+
       await this.auditLogsService.logEvent(auth.organizationId, employeeId, 'SUBMISSION_CREATED', 'TimesheetSubmission', sub.id, { type: 'WEEKLY', weekStart, weekEnd, totalHours }, tx);
 
       const emp = await tx.orm.public.Employee.where({ id: employeeId }).first();
@@ -222,24 +215,11 @@ export class TimesheetSubmissionsService {
             relatedEntityId: sub.id,
           }, tx);
 
-          if (manager?.email) {
-            mailPayload = {
-              managerEmail: manager.email,
-              employeeName: emp.name,
-              weekStart,
-              weekEnd,
-              action: 'submitted' as const,
-            };
-          }
         }
       }
 
       return sub;
     });
-
-    if (mailPayload) {
-      this.mailService.sendTimesheetResubmissionEmail(mailPayload).catch(console.error);
-    }
 
     return { ...submission, entryCount: entries.length };
   }
@@ -321,12 +301,10 @@ export class TimesheetSubmissionsService {
 
     await this.assertManagerAccess(sub.employeeId, auth);
 
-    let mailPayload: any = null;
-
     const updated = await db.transaction(async (tx) => {
       const updatedSub = await tx.orm.public.TimesheetSubmission.where({ id: submissionId }).update({
         status: 'APPROVED',
-        reviewedAt: new Date(),
+        reviewedAt: (globalThis as any).Temporal.Now.instant(),
         reviewedBy: auth.employeeId,
       });
 
@@ -354,23 +332,10 @@ export class TimesheetSubmissionsService {
           relatedEntityType: 'TIMESHEET_SUBMISSION',
           relatedEntityId: submissionId,
         }, tx);
-
-        if (emp.email) {
-          mailPayload = {
-            email: emp.email,
-            employeeName: emp.name,
-            weekStart: sub.weekStart || sub.submittedDate || '',
-            weekEnd: sub.weekEnd || sub.submittedDate || '',
-          };
-        }
       }
 
       return updatedSub;
     });
-
-    if (mailPayload) {
-      this.mailService.sendTimesheetApprovalEmail(mailPayload).catch(console.error);
-    }
 
     return updated;
   }
@@ -388,13 +353,11 @@ export class TimesheetSubmissionsService {
 
     await this.assertManagerAccess(sub.employeeId, auth);
 
-    let mailPayload: any = null;
-
     const updated = await db.transaction(async (tx) => {
       const updatedSub = await tx.orm.public.TimesheetSubmission.where({ id: submissionId }).update({
         status: 'REJECTED',
         rejectionComment: comment.trim(),
-        reviewedAt: new Date(),
+        reviewedAt: (globalThis as any).Temporal.Now.instant(),
         reviewedBy: auth.employeeId,
       });
 
@@ -425,24 +388,10 @@ export class TimesheetSubmissionsService {
           relatedEntityType: 'TIMESHEET_SUBMISSION',
           relatedEntityId: submissionId,
         }, tx);
-
-        if (emp.email) {
-          mailPayload = {
-            email: emp.email,
-            employeeName: emp.name,
-            weekStart: sub.weekStart || sub.submittedDate || '',
-            weekEnd: sub.weekEnd || sub.submittedDate || '',
-            remark: comment.trim(),
-          };
-        }
       }
 
       return updatedSub;
     });
-
-    if (mailPayload) {
-      this.mailService.sendTimesheetRejectionEmail(mailPayload).catch(console.error);
-    }
 
     return updated;
   }
@@ -505,16 +454,6 @@ export class TimesheetSubmissionsService {
         relatedEntityType: 'TIMESHEET',
         relatedEntityId: empEntries[0]?.timesheetId,
       });
-
-      if (emp.email) {
-        this.mailService.sendTimesheetReminderEmail({
-          email: emp.email,
-          employeeName: emp.name,
-          weekStart,
-          weekEnd,
-          totalHours,
-        }).catch(console.error);
-      }
     }
   }
 }

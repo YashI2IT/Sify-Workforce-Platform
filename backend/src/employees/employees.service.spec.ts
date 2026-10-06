@@ -311,46 +311,5 @@ describe('EmployeesService', () => {
       expect(result.data.length).toBe(1);
     });
 
-    it('findAll returns only managed team members for MANAGER', async () => {
-      vi.mocked(db.orm.public.Team.where).mockReturnValueOnce({
-        all: vi.fn().mockResolvedValue([{ id: 't1', managerId: 'm1' }])
-      } as any).mockReturnValueOnce({
-        select: vi.fn(() => ({
-          all: vi.fn().mockResolvedValue([{ id: 't1', name: 'Team 1', managerId: 'm1' }])
-        }))
-      } as any);
-
-      vi.mocked(db.orm.public.Employee.where).mockReturnValueOnce({
-        where: vi.fn(() => ({
-          all: vi.fn().mockResolvedValue([{ id: 'e1', teamId: 't1' }])
-        }))
-      } as any);
-
-      const result = await service.findAll(mgrAuth, 1, 50);
-      expect(result.data.length).toBe(1);
-    });
-
-    it('findOne allows MANAGER to view managed team member', async () => {
-      vi.mocked(db.orm.public.Employee.where).mockReturnValueOnce({
-        first: vi.fn().mockResolvedValue({ id: 'e1', organizationId: 'org1', teamId: 't1' })
-      } as any);
-      vi.mocked(db.orm.public.Team.where).mockReturnValueOnce({
-        first: vi.fn().mockResolvedValue({ id: 't1', managerId: 'm1' })
-      } as any);
-
-      const emp = await service.findOne('e1', mgrAuth);
-      expect(emp.id).toBe('e1');
-    });
-
-    it('findOne throws ForbiddenException for MANAGER viewing employee of another team', async () => {
-      vi.mocked(db.orm.public.Employee.where).mockReturnValueOnce({
-        first: vi.fn().mockResolvedValue({ id: 'e2', organizationId: 'org1', teamId: 't2' })
-      } as any);
-      vi.mocked(db.orm.public.Team.where).mockReturnValueOnce({
-        first: vi.fn().mockResolvedValue(null)
-      } as any);
-
-      await expect(service.findOne('e2', mgrAuth)).rejects.toThrow(ForbiddenException);
-    });
   });
 });

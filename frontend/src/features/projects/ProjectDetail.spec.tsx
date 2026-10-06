@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '../../test-utils';
+import { render, screen, waitFor, fireEvent } from '../../test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ProjectDetail } from './ProjectDetail';
@@ -68,5 +68,49 @@ describe('ProjectDetail Component', () => {
     expect(screen.getAllByText('ACTIVE').length).toBeGreaterThan(0);
     expect(screen.getByText('Project Information & Metrics')).toBeDefined();
     expect(screen.getByText('Back to Projects')).toBeDefined();
+  });
+
+  it('allows switching between animated workspace tabs and displays dynamic counts', async () => {
+    render(
+      <MemoryRouter initialEntries={['/projects/proj-1']}>
+        <Routes>
+          <Route path="/projects/:projectId" element={<ProjectDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Enterprise Core Platform')).toBeDefined();
+    });
+
+    // Overview should be visible by default
+    expect(screen.getByText('Project Information & Metrics')).toBeDefined();
+
+    // Click Tasks tab
+    const tasksTab = screen.getByRole('button', { name: /Tasks/i });
+    expect(tasksTab).toBeDefined();
+    fireEvent.click(tasksTab);
+
+    // Verify task view renders
+    await waitFor(() => {
+      expect(screen.getByText('Database Migration')).toBeDefined();
+    });
+
+    // Click Activities tab
+    const activitiesTab = screen.getByRole('button', { name: /Activities/i });
+    fireEvent.click(activitiesTab);
+
+    await waitFor(() => {
+      expect(screen.getByText('Project Activities')).toBeDefined();
+      expect(screen.getByText('Backend Engineering')).toBeDefined();
+    });
+
+    // Click Members tab
+    const membersTab = screen.getByRole('button', { name: /Members/i });
+    fireEvent.click(membersTab);
+
+    await waitFor(() => {
+      expect(screen.getByText('Alice Developer')).toBeDefined();
+    });
   });
 });

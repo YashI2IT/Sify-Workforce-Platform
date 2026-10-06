@@ -86,7 +86,7 @@ export const Register = () => {
           <div className="p-6 sm:p-7 space-y-4">
             {/* Top Brand Logo Squircle */}
             <div className="flex justify-center pt-1">
-              <div className="w-12 h-12 rounded-[18px] bg-slate-950 flex items-center justify-center shadow-md shadow-slate-900/15 transition-transform hover:scale-105">
+              <div className="w-12 h-9 rounded-[18px] bg-slate-950 flex items-center justify-center shadow-md shadow-slate-900/15 transition-transform hover:scale-105">
                 <div className="w-7 h-7 rounded-lg bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-xs">
                   SW
                 </div>
@@ -115,7 +115,7 @@ export const Register = () => {
               <button
                 type="button"
                 onClick={handleSocialClick}
-                className="w-full h-11 flex items-center justify-center gap-2.5 px-4 rounded-xl border border-slate-200/90 bg-white text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50/80 hover:border-slate-300 shadow-2xs transition-all cursor-pointer"
+                className="w-full h-9 flex items-center justify-center gap-2.5 px-4 rounded-xl border border-slate-200/90 bg-white text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50/80 hover:border-slate-300 shadow-2xs transition-all cursor-pointer"
               >
                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -170,7 +170,7 @@ export const Register = () => {
                     required
                     minLength={3}
                     placeholder="Enter your username"
-                    className="w-full h-11 rounded-xl border border-slate-200/90 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 transition-all shadow-2xs"
+                    className="w-full h-9 rounded-xl border border-slate-200/90 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 transition-all shadow-2xs"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                   />
@@ -185,7 +185,7 @@ export const Register = () => {
                     type="email"
                     required
                     placeholder="Enter your company email"
-                    className="w-full h-11 rounded-xl border border-slate-200/90 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 transition-all shadow-2xs"
+                    className="w-full h-9 rounded-xl border border-slate-200/90 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 transition-all shadow-2xs"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -201,7 +201,7 @@ export const Register = () => {
                       type={showPassword ? 'text' : 'password'}
                       required
                       placeholder="Enter your password"
-                      className="w-full h-11 rounded-xl border border-slate-200/90 bg-white px-3.5 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 transition-all shadow-2xs"
+                      className="w-full h-9 rounded-xl border border-slate-200/90 bg-white px-3.5 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 transition-all shadow-2xs"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />
@@ -219,7 +219,7 @@ export const Register = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full h-11 mt-1 bg-[#1E232E] hover:bg-[#151821] active:scale-[0.99] text-white font-medium px-4 rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 text-sm disabled:opacity-50 cursor-pointer"
+                  className="w-full h-9 mt-1 bg-[#1E232E] hover:bg-[#151821] active:scale-[0.99] text-white font-medium px-4 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 text-sm disabled:opacity-50 cursor-pointer"
                 >
                   {loading ? (
                     <>

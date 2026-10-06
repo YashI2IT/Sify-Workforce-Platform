@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { sanitizeReturnTo } from '../../lib/authUtils';
+import Lenis from 'lenis';
 import { 
   Users, 
   Briefcase, 
@@ -16,21 +16,16 @@ import {
   BarChart3, 
   SlidersHorizontal, 
   FolderGit2, 
-  Shield, 
-  RotateCcw, 
-  PieChart, 
-  Activity, 
+  Shield,
+  PieChart,
+  Activity,
   FileSpreadsheet,
-  ChevronRight,
   Lock,
-  Calendar,
-  Menu,
-  X
+  Calendar
 } from 'lucide-react';
 import type { RootState } from '@/store';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 
 function ScrollReveal({ 
   children, 
@@ -141,16 +136,89 @@ function ScrollCard({
   );
 }
 
+function AnimatedWord() {
+  const words = ['Metrics.', 'Results.', 'Progress.', 'Projects.'];
+  const [wordIndex, setWordIndex] = useState(0);
+  const [text, setText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const currentWord = words[wordIndex];
+
+    if (isDeleting) {
+      if (text === '') {
+        setIsDeleting(false);
+        setWordIndex((prev) => (prev + 1) % words.length);
+      } else {
+        timeoutId = setTimeout(() => {
+          setText(currentWord.substring(0, text.length - 1));
+        }, 30);
+      }
+    } else {
+      if (text === currentWord) {
+        timeoutId = setTimeout(() => {
+          setIsDeleting(true);
+        }, 2500);
+      } else {
+        timeoutId = setTimeout(() => {
+          setText(currentWord.substring(0, text.length + 1));
+        }, 80);
+      }
+    }
+
+    return () => clearTimeout(timeoutId);
+  }, [text, isDeleting, wordIndex]);
+
+  return (
+    <>
+      <style>{`
+        @keyframes cursor-blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+      `}</style>
+      <span className="relative text-slate-950 whitespace-nowrap text-left">
+        {text}
+        <span 
+          className="inline-block w-[2px] h-[0.9em] bg-[#27F087] align-middle ml-[2px] -mt-[0.1em]" 
+          style={{ animation: 'cursor-blink 1s step-end infinite' }}
+        />
+      </span>
+    </>
+  );
+}
+
 export function LandingPage() {
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
   const [scrollProgress, setScrollProgress] = useState(0);
-  const location = useLocation();
 
-  const searchParams = new URLSearchParams(location.search);
-  const rawReturnTo = searchParams.get('returnTo');
-  const loginUrl = rawReturnTo 
-    ? `/login?returnTo=${encodeURIComponent(sanitizeReturnTo(rawReturnTo))}` 
-    : '/login';
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+      smoothWheel: true,
+      wheelMultiplier: 1,
+      touchMultiplier: 2,
+    });
+
+    function raf(time: number) {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+    const rafId = requestAnimationFrame(raf);
+
+    return () => {
+      lenis.destroy();
+      cancelAnimationFrame(rafId);
+    };
+  }, []);
 
   useEffect(() => {
     let ticking = false;
@@ -189,7 +257,6 @@ export function LandingPage() {
   ];
 
   const [activeTab, setActiveTab] = useState<PreviewTabId>('dashboard');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const productAreas = [
     {
@@ -276,180 +343,72 @@ export function LandingPage() {
     { name: 'Project Analysis', desc: 'Deep dive into project deliverables, tasks, and logging trends', metricType: 'Deliverables & Trends', icon: FileSpreadsheet },
   ];
 
-  const crossGridPattern = `url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M16 11V21M11 16H21' stroke='rgba(255,255,255,0.18)' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E")`;
-
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-slate-900 flex flex-col antialiased selection:bg-[#27F087] selection:text-slate-950">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/85 backdrop-blur-md transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#27F087] rounded-md group">
-              <div className="w-8 h-8 rounded-lg bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-sm shadow-xs transition-transform group-hover:scale-105">
-                SW
-              </div>
-              <span className="text-xl font-bold text-slate-950 tracking-tight font-display">Sify Workforce</span>
-            </Link>
-
-            {/* Structured Navigation Links */}
-            <nav className="hidden md:flex items-center gap-1" aria-label="Main Navigation">
-              <a href="#product" className="px-3.5 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-950 hover:bg-slate-100/80 rounded-full transition-colors">
-                Product
-              </a>
-              <a href="#workflow" className="px-3.5 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-950 hover:bg-slate-100/80 rounded-full transition-colors">
-                Workflow
-              </a>
-              <a href="#roles" className="px-3.5 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-950 hover:bg-slate-100/80 rounded-full transition-colors">
-                Roles
-              </a>
-              <a href="#time-tracking" className="px-3.5 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-950 hover:bg-slate-100/80 rounded-full transition-colors">
-                Time Logging
-              </a>
-              <a href="#reports" className="px-3.5 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-950 hover:bg-slate-100/80 rounded-full transition-colors">
-                Analytics
-              </a>
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {isAuthenticated ? (
-              <Link to="/dashboard">
-                <Button className="rounded-full bg-slate-950 text-white hover:bg-slate-800 text-sm px-5 py-2 font-medium shadow-xs">
-                  Go to Dashboard
-                  <ArrowRight className="w-4 h-4 ml-1.5" />
-                </Button>
-              </Link>
-            ) : (
-              <>
-                <Link to={loginUrl}>
-                  <Button variant="ghost" size="sm" className="text-slate-700 hover:text-slate-950 text-sm font-medium rounded-full px-4">
-                    Log In
-                  </Button>
-                </Link>
-                <Link to="/register">
-                  <Button className="rounded-full bg-slate-950 text-white hover:bg-slate-800 text-sm px-5 py-2 font-medium shadow-xs hover:shadow-md transition-all active:scale-95">
-                    Sign Up
-                  </Button>
-                </Link>
-              </>
-            )}
-
-            {/* Mobile Hamburger Toggle */}
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg text-slate-600 hover:text-slate-950 hover:bg-slate-100 transition-colors ml-1"
-              aria-label="Toggle Navigation Menu"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Dropdown Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-200/80 bg-white/95 backdrop-blur-md px-4 py-3 space-y-2 shadow-lg animate-slideDown">
-            <nav className="flex flex-col space-y-1">
-              <a
-                href="#product"
-                onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 text-sm font-medium text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                Product
-              </a>
-              <a
-                href="#workflow"
-                onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 text-sm font-medium text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                Workflow
-              </a>
-              <a
-                href="#roles"
-                onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 text-sm font-medium text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                Roles
-              </a>
-              <a
-                href="#time-tracking"
-                onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 text-sm font-medium text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                Time Logging
-              </a>
-              <a
-                href="#reports"
-                onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 text-sm font-medium text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                Analytics
-              </a>
-            </nav>
-            <div className="pt-2 border-t border-slate-200/80 flex flex-col gap-2">
-              {isAuthenticated ? (
-                <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full rounded-xl bg-slate-950 text-white text-sm py-2 font-medium">
-                    Go to Dashboard
-                    <ArrowRight className="w-4 h-4 ml-1.5" />
-                  </Button>
-                </Link>
-              ) : (
-                <>
-                  <Link to={loginUrl} onClick={() => setMobileMenuOpen(false)}>
-                    <Button variant="outline" className="w-full rounded-xl text-slate-700 text-sm py-2 font-medium">
-                      Log In
-                    </Button>
-                  </Link>
-                  <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
-                    <Button className="w-full rounded-xl bg-slate-950 text-white text-sm py-2 font-medium">
-                      Sign Up
-                    </Button>
-                  </Link>
-                </>
-              )}
+        <div className="w-full px-6 md:px-10 lg:px-16 h-18 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#27F087] rounded-md group">
+            <div className="w-8 h-8 rounded-lg bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-sm shadow-xs transition-transform group-hover:scale-105">
+              SW
             </div>
-          </div>
-        )}
+            <span className="text-xl font-bold text-slate-950 tracking-tight font-display">Sify Workforce</span>
+          </Link>
+
+          <Link to={isAuthenticated ? "/dashboard" : "/register"}>
+            <Button className="rounded-full bg-slate-950 text-white hover:bg-slate-800 text-sm px-5 py-2 font-medium shadow-xs hover:shadow-md transition-all active:scale-95">
+              Get Started
+            </Button>
+          </Link>
+        </div>
       </header>
 
       <main className="flex-1 space-y-16 sm:space-y-24">
         {/* 1. Hero Section */}
-        <section className="relative pt-12 pb-16 md:pt-20 md:pb-24 overflow-hidden">
+        <section className="relative pt-10 pb-16 md:pt-16 md:pb-24 overflow-hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-4xl mx-auto text-center space-y-6">
+            <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-800 shadow-2xs">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-800 shadow-2xs mb-8">
                 <span className="w-2 h-2 rounded-full bg-[#27F087]" />
                 <span>Workforce Operations Platform</span>
               </div>
 
               {/* Headline */}
-              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-semibold tracking-tight text-slate-950 leading-[1.08]">
-                Manage People. Organize Work. Track Time.
+              <h1 className="text-4xl sm:text-6xl lg:text-[4.25rem] font-semibold tracking-tight text-slate-950 leading-[1.08] mb-6 max-w-4xl w-full flex flex-col items-center">
+                <span className="text-center w-full">Manage People. Organize</span>
+                <span className="relative text-left inline-grid [grid-template-areas:'line'] mt-1 sm:mt-2">
+                  <span className="[grid-area:line] invisible pointer-events-none" aria-hidden="true">
+                    Work. Track Progress.
+                    <span className="inline-block w-[2px] ml-[2px]" />
+                  </span>
+                  <span className="[grid-area:line] relative">
+                    Work. Track <AnimatedWord />
+                  </span>
+                </span>
               </h1>
 
               {/* Description */}
-              <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed font-normal">
+              <p className="text-lg sm:text-xl text-slate-600 max-w-2xl leading-relaxed font-normal mb-10">
                 Sify Workforce brings employees, teams, projects, tasks, activities and timesheets together in one structured workspace.
               </p>
 
               {/* Action Buttons */}
-              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4 w-full">
                 <Link to="/register" className="w-full sm:w-auto">
-                  <Button size="lg" className="w-full sm:w-auto rounded-full bg-slate-950 text-white hover:bg-slate-800 text-base px-8 h-12 font-medium shadow-sm transition-transform active:scale-98">
+                  <Button size="lg" className="w-full sm:w-auto rounded-full bg-slate-950 text-white hover:bg-slate-800 text-base px-8 h-10 font-medium shadow-xs transition-transform active:scale-98">
                     Get Started
                   </Button>
                 </Link>
                 <Link to="/login" className="w-full sm:w-auto">
-                  <Button variant="outline" size="lg" className="w-full sm:w-auto rounded-full border-slate-300 text-slate-800 hover:bg-slate-100 text-base px-7 h-12 font-medium">
+                  <Button variant="outline" size="lg" className="w-full sm:w-auto rounded-full border-slate-300 text-slate-800 hover:bg-slate-100 text-base px-7 h-10 font-medium">
                     Log In
                   </Button>
                 </Link>
               </div>
 
               {/* Small supporting line */}
-              <p className="text-sm text-slate-500 font-medium pt-1">
+              <p className="text-sm text-slate-500 font-medium">
                 From daily time entries to weekly manager approval.
               </p>
             </div>
@@ -468,10 +427,10 @@ export function LandingPage() {
               }}
             >
               {/* Apple macOS Window Container with Subtle Green Neon Border */}
-              <div className="rounded-2xl bg-white border border-[#27F087]/25 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35),0_0_18px_rgba(39,240,135,0.12)] ring-1 ring-slate-900/10 overflow-hidden flex flex-col transition-all">
+              <div className="rounded-[14px] bg-white border border-[#27F087]/25 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35),0_0_18px_rgba(39,240,135,0.12)] ring-1 ring-slate-900/10 overflow-hidden flex flex-col transition-all">
                 
                 {/* Apple macOS Window Header Chrome */}
-                <div className="h-11 px-4 bg-[#16181D] border-b border-white/[0.08] flex items-center justify-between text-xs select-none backdrop-blur-md">
+                <div className="h-9 px-4 bg-[#16181D] border-b border-white/[0.08] flex items-center justify-between text-xs select-none backdrop-blur-md">
                   {/* macOS Traffic Lights */}
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E]/80 shadow-[inset_0_1px_1px_rgba(255,255,255,0.35)] cursor-pointer hover:opacity-90 active:scale-95 transition-all inline-block" title="Close" />
@@ -717,7 +676,7 @@ export function LandingPage() {
                                   key={d.day}
                                   className={`py-1.5 rounded-lg border text-xs transition-all ${
                                     d.status === 'today'
-                                      ? 'bg-slate-950 text-white border-slate-900 shadow-sm'
+                                      ? 'bg-slate-950 text-white border-slate-900 shadow-xs'
                                       : d.status === 'logged'
                                       ? 'bg-white border-slate-200 text-slate-800'
                                       : 'bg-transparent border-transparent text-slate-400'
@@ -888,9 +847,7 @@ export function LandingPage() {
           <div className="rounded-3xl sm:rounded-[2.5rem] bg-[#12161F] border border-white/10 shadow-2xl overflow-hidden text-white">
             {/* Heading & Content */}
             <div className="p-8 sm:p-12 md:p-16 max-w-3xl space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-[#27F087] border border-[#27F087]/20">
-                <span>Integrated System</span>
-              </div>
+
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-white leading-[1.15] font-display">
                 Everything your team needs to manage work
               </h2>
@@ -914,9 +871,7 @@ export function LandingPage() {
                         <div className="w-10 h-10 rounded-xl bg-[#0F2F24] border border-[#1E4D3C] flex items-center justify-center text-[#27F087] group-hover:scale-110 group-hover:bg-[#163F31] transition-all duration-300">
                           <IconComp className="w-5 h-5" />
                         </div>
-                        <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300">
-                          {area.benefit}
-                        </span>
+
                       </div>
                       <div className="space-y-2">
                         <h3 className="text-lg sm:text-xl font-semibold text-white tracking-tight font-display">
@@ -932,23 +887,13 @@ export function LandingPage() {
               })}
             </div>
 
-            {/* Bottom Cross Grid Texture */}
-            <div 
-              className="h-20 w-full border-t border-white/10 relative overflow-hidden bg-[#0A0D12]"
-              style={{
-                backgroundImage: crossGridPattern,
-                backgroundSize: '32px 32px',
-              }}
-            />
           </div>
         </ScrollReveal>
 
         {/* 3. The Connected Workflow Section */}
         <ScrollReveal id="workflow" className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-10 scroll-mt-24">
           <div className="max-w-3xl mx-auto text-center space-y-3">
-            <Badge variant="secondary" className="px-3 py-1 text-xs font-semibold text-slate-800 bg-slate-200/70 border-0 rounded-full">
-              System Architecture
-            </Badge>
+
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-950 font-display">
               A connected workflow from work to approval
             </h2>
@@ -963,45 +908,37 @@ export function LandingPage() {
               const StepIcon = step.icon;
               return (
                 <ScrollCard key={step.title} delay={idx * 60} className="h-full">
-                  <Card className="h-full relative bg-white border-slate-200/90 rounded-2xl shadow-xs hover:border-[#27F087]/60 hover:shadow-md hover:-translate-y-1.5 transition-all duration-300 group">
-                    <CardHeader className="p-5 space-y-2.5">
+                  <Card className="h-full relative bg-white border-slate-200/90 rounded-[14px] shadow-xs hover:border-[#27F087] transition-colors duration-300 group">
+                    <div className="p-5 space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-extrabold text-[#217046] tracking-wider font-mono">
+                        <span className="text-xs font-extrabold text-[#217046] tracking-[0.1em] font-sans uppercase">
                           STEP {step.step}
                         </span>
-                        <div className="p-2 rounded-lg bg-slate-100 text-slate-800 group-hover:bg-[#27F087] group-hover:text-slate-950 group-hover:scale-105 transition-all duration-300">
+                        <div className="p-2 rounded-lg bg-slate-100 text-slate-800 group-hover:bg-[#27F087] group-hover:text-slate-950 transition-colors duration-300">
                           <StepIcon className="w-4 h-4" />
                         </div>
                       </div>
-                      <CardTitle className="text-base font-bold text-slate-950 pt-1 font-display">
+                      <h3 className="text-base font-bold text-slate-950 pt-1 font-display">
                         {step.title}
-                      </CardTitle>
+                      </h3>
                       <p className="text-xs text-slate-500 font-normal leading-relaxed">
                         {step.summary}
                       </p>
-                    </CardHeader>
+                    </div>
                   </Card>
                 </ScrollCard>
               );
             })}
           </div>
 
-          <div className="text-center pt-2">
-            <div className="inline-flex items-center p-2.5 px-4 rounded-xl bg-slate-100 border border-slate-200/80">
-              <p className="text-xs font-mono text-slate-600 max-w-3xl mx-auto">
-                Organization → Employee & Team → Project → Task & Activity → Time Entry → Weekly Timesheet → Manager Approval → Reporting
-              </p>
-            </div>
-          </div>
+
         </ScrollReveal>
 
         {/* 4. Role-Based Content */}
         <ScrollReveal id="roles" className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto scroll-mt-24">
-          <div className="p-8 sm:p-12 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-8">
+          <div className="p-8 sm:p-12 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-8">
             <div className="max-w-3xl space-y-2">
-              <Badge variant="secondary" className="px-3 py-1 text-xs font-semibold text-slate-800 bg-slate-100 border-0 rounded-full">
-                Role Architecture
-              </Badge>
+
               <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-950 font-display">
                 Designed around the responsibilities of each role
               </h2>
@@ -1015,15 +952,13 @@ export function LandingPage() {
                 const ItemIcon = item.icon;
                 return (
                   <ScrollCard key={item.role} delay={idx * 110} className="h-full">
-                    <div className="h-full p-6 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-5 flex flex-col justify-between hover:bg-white hover:border-slate-300 hover:shadow-lg hover:-translate-y-1.5 transition-all duration-300 group">
+                    <div className="h-full p-6 rounded-[14px] bg-slate-50/80 border border-slate-200/80 space-y-5 flex flex-col justify-between hover:bg-white hover:border-slate-300 transition-colors duration-300 group">
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.badgeColor} group-hover:scale-105 transition-transform duration-300`}>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.badgeColor}`}>
                             <ItemIcon className="w-5 h-5" />
                           </div>
-                          <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600">
-                            {item.scope}
-                          </span>
+
                         </div>
                         <h3 className="text-xl font-bold text-slate-950 font-display">{item.role}</h3>
                         <p className="text-sm text-slate-600 leading-relaxed">{item.description}</p>
@@ -1049,9 +984,7 @@ export function LandingPage() {
         <ScrollReveal id="time-tracking" className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto scroll-mt-24">
           <div className="rounded-3xl sm:rounded-[2.5rem] bg-[#12161F] border border-white/10 shadow-2xl overflow-hidden text-white p-8 sm:p-12 md:p-16 space-y-8">
             <div className="max-w-3xl space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-[#27F087] border border-[#27F087]/20">
-                <span>Data Hierarchy</span>
-              </div>
+
               <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-white leading-tight font-display">
                 Track time against the work that matters
               </h2>
@@ -1063,56 +996,36 @@ export function LandingPage() {
             {/* Visual Model Display: Project → Task → Activity */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
               <ScrollCard delay={0}>
-                <div className="p-5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-2 hover:bg-white/[0.08] hover:border-[#27F087]/40 hover:-translate-y-1.5 transition-all duration-300">
-                  <span className="text-xs font-semibold text-[#27F087] uppercase tracking-wider font-mono">Level 1</span>
+                <div className="p-5 rounded-[14px] bg-white/[0.04] border border-white/10 space-y-2 hover:bg-white/[0.08] hover:border-[#27F087]/40 transition-colors duration-300">
                   <h4 className="text-lg font-bold text-white font-display">Project</h4>
                   <p className="text-xs text-slate-400">The overall initiative or client engagement (e.g. Workforce Platform).</p>
                 </div>
               </ScrollCard>
 
               <ScrollCard delay={100}>
-                <div className="p-5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-2 hover:bg-white/[0.08] hover:border-amber-400/40 hover:-translate-y-1.5 transition-all duration-300">
-                  <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider font-mono">Level 2</span>
+                <div className="p-5 rounded-[14px] bg-white/[0.04] border border-white/10 space-y-2 hover:bg-white/[0.08] hover:border-amber-400/40 transition-colors duration-300">
                   <h4 className="text-lg font-bold text-white font-display">Task</h4>
                   <p className="text-xs text-slate-400">The specific feature or deliverable being built (e.g. Timesheet & Daily Logging).</p>
                 </div>
               </ScrollCard>
 
               <ScrollCard delay={200}>
-                <div className="p-5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-2 hover:bg-white/[0.08] hover:border-blue-400/40 hover:-translate-y-1.5 transition-all duration-300">
-                  <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider font-mono">Level 3</span>
+                <div className="p-5 rounded-[14px] bg-white/[0.04] border border-white/10 space-y-2 hover:bg-white/[0.08] hover:border-blue-400/40 transition-colors duration-300">
                   <h4 className="text-lg font-bold text-white font-display">Activity</h4>
                   <p className="text-xs text-slate-400">The operational nature of the time spent (e.g. Development, Testing, Code Review).</p>
                 </div>
               </ScrollCard>
             </div>
 
-            {/* Authentic Cascading Attribution Preview */}
-            <ScrollCard delay={250}>
-              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3 hover:border-white/20 transition-all duration-300">
-                <div className="flex items-center justify-between text-xs text-slate-400 pb-2 border-b border-white/10">
-                  <span className="font-mono text-[11px] text-[#27F087] font-semibold uppercase">Structured Time Log Preview</span>
-                  <span>Single Entry • Mon–Fri Allocation</span>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="px-2.5 py-1 rounded-md bg-white/10 text-white font-medium">Project: Sify Workforce</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="px-2.5 py-1 rounded-md bg-white/10 text-white font-medium">Task: Timesheet & Daily Logging</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="px-2.5 py-1 rounded-md bg-[#27F087]/20 text-[#27F087] font-semibold border border-[#27F087]/30">Activity: Development (8.0h)</span>
-                </div>
-              </div>
-            </ScrollCard>
+
           </div>
         </ScrollReveal>
 
         {/* 6. Timesheet Section (Status Cycles) */}
         <ScrollReveal id="timesheets" className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto scroll-mt-24">
-          <div className="p-8 sm:p-12 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-8">
+          <div className="p-8 sm:p-12 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-8">
             <div className="max-w-3xl space-y-3">
-              <Badge variant="secondary" className="px-3 py-1 text-xs font-semibold text-slate-800 bg-slate-100 border-0 rounded-full">
-                Review Lifecycle
-              </Badge>
+
               <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-950 font-display">
                 From daily entries to weekly approval
               </h2>
@@ -1124,16 +1037,9 @@ export function LandingPage() {
             {/* Visual Cycles */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
               {/* Approval Flow */}
-              <ScrollCard delay={0}>
-                <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 hover:bg-white hover:border-slate-300 hover:shadow-md hover:-translate-y-1.5 transition-all duration-300">
+              <ScrollCard delay={0} className="h-full">
+                <div className="h-full p-6 rounded-[14px] bg-slate-50 border border-slate-200 space-y-4 hover:bg-white hover:border-slate-300 transition-colors duration-300">
                   <h3 className="text-base font-bold text-slate-900 font-display">Standard Approval Cycle</h3>
-                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap text-sm font-medium">
-                    <span className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-800">Draft</span>
-                    <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="px-3 py-1.5 rounded-lg bg-blue-100 text-blue-800">Submitted</span>
-                    <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 font-semibold">Approved</span>
-                  </div>
                   <p className="text-xs text-slate-500 leading-relaxed">
                     Timesheets lock upon submission, ensuring manager review reflects frozen data.
                   </p>
@@ -1141,19 +1047,9 @@ export function LandingPage() {
               </ScrollCard>
 
               {/* Revision Flow */}
-              <ScrollCard delay={120}>
-                <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 hover:bg-white hover:border-slate-300 hover:shadow-md hover:-translate-y-1.5 transition-all duration-300">
+              <ScrollCard delay={120} className="h-full">
+                <div className="h-full p-6 rounded-[14px] bg-slate-50 border border-slate-200 space-y-4 hover:bg-white hover:border-slate-300 transition-colors duration-300">
                   <h3 className="text-base font-bold text-slate-900 font-display">Correction & Resubmission Cycle</h3>
-                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap text-sm font-medium">
-                    <span className="px-3 py-1.5 rounded-lg bg-blue-100 text-blue-800">Submitted</span>
-                    <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="px-3 py-1.5 rounded-lg bg-red-100 text-red-800">Rejected</span>
-                    <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800 font-semibold flex items-center gap-1">
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      Resubmit
-                    </span>
-                  </div>
                   <p className="text-xs text-slate-500 leading-relaxed">
                     Rejection requires mandatory notes, allowing quick employee correction and resubmission.
                   </p>
@@ -1165,11 +1061,9 @@ export function LandingPage() {
 
         {/* 7. Reporting Section (5 Actual Reports) */}
         <ScrollReveal id="reports" className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto scroll-mt-24">
-          <div className="p-8 sm:p-12 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-8">
+          <div className="p-8 sm:p-12 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-8">
             <div className="max-w-3xl space-y-3">
-              <Badge variant="secondary" className="px-3 py-1 text-xs font-semibold text-slate-800 bg-slate-100 border-0 rounded-full">
-                Operational Intelligence
-              </Badge>
+
               <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-950 font-display">
                 Visibility across employees, teams and projects
               </h2>
@@ -1178,19 +1072,17 @@ export function LandingPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+            <div className="flex flex-wrap justify-center gap-4 pt-2">
               {reportsList.map((rep, idx) => {
                 const RepIcon = rep.icon;
                 return (
-                  <ScrollCard key={rep.name} delay={idx * 75} className="h-full">
-                    <div className="h-full p-5 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-3 hover:bg-white hover:border-slate-300 hover:shadow-md hover:-translate-y-1.5 transition-all duration-300 group">
+                  <ScrollCard key={rep.name} delay={idx * 75} className="w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.67rem)]">
+                    <div className="h-full p-5 rounded-[14px] bg-slate-50/80 border border-slate-200 space-y-3 hover:bg-white hover:border-slate-300 transition-colors duration-300 group">
                       <div className="flex items-center justify-between">
-                        <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-800 shadow-2xs group-hover:scale-105 transition-transform duration-300">
+                        <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-800 shadow-2xs">
                           <RepIcon className="w-4 h-4" />
                         </div>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white border border-slate-200/90 text-slate-600">
-                          {rep.metricType}
-                        </span>
+
                       </div>
                       <div className="space-y-1">
                         <h3 className="text-base font-bold text-slate-950 font-display">{rep.name}</h3>
@@ -1208,9 +1100,7 @@ export function LandingPage() {
         <ScrollReveal className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
           <div className="rounded-3xl sm:rounded-[2.5rem] bg-[#12161F] border border-white/10 shadow-2xl overflow-hidden text-white p-8 sm:p-12 md:p-16 space-y-8">
             <div className="max-w-3xl space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-[#27F087] border border-[#27F087]/20">
-                <span>Multi-Tenant Governance</span>
-              </div>
+
               <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-white leading-tight font-display">
                 Access aligned with responsibility
               </h2>
@@ -1221,8 +1111,7 @@ export function LandingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
               <ScrollCard delay={0}>
-                <div className="p-6 rounded-2xl bg-white/[0.04] border border-white/10 space-y-3 hover:bg-white/[0.08] hover:border-amber-400/40 hover:-translate-y-1.5 transition-all duration-300">
-                  <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider font-mono">Tier 1</span>
+                <div className="p-6 rounded-[14px] bg-white/[0.04] border border-white/10 space-y-3 hover:bg-white/[0.08] hover:border-amber-400/40 transition-colors duration-300">
                   <h4 className="text-xl font-bold text-white font-display">Admin</h4>
                   <p className="text-sm text-slate-300">Organization-wide management</p>
                   <div className="pt-2 border-t border-white/10 text-xs text-slate-400">
@@ -1232,8 +1121,7 @@ export function LandingPage() {
               </ScrollCard>
 
               <ScrollCard delay={110}>
-                <div className="p-6 rounded-2xl bg-white/[0.04] border border-white/10 space-y-3 hover:bg-white/[0.08] hover:border-blue-400/40 hover:-translate-y-1.5 transition-all duration-300">
-                  <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider font-mono">Tier 2</span>
+                <div className="p-6 rounded-[14px] bg-white/[0.04] border border-white/10 space-y-3 hover:bg-white/[0.08] hover:border-blue-400/40 transition-colors duration-300">
                   <h4 className="text-xl font-bold text-white font-display">Manager</h4>
                   <p className="text-sm text-slate-300">Managed-team workflows</p>
                   <div className="pt-2 border-t border-white/10 text-xs text-slate-400">
@@ -1243,8 +1131,7 @@ export function LandingPage() {
               </ScrollCard>
 
               <ScrollCard delay={220}>
-                <div className="p-6 rounded-2xl bg-white/[0.04] border border-white/10 space-y-3 hover:bg-white/[0.08] hover:border-[#27F087]/40 hover:-translate-y-1.5 transition-all duration-300">
-                  <span className="text-xs font-semibold text-[#27F087] uppercase tracking-wider font-mono">Tier 3</span>
+                <div className="p-6 rounded-[14px] bg-white/[0.04] border border-white/10 space-y-3 hover:bg-white/[0.08] hover:border-[#27F087]/40 transition-colors duration-300">
                   <h4 className="text-xl font-bold text-white font-display">Employee</h4>
                   <p className="text-sm text-slate-300">Personal work and timesheets</p>
                   <div className="pt-2 border-t border-white/10 text-xs text-slate-400">
@@ -1258,28 +1145,26 @@ export function LandingPage() {
 
         {/* 9. Final CTA */}
         <ScrollReveal className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-8">
-          <div className="relative overflow-hidden rounded-3xl p-8 sm:p-14 md:p-16 bg-gradient-to-br from-[#8EFDB9] via-[#78F9AC] to-[#6EF7A4] text-slate-950 shadow-[0_25px_60px_-15px_rgba(39,240,135,0.35)] border border-[#78F9AC] text-center space-y-6">
-            {/* Subtle Specular Radial Sheen */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/35 via-transparent to-transparent pointer-events-none" />
+          <div className="relative overflow-hidden rounded-3xl p-8 sm:p-14 md:p-16 bg-[#27F087] text-slate-950 text-center space-y-6 cta-selection">
             
             <div className="relative z-10 space-y-4 max-w-2xl mx-auto">
               <h2 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-950 leading-[1.12] font-display">
                 Bring people, projects and time together.
               </h2>
-              <p className="text-base sm:text-lg text-slate-800/90 font-medium max-w-xl mx-auto leading-relaxed">
+              <p className="text-base sm:text-lg text-slate-800 font-medium max-w-xl mx-auto leading-relaxed">
                 Manage workforce operations through one structured workflow for work, time tracking and timesheet approval.
               </p>
             </div>
 
             <div className="relative z-10 pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link to="/register" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto rounded-full bg-slate-950 text-white hover:bg-slate-900 text-base px-8 h-12 font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all">
+                <Button size="lg" className="w-full sm:w-auto rounded-full bg-slate-950 text-white hover:bg-slate-800 text-base px-8 h-10 font-medium shadow-xs transition-transform active:scale-98">
                   Get Started
                   <ArrowRight className="w-4 h-4 ml-1.5" />
                 </Button>
               </Link>
               <Link to="/login" className="w-full sm:w-auto">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto rounded-full bg-white/95 border-slate-950/10 text-slate-950 hover:bg-white text-base px-8 h-12 font-semibold shadow-xs hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all">
+                <Button variant="outline" size="lg" className="w-full sm:w-auto rounded-full bg-white border-transparent text-slate-950 hover:bg-white/90 text-base px-7 h-10 font-medium shadow-xs transition-transform active:scale-98">
                   Log In
                 </Button>
               </Link>
@@ -1289,147 +1174,61 @@ export function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200/90 mt-16 sm:mt-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12">
-          {/* Main Footer Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8 lg:gap-10">
-            {/* Col 1 & 2: Brand Information */}
-            <div className="col-span-2 space-y-4">
-              <Link to="/" className="flex items-center gap-2.5 focus-visible:outline-none rounded-md group">
-                <div className="w-8 h-8 rounded-lg bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-sm shadow-xs transition-transform group-hover:scale-105">
+      <footer className="bg-white border-t border-slate-200/90 pt-16 pb-8">
+        <div className="w-full px-6 sm:px-10 lg:px-16 xl:px-24">
+          <div className="flex flex-col lg:flex-row justify-between gap-12 mb-16">
+            <div className="lg:w-1/3 space-y-6">
+              <Link to="/" className="flex items-center gap-2 focus-visible:outline-none rounded-md group inline-flex">
+                <div className="w-7 h-7 rounded-md bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-[11px] shadow-xs transition-transform group-hover:scale-105">
                   SW
                 </div>
-                <span className="text-xl font-bold text-slate-950 tracking-tight font-display">Sify Workforce</span>
+                <span className="text-lg font-bold text-slate-950 tracking-tight font-display">Sify Workforce</span>
               </Link>
-              <p className="text-sm text-slate-600 leading-relaxed max-w-sm">
-                Enterprise workforce operations platform connecting people, projects, daily time tracking, and weekly timesheet approval lifecycles into one structured workspace.
+              <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
+                Bring people, projects and time together. The complete operating system for modern workforce management and professional services.
               </p>
-              
-              {/* System Status Pill */}
-              <div className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200/90 text-xs text-slate-700">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="font-medium text-slate-900">All Systems Operational</span>
-                <span className="text-slate-300">•</span>
-                <span className="text-slate-500 font-mono text-[11px]">SOC 2 Ready</span>
+            </div>
+
+            <div className="flex flex-wrap lg:flex-nowrap gap-12 md:gap-16 xl:gap-24 lg:justify-end flex-1">
+              <div className="space-y-4">
+                <h4 className="text-[13px] font-bold text-slate-950">Product</h4>
+                <ul className="space-y-3">
+                  <li><a href="#" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">Features</a></li>
+                  <li><a href="#" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">Integrations</a></li>
+                  <li><a href="#" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">Pricing</a></li>
+                  <li><a href="#" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">Changelog</a></li>
+                </ul>
               </div>
-            </div>
 
-            {/* Col 3: Platform */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-950 font-mono">Platform</h4>
-              <ul className="space-y-2.5 text-sm text-slate-600">
-                <li>
-                  <a href="#product" className="hover:text-slate-950 transition-colors">Platform Overview</a>
-                </li>
-                <li>
-                  <a href="#workflow" className="hover:text-slate-950 transition-colors">System Architecture</a>
-                </li>
-                <li>
-                  <a href="#roles" className="hover:text-slate-950 transition-colors">Role Scopes</a>
-                </li>
-                <li>
-                  <a href="#time-tracking" className="hover:text-slate-950 transition-colors">Time Logging</a>
-                </li>
-                <li>
-                  <a href="#timesheets" className="hover:text-slate-950 transition-colors">Weekly Timesheets</a>
-                </li>
-                <li>
-                  <a href="#reports" className="hover:text-slate-950 transition-colors">Operational Analytics</a>
-                </li>
-              </ul>
-            </div>
+              <div className="space-y-4">
+                <h4 className="text-[13px] font-bold text-slate-950">Resources</h4>
+                <ul className="space-y-3">
+                  <li><a href="#" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">Documentation</a></li>
+                  <li><a href="#" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">API Reference</a></li>
+                  <li><a href="#" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">Community</a></li>
+                  <li><a href="#" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">Blog</a></li>
+                </ul>
+              </div>
 
-            {/* Col 4: Workspaces */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-950 font-mono">Workspaces</h4>
-              <ul className="space-y-2.5 text-sm text-slate-600">
-                <li>
-                  <Link to="/employee" className="hover:text-slate-950 transition-colors">Employee Portal</Link>
-                </li>
-                <li>
-                  <Link to="/manager" className="hover:text-slate-950 transition-colors">Manager Approvals</Link>
-                </li>
-                <li>
-                  <Link to="/admin" className="hover:text-slate-950 transition-colors">Admin Governance</Link>
-                </li>
-                <li>
-                  <Link to="/timesheets" className="hover:text-slate-950 transition-colors">Timesheet Submissions</Link>
-                </li>
-                <li>
-                  <Link to="/projects" className="hover:text-slate-950 transition-colors">Project Workspaces</Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Col 5: Intelligence */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-950 font-mono">Intelligence</h4>
-              <ul className="space-y-2.5 text-sm text-slate-600">
-                <li>
-                  <a href="#reports" className="hover:text-slate-950 transition-colors">Employee Summary Breakdown</a>
-                </li>
-                <li>
-                  <a href="#reports" className="hover:text-slate-950 transition-colors">Team Utilization Metrics</a>
-                </li>
-                <li>
-                  <a href="#reports" className="hover:text-slate-950 transition-colors">Project Hours Allocation</a>
-                </li>
-                <li>
-                  <a href="#reports" className="hover:text-slate-950 transition-colors">Project Trend Analysis</a>
-                </li>
-                <li>
-                  <a href="#timesheets" className="hover:text-slate-950 transition-colors">Approval Audit Trail</a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Col 6: Access */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-950 font-mono">Access</h4>
-              <ul className="space-y-2.5 text-sm text-slate-600">
-                {isAuthenticated ? (
-                  <>
-                    <li>
-                      <Link to="/dashboard" className="font-medium text-slate-950 hover:text-emerald-600 transition-colors">Go to Dashboard</Link>
-                    </li>
-                    <li>
-                      <Link to="/profile" className="hover:text-slate-950 transition-colors">Profile Settings</Link>
-                    </li>
-                  </>
-                ) : (
-                  <>
-                    <li>
-                      <Link to="/login" className="hover:text-slate-950 transition-colors">Sign In</Link>
-                    </li>
-                    <li>
-                      <Link to="/register" className="hover:text-slate-950 transition-colors">Create Account</Link>
-                    </li>
-                  </>
-                )}
-                <li>
-                  <Link to="/login" className="hover:text-slate-950 transition-colors">Manager Access</Link>
-                </li>
-                <li>
-                  <Link to="/login" className="hover:text-slate-950 transition-colors">Admin Console</Link>
-                </li>
-              </ul>
+              <div className="space-y-4">
+                <h4 className="text-[13px] font-bold text-slate-950">Company</h4>
+                <ul className="space-y-3">
+                  <li><a href="#" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">About Us</a></li>
+                  <li><a href="#" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">Careers</a></li>
+                  <li><a href="#" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">Contact</a></li>
+                  <li><a href="#" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">Partners</a></li>
+                </ul>
+              </div>
             </div>
           </div>
 
-          {/* Bottom Bar: Copyright, Legal & Compliance */}
-          <div className="border-t border-slate-200/80 pt-8 mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-            <p>
-              &copy; 2026 Sify Workforce. All rights reserved.
-            </p>
-            <div className="flex flex-wrap items-center gap-6">
-              <span className="hover:text-slate-800 transition-colors cursor-pointer">Privacy Policy</span>
-              <span className="hover:text-slate-800 transition-colors cursor-pointer">Terms of Service</span>
-              <span className="hover:text-slate-800 transition-colors cursor-pointer">Security & Compliance</span>
-              <span className="font-mono text-slate-400">v2.4 Enterprise Edition</span>
+          <div className="pt-8 border-t border-slate-200/80 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4 text-xs text-slate-500 font-medium">
+              <span className="hover:text-slate-900 transition-colors cursor-pointer">Privacy Policy</span>
+              <span className="hover:text-slate-900 transition-colors cursor-pointer">Terms of Service</span>
+              <span className="hover:text-slate-900 transition-colors cursor-pointer">Security</span>
             </div>
+            <p className="text-[11px] text-slate-500 font-medium">&copy; {new Date().getFullYear()} Sify Workforce. All rights reserved.</p>
           </div>
         </div>
       </footer>

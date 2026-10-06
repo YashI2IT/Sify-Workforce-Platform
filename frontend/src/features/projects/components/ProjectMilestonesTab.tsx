@@ -32,13 +32,13 @@ export const ProjectMilestonesTab = ({
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-slate-900 font-display">Project Milestones</h3>
-          <p className="text-xs text-slate-500 font-mono mt-0.5">High-level phase markers and target dates.</p>
+          <h3 className="text-base font-bold text-slate-900 font-sans tracking-tight">Project Milestones</h3>
+          <p className="text-xs text-slate-500 font-sans mt-0.5">High-level phase markers and target dates.</p>
         </div>
         {isAdmin && projectIsActive && (
           <button
             onClick={onAdd}
-            className="inline-flex items-center gap-2 bg-slate-950 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl font-medium text-xs sm:text-sm shadow-xs transition-all cursor-pointer active:scale-95"
+            className="inline-flex items-center gap-2 bg-[#12161F] hover:bg-slate-800 text-white px-5 py-2 rounded-full font-bold text-xs shadow-xs transition-all duration-200 active:scale-[0.97] cursor-pointer font-sans"
           >
             <Plus className="w-4 h-4" /> Add Milestone
           </button>
@@ -46,7 +46,7 @@ export const ProjectMilestonesTab = ({
       </div>
 
       {sortedMilestones.length === 0 ? (
-        <div className="py-16 text-center text-slate-500 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+        <div className="py-16 text-center text-slate-500 border border-dashed border-slate-200 rounded-[14px] bg-slate-50/50">
           <MapPin className="w-10 h-10 mx-auto text-slate-300 mb-2" />
           <p className="text-sm font-bold text-slate-800 font-display">No milestones defined yet</p>
           <p className="text-xs text-slate-400 mt-1">
@@ -59,7 +59,7 @@ export const ProjectMilestonesTab = ({
           <div className="absolute left-[27px] top-[24px] bottom-[24px] w-0.5 bg-slate-200/80 z-0 hidden sm:block"></div>
           
           {sortedMilestones.map((m) => (
-            <div key={m.id} className="relative z-10 flex flex-col sm:flex-row items-start gap-4 p-4 sm:p-0 bg-white sm:bg-transparent border border-slate-200/80 sm:border-none rounded-2xl sm:rounded-none shadow-2xs sm:shadow-none">
+            <div key={m.id} className="relative z-10 flex flex-col sm:flex-row items-start gap-4 p-4 sm:p-0 bg-white sm:bg-transparent border border-slate-200/80 sm:border-none rounded-[14px] sm:rounded-none shadow-2xs sm:shadow-none">
               <div className="hidden sm:flex shrink-0 items-center justify-center w-[56px] h-[56px]">
                  <div className={`w-4 h-4 rounded-full border-2 ${
                     m.status === 'ACHIEVED' ? 'bg-emerald-500 border-emerald-200' :
@@ -68,7 +68,7 @@ export const ProjectMilestonesTab = ({
                     'bg-slate-300 border-slate-100'
                  }`}></div>
               </div>
-              <div className="flex-1 bg-white sm:border border-slate-200/80 sm:rounded-2xl sm:shadow-2xs p-0 sm:p-4 hover:bg-slate-50/70 transition-colors flex items-start justify-between gap-4">
+              <div className="flex-1 bg-white sm:border border-slate-200/80 sm:rounded-[14px] sm:shadow-2xs p-0 sm:p-4 hover:bg-slate-50/70 transition-colors flex items-start justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <h4 className="text-sm font-bold text-slate-900 font-display">{m.name}</h4>

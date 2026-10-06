@@ -184,8 +184,26 @@ export class AssignmentsService {
       throw new NotFoundException('Project not found');
     }
 
-    // Fetch all active employees in organization
-    const orgEmployees = await db.orm.public.Employee.where({ organizationId: auth.organizationId, isActive: true }).all();
+    const isManagerOnly = !auth.roles.includes('ADMIN') && auth.roles.includes('MANAGER');
+    let orgEmployees: any[] = [];
+    
+    if (isManagerOnly) {
+      const managedTeams = await db.orm.public.Team.where({ organizationId: auth.organizationId, managerId: auth.employeeId }).all();
+      const managedTeamIds = managedTeams.map(t => t.id);
+
+      if (managedTeamIds.length > 0) {
+        orgEmployees = await db.orm.public.Employee.where({ organizationId: auth.organizationId, isActive: true })
+          .where(e => (e as any).teamId.in(managedTeamIds))
+          .all();
+      }
+      
+      const managerSelf = await db.orm.public.Employee.where({ id: auth.employeeId, organizationId: auth.organizationId, isActive: true }).first();
+      if (managerSelf && !orgEmployees.find(e => e.id === managerSelf.id)) {
+        orgEmployees.push(managerSelf);
+      }
+    } else {
+      orgEmployees = await db.orm.public.Employee.where({ organizationId: auth.organizationId, isActive: true }).all();
+    }
 
     // Fetch existing assignments
     const assignments = await db.orm.public.EmployeeProject.where({ projectId }).all();

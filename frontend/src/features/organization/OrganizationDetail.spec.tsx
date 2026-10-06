@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '../../test-utils';
+import { render, screen, waitFor, fireEvent } from '../../test-utils';
 import '@testing-library/jest-dom';
 import { OrganizationDetail } from './OrganizationDetail';
 import { MemoryRouter } from 'react-router-dom';
@@ -12,7 +12,7 @@ vi.mock('../../services/authService', () => ({
   },
 }));
 
-describe('OrganizationDetail (Setup Dashboard)', () => {
+describe('OrganizationDetail (Edit Profile)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -25,21 +25,18 @@ describe('OrganizationDetail (Setup Dashboard)', () => {
     );
   };
 
-  it('renders admin dashboard with checklist and stats for new org', async () => {
+  it('renders edit profile form with organization data for admin', async () => {
     vi.mocked(authService.bootstrap).mockResolvedValue({
       roles: ['ADMIN'],
       authenticated: true,
       onboardingRequired: false,
-      employee: { id: 'emp1' } as any,
+      employee: { id: 'emp1', role: 'ADMIN' } as any,
       organization: { id: 'org1' } as any,
     });
 
     vi.spyOn(apiClientModule, 'apiClient').mockImplementation(async (url: string) => {
       if (url === '/organizations/current') {
-        return { name: 'My Org', organizationType: 'TECHNOLOGY', description: 'desc' };
-      }
-      if (url === '/organizations/current/setup-status') {
-        return { data: { hasEmployees: true, hasTeams: false, hasRoles: false, hasManagers: false } };
+        return { name: 'My Org', organizationType: 'TECHNOLOGY', description: 'Tech company description' };
       }
       return null;
     });
@@ -49,14 +46,15 @@ describe('OrganizationDetail (Setup Dashboard)', () => {
     (expect(screen.getByText(/Loading organization.../i)) as any).toBeInTheDocument();
 
     await waitFor(() => {
-      (expect(screen.getByText('My Org')) as any).toBeInTheDocument();
-      // Admin should see setup actions
-      (expect(screen.getByText('You are the Organization Admin')) as any).toBeInTheDocument();
-      (expect(screen.getByText('Setup Actions')) as any).toBeInTheDocument();
+      (expect(screen.getByRole('heading', { name: /Edit Profile/i })) as any).toBeInTheDocument();
+      const nameInput = screen.getByLabelText(/Organization Name/i) as HTMLInputElement;
+      (expect(nameInput.value) as any).toBe('My Org');
+      (expect(nameInput) as any).not.toBeDisabled();
+      (expect(screen.getByText('Save Changes')) as any).toBeInTheDocument();
     });
   });
 
-  it('hides setup actions for non-admin users', async () => {
+  it('disables input fields and hides save button for non-admin users', async () => {
     vi.mocked(authService.bootstrap).mockResolvedValue({
       roles: ['EMPLOYEE'],
       authenticated: true,
@@ -67,18 +65,57 @@ describe('OrganizationDetail (Setup Dashboard)', () => {
 
     vi.spyOn(apiClientModule, 'apiClient').mockImplementation(async (url: string) => {
       if (url === '/organizations/current') {
-        return { name: 'My Org', organizationType: 'TECHNOLOGY', description: 'desc' };
+        return { name: 'My Org', organizationType: 'TECHNOLOGY', description: 'Tech company description' };
       }
-      return { data: [], meta: { total: 0 } };
+      return null;
     });
 
     renderComponent();
 
     await waitFor(() => {
-      (expect(screen.getByText('My Org')) as any).toBeInTheDocument();
-      // Non-admin should NOT see setup actions or admin indicator
-      (expect(screen.queryByText('You are the Organization Admin')) as any).not.toBeInTheDocument();
-      (expect(screen.queryByText('Setup Actions')) as any).not.toBeInTheDocument();
+      (expect(screen.getByRole('heading', { name: /Edit Profile/i })) as any).toBeInTheDocument();
+      const nameInput = screen.getByLabelText(/Organization Name/i) as HTMLInputElement;
+      (expect(nameInput) as any).toBeDisabled();
+      (expect(screen.queryByText('Save Changes')) as any).not.toBeInTheDocument();
+    });
+  });
+
+  it('allows admin to submit changes to organization details', async () => {
+    vi.mocked(authService.bootstrap).mockResolvedValue({
+      roles: ['ADMIN'],
+      authenticated: true,
+      onboardingRequired: false,
+      employee: { id: 'emp1', role: 'ADMIN' } as any,
+      organization: { id: 'org1' } as any,
+    });
+
+    const mockApiClient = vi.spyOn(apiClientModule, 'apiClient').mockImplementation(async (url: string, options?: any) => {
+      if (url === '/organizations/current' && !options) {
+        return { name: 'My Org', organizationType: 'TECHNOLOGY', description: 'Tech company description' };
+      }
+      if (url === '/organizations/current' && options?.method === 'PATCH') {
+        return { name: 'Updated Org', organizationType: 'FINANCE', description: 'Updated description' };
+      }
+      return null;
+    });
+
+    renderComponent();
+
+    await waitFor(() => {
+      (expect(screen.getByText('Save Changes')) as any).toBeInTheDocument();
+    });
+
+    const nameInput = screen.getByLabelText(/Organization Name/i);
+    fireEvent.change(nameInput, { target: { value: 'Updated Org' } });
+
+    const saveButton = screen.getByRole('button', { name: /Save Changes/i });
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(mockApiClient).toHaveBeenCalledWith('/organizations/current', expect.objectContaining({
+        method: 'PATCH',
+      }));
+      (expect(screen.getByText(/Organization details updated successfully/i)) as any).toBeInTheDocument();
     });
   });
 });

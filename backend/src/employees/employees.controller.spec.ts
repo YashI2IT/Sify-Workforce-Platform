@@ -49,14 +49,14 @@ describe('EmployeesController', () => {
       expect(roles).toEqual(['ADMIN', 'MANAGER']);
     });
 
-    it('POST /employees is restricted to ADMIN only', () => {
+    it('POST /employees is restricted to ADMIN and MANAGER', () => {
       const roles = Reflect.getMetadata(ROLES_KEY, controller.create);
-      expect(roles).toEqual(['ADMIN']);
+      expect(roles).toEqual(['ADMIN', 'MANAGER']);
     });
 
-    it('PATCH /employees/:id is restricted to ADMIN only', () => {
+    it('PATCH /employees/:id is restricted to ADMIN and MANAGER', () => {
       const roles = Reflect.getMetadata(ROLES_KEY, controller.update);
-      expect(roles).toEqual(['ADMIN']);
+      expect(roles).toEqual(['ADMIN', 'MANAGER']);
     });
   });
 

@@ -46,7 +46,7 @@ export const MyProjects = () => {
           <div className="flex items-center gap-3">
             <div>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
+                <h1 className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                   My Projects
                 </h1>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
@@ -62,21 +62,22 @@ export const MyProjects = () => {
 
         {/* Action Controls */}
         <div className="flex items-center gap-2.5 shrink-0">
-          <Button
-            variant="outline"
-            size="icon"
+          <button
             onClick={fetchProjects}
+            className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
             title="Refresh projects"
+            disabled={loading}
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
+            <RefreshCw className={`w-4 h-4 text-slate-500 transition-transform duration-500 group-hover:rotate-180 group-active:rotate-180 ${loading ? 'animate-spin text-slate-900' : ''}`} />
+            <span>Refresh</span>
+          </button>
         </div>
       </div>
 
       {/* Executive Telemetry Row (4 Cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Assigned */}
-        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Assigned Projects
@@ -85,7 +86,7 @@ export const MyProjects = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+              <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                 {loading ? '—' : projects.length}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">initiatives</span>
@@ -98,7 +99,7 @@ export const MyProjects = () => {
         </div>
 
         {/* Card 2: Active Initiatives */}
-        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Active Workspaces
@@ -107,7 +108,7 @@ export const MyProjects = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+              <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                 {loading ? '—' : activeProjects.length}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">active</span>
@@ -123,7 +124,7 @@ export const MyProjects = () => {
         </div>
 
         {/* Card 3: Inactive / On Hold */}
-        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Inactive Initiatives
@@ -132,7 +133,7 @@ export const MyProjects = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+              <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                 {loading ? '—' : inactiveProjects.length}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">archived</span>
@@ -148,7 +149,7 @@ export const MyProjects = () => {
         </div>
 
         {/* Card 4: Vitality Ratio */}
-        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Allocation Vitality
@@ -157,7 +158,7 @@ export const MyProjects = () => {
           </div>
           <div className="my-2.5">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+              <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                 {loading ? '—' : `${activeRate}%`}
               </span>
               <span className="text-xs text-slate-400 font-mono font-medium">in execution</span>
@@ -174,12 +175,12 @@ export const MyProjects = () => {
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-slate-500 space-y-3 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl">
+        <div className="py-20 text-center text-slate-500 space-y-3 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px]">
           <LoadingSpinner size="md" />
           <p className="text-xs font-mono font-medium text-slate-500">Loading your project workspaces...</p>
         </div>
       ) : error ? (
-        <div className="bg-white border border-rose-200 rounded-2xl p-8 text-center space-y-3 shadow-2xs">
+        <div className="bg-white border border-rose-200 rounded-[14px] p-8 text-center space-y-3 shadow-2xs">
           <AlertCircle className="w-8 h-8 mx-auto text-rose-500" />
           <p className="font-semibold text-slate-800">Error loading projects</p>
           <p className="text-sm text-rose-600">{error}</p>
@@ -192,7 +193,7 @@ export const MyProjects = () => {
           </Button>
         </div>
       ) : projects.length === 0 ? (
-        <div className="bg-white border border-slate-200/90 rounded-2xl py-16 px-4 text-center text-slate-500 shadow-2xs">
+        <div className="bg-white border border-slate-200/90 rounded-[14px] py-16 px-4 text-center text-slate-500 shadow-2xs">
           <svg className="w-20 h-20 mx-auto text-slate-300 mb-3" viewBox="0 0 120 120" fill="none">
             <rect x="22" y="26" width="76" height="68" rx="12" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="2" strokeDasharray="4 4" />
             <path d="M40 54H80M40 68H66" stroke="#94A3B8" strokeWidth="3" strokeLinecap="round" />
@@ -217,7 +218,7 @@ export const MyProjects = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {activeProjects.map((p) => (
                   <Link key={p.id} to={`/projects/${p.id}`} className="block group">
-                    <div className="bg-white border border-slate-200/90 rounded-2xl p-5 hover:border-slate-400 hover:shadow-md transition-all duration-200 shadow-2xs h-full flex flex-col justify-between">
+                    <div className="bg-white border border-slate-200/90 rounded-[14px] p-5 hover:border-slate-400 hover:shadow-md transition-all duration-200 shadow-2xs h-full flex flex-col justify-between">
                       <div>
                         <div className="flex items-start justify-between gap-2 mb-3">
                           <div className="w-10 h-10 rounded-xl bg-slate-950 text-white font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-slate-800 shadow-2xs">
@@ -261,7 +262,7 @@ export const MyProjects = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {inactiveProjects.map((p) => (
                   <Link key={p.id} to={`/projects/${p.id}`} className="block group opacity-70 hover:opacity-100 transition-opacity">
-                    <div className="bg-slate-50/60 border border-slate-200/80 rounded-2xl p-5 h-full flex flex-col justify-between">
+                    <div className="bg-slate-50/60 border border-slate-200/80 rounded-[14px] p-5 h-full flex flex-col justify-between">
                       <div>
                         <div className="flex items-start justify-between gap-2 mb-3">
                           <div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-600 font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-slate-300">

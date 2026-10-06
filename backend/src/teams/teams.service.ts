@@ -57,7 +57,6 @@ export class TeamsService {
     if (isManagerOnly && team.managerId !== auth.employeeId) {
       throw new ForbiddenException('You do not have access to this team');
     }
-
     const members = await db.orm.public.Employee.where({ teamId: team.id, organizationId: auth.organizationId, isActive: true }).all();
     return {
       ...team,
@@ -89,7 +88,7 @@ export class TeamsService {
         throw new NotFoundException('Manager not found');
       }
       if (!manager.isActive) {
-        throw new BadRequestException('Manager must be an active employee');
+        throw new BadRequestException('Manager must be active');
       }
       if (manager.organizationId !== scopedOrgId) {
         throw new BadRequestException('Manager must belong to the same organization as the team');
@@ -141,7 +140,7 @@ export class TeamsService {
           throw new NotFoundException('Manager not found');
         }
         if (!manager.isActive) {
-          throw new BadRequestException('Manager must be an active employee');
+          throw new BadRequestException('Manager must be active');
         }
         if (manager.organizationId !== team.organizationId) {
           throw new BadRequestException('Manager must belong to the same organization as the team');

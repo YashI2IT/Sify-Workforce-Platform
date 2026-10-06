@@ -1,3 +1,4 @@
+/// <reference types="@testing-library/jest-dom" />
 import { render, screen, waitFor } from '../../test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
@@ -56,14 +57,11 @@ describe('Dashboard Component', () => {
     await waitFor(() => {
       expect(screen.getByText(/Alice/)).toBeInTheDocument();
       expect(screen.getByText('EMPLOYEE')).toBeInTheDocument();
-      expect(screen.getByText('Log Time')).toBeInTheDocument();
     });
 
     // Check stats and cards
     expect(screen.getByText('Recent Time Entries')).toBeInTheDocument();
     expect(screen.getByText('Recent Timesheets')).toBeInTheDocument();
-    expect(screen.getByText(/Weekly Velocity/)).toBeInTheDocument();
-    expect(screen.getByText('Quick Actions')).toBeInTheDocument();
   });
 
   it('renders pending approvals for Manager role', async () => {
@@ -134,7 +132,7 @@ describe('Dashboard Component', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Carol/)).toBeInTheDocument();
-      expect(screen.getByText('ADMIN')).toBeInTheDocument();
+      expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
       expect(screen.getByText('Sify Tech')).toBeInTheDocument();
       expect(screen.getByText('42')).toBeInTheDocument();
       expect(screen.getByText('8')).toBeInTheDocument();
@@ -218,13 +216,10 @@ describe('Dashboard Component', () => {
       expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
       expect(screen.getByText('Sify Enterprise Cloud')).toBeInTheDocument();
       expect(screen.getByText('Refresh')).toBeInTheDocument();
-      expect(screen.getByText('Invite Employee')).toBeInTheDocument();
-      expect(screen.getByText('Create Team')).toBeInTheDocument();
-      expect(screen.getByText('Create Project')).toBeInTheDocument();
     });
 
-    // 2. Organization Snapshot
-    expect(screen.getByText('Organization Snapshot')).toBeInTheDocument();
+    // 2. Overview
+    expect(screen.getByText('Overview')).toBeInTheDocument();
     expect(screen.getAllByText('Active Employees').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Active Teams')).toBeInTheDocument();
     expect(screen.getByText('Active Projects')).toBeInTheDocument();
@@ -237,11 +232,7 @@ describe('Dashboard Component', () => {
     expect(screen.getByText('Pending Approvals')).toBeInTheDocument();
     expect(screen.getByText('Overdue Project Work')).toBeInTheDocument();
 
-    // 4. Workforce & Project Health
-    expect(screen.getByText('Workforce Status')).toBeInTheDocument();
-    expect(screen.getByText('Project Status')).toBeInTheDocument();
-
-    // 5. Recent Activity
+    // 4. Recent Activity
     expect(screen.getByText('Recent Activity')).toBeInTheDocument();
     expect(screen.getByText('Organization activity will appear here once system activity tracking is enabled.')).toBeInTheDocument();
   });

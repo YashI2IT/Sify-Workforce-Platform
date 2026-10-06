@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { db } from '../prisma/db.js';
+import { Cron } from '@nestjs/schedule';
 import { TimesheetSubmissionsService } from './timesheet-submissions.service.js';
 import { getUtcMonday } from '../common/date.utils.js';
 

@@ -83,11 +83,11 @@ export const SubmissionApprovals: React.FC = () => {
       {/* Header */}
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Timesheet Approvals</h1>
+          <h1 className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">Timesheet Approvals</h1>
           <p className="text-sm text-slate-500 mt-1">Review and approve employee time entry submissions.</p>
         </div>
         <button onClick={() => refetch()} disabled={isFetching} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer disabled:opacity-50">
-          <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-blue-600' : ''}`} />
+          <RefreshCw className={`w-4 h-4 transition-transform duration-500 group-hover:rotate-180 group-active:rotate-180 ${isFetching ? 'animate-spin text-slate-900' : 'text-slate-500'}`} />
         </button>
       </div>
 
@@ -101,11 +101,11 @@ export const SubmissionApprovals: React.FC = () => {
 
       {/* Content */}
       {isLoading ? (
-        <div className="h-48 flex items-center justify-center bg-white border border-slate-200/80 rounded-2xl">
+        <div className="h-48 flex items-center justify-center bg-white border border-slate-200/80 rounded-[14px]">
           <LoadingSpinner size="md" />
         </div>
       ) : submissionList.length === 0 ? (
-        <div className="h-48 flex flex-col items-center justify-center bg-white border border-slate-200/80 rounded-2xl gap-3">
+        <div className="h-48 flex flex-col items-center justify-center bg-white border border-slate-200/80 rounded-[14px] gap-3">
           <CheckCircle2 className="w-10 h-10 text-emerald-400" />
           <p className="text-slate-600 font-semibold">All clear! No pending submissions.</p>
           <p className="text-sm text-slate-400">Submissions from your team members will appear here.</p>
@@ -119,7 +119,7 @@ export const SubmissionApprovals: React.FC = () => {
               : `${sub.weekStart} – ${sub.weekEnd}`;
 
             return (
-              <div key={sub.id} className="bg-white border border-slate-200/80 rounded-2xl shadow-2xs overflow-hidden">
+              <div key={sub.id} className="bg-white border border-slate-200/80 rounded-[14px] shadow-2xs overflow-hidden">
                 {/* Card header */}
                 <div className="p-4 flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3 min-w-0">

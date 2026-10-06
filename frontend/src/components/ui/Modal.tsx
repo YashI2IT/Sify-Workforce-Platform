@@ -45,7 +45,7 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
 
   const modalNode = (
     <div 
-      className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[100] flex justify-center p-3 sm:p-6 animate-fadeIn overflow-y-auto"
+      className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[100] flex justify-center p-4 sm:p-6 animate-fadeIn overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
@@ -57,7 +57,7 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white rounded-t-2xl">
-          <h2 id="modal-title" className="text-base sm:text-lg font-bold text-slate-900 font-display">{title}</h2>
+          <h2 id="modal-title" className="text-[18px] leading-[24px] font-semibold text-slate-900">{title}</h2>
           <button 
             onClick={onClose}
             className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors focus:outline-none cursor-pointer"
@@ -66,7 +66,7 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-5 sm:p-6">
+        <div className="p-6">
           {children}
         </div>
       </div>
@@ -75,3 +75,4 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
 
   return typeof document !== 'undefined' ? createPortal(modalNode, document.body) : modalNode;
 };
+

@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useGetOrganizationSettingsQuery, useUpdateOrganizationSettingsMutation } from '../../store/apiSlice';
-import { Clock, ShieldCheck, Users, Briefcase, Info, Save, X, ChevronDown, Check, Settings2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { 
+  useGetOrganizationSettingsQuery, 
+  useUpdateOrganizationSettingsMutation 
+} from '../../store/apiSlice';
+import { 
+  Clock, ShieldCheck, Users, Briefcase, Save, 
+  Edit2, AlertCircle, CheckCircle2 
+} from 'lucide-react';
+import { Select } from '../../components/ui/Select';
 
 export const OrganizationSettings = () => {
   const { data: settings, isLoading, error } = useGetOrganizationSettingsQuery();
@@ -16,42 +24,6 @@ export const OrganizationSettings = () => {
   
   const [isDirty, setIsDirty] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-
-  // Custom Dropdown State
-  const [dropdowns, setDropdowns] = useState<Record<string, boolean>>({
-    weekStartsOn: false,
-    timeZone: false,
-    defaultEmployeeRole: false,
-    projectCreationPermission: false,
-    projectAssignmentPermission: false,
-  });
-
-  const toggleDropdown = (field: string) => {
-    setDropdowns(prev => ({
-      weekStartsOn: false,
-      timeZone: false,
-      defaultEmployeeRole: false,
-      projectCreationPermission: false,
-      projectAssignmentPermission: false,
-      [field]: !prev[field],
-    }));
-  };
-
-  const closeDropdowns = () => {
-    setDropdowns({
-      weekStartsOn: false,
-      timeZone: false,
-      defaultEmployeeRole: false,
-      projectCreationPermission: false,
-      projectAssignmentPermission: false,
-    });
-  };
-
-  useEffect(() => {
-    const handleClickOutside = () => closeDropdowns();
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
 
   useEffect(() => {
     if (settings) {
@@ -114,13 +86,13 @@ export const OrganizationSettings = () => {
 
   // Options Definitions
   const weekDayOptions = [
-    { value: 1, label: 'Monday' },
-    { value: 2, label: 'Tuesday' },
-    { value: 3, label: 'Wednesday' },
-    { value: 4, label: 'Thursday' },
-    { value: 5, label: 'Friday' },
-    { value: 6, label: 'Saturday' },
-    { value: 7, label: 'Sunday' },
+    { value: '1', label: 'Monday' },
+    { value: '2', label: 'Tuesday' },
+    { value: '3', label: 'Wednesday' },
+    { value: '4', label: 'Thursday' },
+    { value: '5', label: 'Friday' },
+    { value: '6', label: 'Saturday' },
+    { value: '7', label: 'Sunday' },
   ];
 
   const timeZoneOptions = [
@@ -147,10 +119,13 @@ export const OrganizationSettings = () => {
 
   if (isLoading) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-7 pb-20 animate-fadeIn">
-        <div className="h-12 w-64 bg-slate-200 animate-pulse rounded-lg" />
-        <div className="h-48 bg-slate-200 animate-pulse rounded-2xl" />
-        <div className="h-48 bg-slate-200 animate-pulse rounded-2xl" />
+      <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6">
+        <div className="animate-slideUpFade bg-white/95 border border-slate-200/80 shadow-xs rounded-[14px] overflow-hidden p-16">
+          <div className="flex flex-col items-center justify-center gap-3">
+            <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin" />
+            <span className="text-sm text-slate-500 font-medium">Loading organization settings…</span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -158,262 +133,254 @@ export const OrganizationSettings = () => {
   if (error) {
     return (
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-        <div className="bg-red-50 text-red-600 p-4 rounded-xl flex items-center gap-3">
-          <Info className="w-5 h-5" />
-          Failed to load organization settings.
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-[14px] flex items-center gap-3 text-sm">
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          <span>Failed to load organization settings. Please refresh or try again later.</span>
         </div>
       </div>
     );
   }
 
-  const SelectInput = ({ field, label, description, options, value, type = 'string' }: any) => {
-    const selectedOption = options.find((o: any) => o.value === value);
-    const isOpen = dropdowns[field];
-
+  const SelectInput = ({ label, description, options, value, onChange, placeholder = 'Select...', placement = 'auto' }: any) => {
     return (
-      <div className="space-y-1.5 relative">
+      <div className="space-y-1.5">
         <div className="space-y-0.5 mb-2">
-          <label className="block text-xs sm:text-[13px] font-semibold text-slate-700">
+          <label className="block text-[13px] font-bold text-slate-800 tracking-wide">
             {label}
           </label>
           {description && <p className="text-xs text-slate-500">{description}</p>}
         </div>
-        
-        {/* Native Select for accessibility */}
-        <select
+        <Select
+          options={options}
           value={value}
-          onChange={(e) => handleChange(field, type === 'number' ? parseInt(e.target.value) : e.target.value)}
-          className="sr-only"
-          tabIndex={-1}
-        >
-          {options.map((opt: any) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-
-        {/* Custom Styled Trigger Button */}
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); toggleDropdown(field); }}
-          className={`w-full h-11 rounded-xl border bg-white px-3.5 text-sm text-slate-900 flex items-center justify-between transition-all shadow-2xs cursor-pointer ${
-            isOpen
-              ? 'border-slate-900 ring-2 ring-slate-950/15'
-              : 'border-slate-200/90 hover:border-slate-300'
-          }`}
-          aria-haspopup="listbox"
-          aria-expanded={isOpen}
-        >
-          <span className="font-medium text-slate-900 truncate">
-            {selectedOption?.label || 'Select...'}
-          </span>
-          <ChevronDown
-            className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ml-2 ${
-              isOpen ? 'rotate-180 text-slate-700' : ''
-            }`}
-          />
-        </button>
-
-        {/* Custom Dropdown Popover */}
-        {isOpen && (
-          <div
-            className="absolute top-full left-0 right-0 z-50 mt-1 max-h-[195px] overflow-y-auto rounded-xl bg-white border border-slate-200 shadow-xl shadow-slate-900/10 p-1 space-y-0.5 animate-fadeIn"
-            role="listbox"
-          >
-            {options.map((opt: any) => {
-              const isSelected = opt.value === value;
-              return (
-                <div
-                  key={opt.value}
-                  role="option"
-                  aria-selected={isSelected}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleChange(field, type === 'number' ? parseInt(opt.value) : opt.value);
-                    closeDropdowns();
-                  }}
-                  className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center justify-between transition-colors cursor-pointer ${
-                    isSelected
-                      ? 'bg-slate-100 text-slate-950 font-semibold'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
-                >
-                  <span>{opt.label}</span>
-                  {isSelected && (
-                    <Check className="w-3.5 h-3.5 text-slate-900 shrink-0 ml-2" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+          onChange={onChange}
+          size="md"
+          placeholder={placeholder}
+          placement={placement}
+        />
       </div>
     );
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-7 pb-20 animate-fadeIn relative">
-      {/* 1. Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-200/80">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
-              Organization Settings
-            </h1>
-          </div>
-          <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
-            <Settings2 className="w-4 h-4 text-slate-400 shrink-0" />
-            <span>Configure organization-wide operating rules.</span>
-          </div>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-7 pb-36 relative">
+      {/* 1. Header with Slide-up Animation */}
+      <div className="animate-slideUpFade flex items-center justify-between flex-wrap gap-4 pb-3 border-b border-slate-200/80">
+        <div>
+          <h1 className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            Organization Settings
+          </h1>
+          <p className="text-[14px] leading-[21px] text-slate-500 font-medium mt-1.5">
+            Configure organization-wide operational rules, time standards, and workforce policies.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Link
+            to="/organization/profile"
+            className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
+            title="Edit Organization Profile"
+          >
+            <Edit2 className="w-4 h-4 text-slate-500" strokeWidth={2.2} />
+            <span>Edit Profile</span>
+          </Link>
+          {isDirty && (
+            <button
+              onClick={handleSave}
+              disabled={isUpdating}
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:scale-[0.98]"
+            >
+              {isUpdating ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" strokeWidth={2.2} />
+              )}
+              <span>Save Changes</span>
+            </button>
+          )}
         </div>
       </div>
 
+      {/* Save / Error Feedback Alert */}
       {saveMessage && (
-        <div className={`p-4 rounded-xl flex items-center gap-3 border ${saveMessage.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
-          <Info className="w-5 h-5 shrink-0" />
-          <span className="text-sm font-medium">{saveMessage.text}</span>
+        <div className={`animate-successPop p-4 rounded-xl flex items-center gap-3 text-sm shadow-2xs border ${
+          saveMessage.type === 'success' 
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
+            : 'bg-rose-50 border-rose-200 text-rose-900'
+        }`}>
+          {saveMessage.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          ) : (
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          )}
+          <span className="font-medium">{saveMessage.text}</span>
         </div>
       )}
 
-      {/* Time & Timesheet */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-          <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
-            <Clock className="w-3 h-3" />
+      {/* Section 1: Time & Timesheet */}
+      <div className="animate-slideUpFade-d1 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] transition-shadow duration-300 hover:shadow-md">
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 rounded-t-2xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100/80 shrink-0">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 font-sans tracking-tight">
+                Time & Timesheet Standards
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium">Weekly schedule cycles and operational timezone</p>
+            </div>
           </div>
-          <h2 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
-            Time & Timesheet
-          </h2>
+          <span className="text-xs font-semibold text-slate-500 px-3 py-1 rounded-full bg-white border border-slate-200/70 font-sans">
+            Scheduling
+          </span>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="p-6 sm:p-7 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             <SelectInput 
-              field="weekStartsOn"
               label="Work Week Starts On"
               description="Defines the first day of the weekly timesheet period."
               options={weekDayOptions}
-              value={formData.weekStartsOn}
-              type="number"
+              value={String(formData.weekStartsOn)}
+              onChange={(val: string) => handleChange('weekStartsOn', parseInt(val, 10))}
             />
             
             <SelectInput 
-              field="timeZone"
               label="Organization Time Zone"
               description="Default time zone for operational scheduling."
               options={timeZoneOptions}
               value={formData.timeZone}
+              onChange={(val: string) => handleChange('timeZone', val)}
             />
           </div>
 
-          <div className="pt-6 border-t border-slate-100">
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-0.5">
-                <label className="block text-xs sm:text-[13px] font-semibold text-slate-700">Timesheet Approval</label>
-                <p className="text-xs text-slate-500 max-w-md">Timesheets must be reviewed and approved by a Manager or Administrator after submission.</p>
-              </div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Required (Enforced)
-              </span>
+          <div className="pt-5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <label className="block text-[13px] font-bold text-slate-800 tracking-wide">Timesheet Approval Flow</label>
+              <p className="text-xs text-slate-500 max-w-md">Timesheets must be reviewed and approved by a Manager or Administrator after submission.</p>
             </div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 shrink-0 self-start sm:self-auto">
+              <ShieldCheck className="w-3.5 h-3.5 text-slate-600" />
+              Required (Enforced)
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Workforce Access */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-          <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
-            <Users className="w-3 h-3" />
+      {/* Section 2: Workforce Access */}
+      <div className="animate-slideUpFade-d2 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] transition-shadow duration-300 hover:shadow-md">
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 rounded-t-2xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100/80 shrink-0">
+              <Users className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 font-sans tracking-tight">
+                Workforce Access & Provisioning
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium">Default onboarding role and membership policies</p>
+            </div>
           </div>
-          <h2 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
-            Workforce Access
-          </h2>
+          <span className="text-xs font-semibold text-slate-500 px-3 py-1 rounded-full bg-white border border-slate-200/70 font-sans">
+            Governance
+          </span>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="p-6 sm:p-7 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             <SelectInput 
-              field="defaultEmployeeRole"
               label="Default Employee Role"
               description="The role assigned to newly invited users by default."
               options={roleOptions}
               value={formData.defaultEmployeeRole}
+              onChange={(val: string) => handleChange('defaultEmployeeRole', val)}
             />
           </div>
 
-          <div className="pt-6 border-t border-slate-100">
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-0.5">
-                <label className="block text-xs sm:text-[13px] font-semibold text-slate-700">Employee Join Policy</label>
-                <p className="text-xs text-slate-500 max-w-md">Determines how new members can join this organization. Currently restricted to direct invitations.</p>
-              </div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Invitation Only
-              </span>
+          <div className="pt-5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <label className="block text-[13px] font-bold text-slate-800 tracking-wide">Employee Join Policy</label>
+              <p className="text-xs text-slate-500 max-w-md">Determines how new members can join this organization. Currently restricted to direct invitations.</p>
             </div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 shrink-0 self-start sm:self-auto">
+              <ShieldCheck className="w-3.5 h-3.5 text-slate-600" />
+              Invitation Only
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Project Management */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-          <div className="w-6 h-6 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100">
-            <Briefcase className="w-3 h-3" />
+      {/* Section 3: Project Management */}
+      <div className="animate-slideUpFade-d3 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] transition-shadow duration-300 hover:shadow-md">
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 rounded-t-2xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100/80 shrink-0">
+              <Briefcase className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 font-sans tracking-tight">
+                Project Management & Authorization
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium">Control who can create projects and allocate workforce</p>
+            </div>
           </div>
-          <h2 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
-            Project Management
-          </h2>
+          <span className="text-xs font-semibold text-slate-500 px-3 py-1 rounded-full bg-white border border-slate-200/70 font-sans">
+            Permissions
+          </span>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="p-6 sm:p-7 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             <SelectInput 
-              field="projectCreationPermission"
               label="Project Creation Permission"
               description="Minimum role required to create new projects."
               options={permOptions}
               value={formData.projectCreationPermission}
+              onChange={(val: string) => handleChange('projectCreationPermission', val)}
+              placement="top"
             />
             
             <SelectInput 
-              field="projectAssignmentPermission"
               label="Project Assignment Permission"
               description="Minimum role required to assign employees to projects."
               options={permOptions}
               value={formData.projectAssignmentPermission}
+              onChange={(val: string) => handleChange('projectAssignmentPermission', val)}
+              placement="top"
             />
           </div>
         </div>
       </div>
 
-      {/* Floating Action Bar */}
-      <div className={`fixed bottom-0 inset-x-0 lg:left-64 p-4 bg-white border-t border-slate-200/80 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)] flex items-center justify-end gap-3 transition-transform duration-300 z-40 ${isDirty ? 'translate-y-0' : 'translate-y-full'}`}>
-        <button 
-          onClick={handleCancel}
-          disabled={isUpdating}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
-        >
-          <X className="w-4 h-4 text-slate-400" />
-          Discard Changes
-        </button>
-        <button 
-          onClick={handleSave} 
-          disabled={!isDirty || isUpdating}
-          className="inline-flex items-center gap-2 bg-slate-950 text-white hover:bg-slate-800 text-sm font-medium px-5 py-2.5 rounded-xl shadow-md shadow-slate-900/10 transition-colors disabled:opacity-50 cursor-pointer"
-        >
-          {isUpdating ? (
-            <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          Save Settings
-        </button>
-      </div>
-
+      {/* Modern Floating Action Dock when isDirty */}
+      {isDirty && (
+        <div className="fixed bottom-6 right-6 sm:right-10 z-40 bg-[#12161F] text-white rounded-full p-2 pl-5 shadow-2xl flex items-center gap-3 border border-slate-800 animate-slideUpFade">
+          <span className="text-xs sm:text-sm font-semibold text-slate-300 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            Unsaved changes
+          </span>
+          <button 
+            onClick={handleCancel}
+            disabled={isUpdating}
+            className="px-3.5 py-1.5 text-xs sm:text-sm font-bold text-slate-300 hover:text-white rounded-full transition-colors cursor-pointer"
+          >
+            Discard
+          </button>
+          <button 
+            onClick={handleSave} 
+            disabled={isUpdating}
+            className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-white text-slate-950 hover:bg-slate-100 rounded-full text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-[0.97] cursor-pointer"
+          >
+            {isUpdating ? (
+              <div className="w-3.5 h-3.5 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
+            ) : (
+              <Save className="w-3.5 h-3.5" />
+            )}
+            <span>Save</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };
-

@@ -5,7 +5,7 @@ const customBaseQuery = async (args: any) => {
   try {
     const url = typeof args === 'string' ? args : args.url;
     const method = args.method || 'GET';
-    const body = args.body ? JSON.stringify(args.body) : undefined;
+    const body = args.body instanceof FormData ? args.body : (args.body ? JSON.stringify(args.body) : undefined);
     const headers = args.headers || {};
     
     // Some components might pass options like `params` which we need to convert to query string
@@ -120,8 +120,8 @@ export const apiSlice = createApi({
     // ==========================================
     // SYSTEM & AUDIT LOGS
     // ==========================================
-    getAuditLogs: builder.query<any, { limit?: number; page?: number; type?: string; actorId?: string }>({
-      query: (params) => ({ url: '/audit-logs', params }),
+    getAuditLogs: builder.query<any, { limit?: number; page?: number; type?: string; actorId?: string; action?: string; resourceType?: string; resourceId?: string; from?: string; to?: string } | void>({
+      query: (params) => ({ url: '/audit-logs', params: params || {} }),
       providesTags: ['AuditLog'],
     }),
     createOrganization: builder.mutation<any, { name: string; organizationType: string; description?: string }>({
@@ -312,11 +312,11 @@ export const apiSlice = createApi({
     }),
     createProjectActivity: builder.mutation<any, { projectId: string; data: any }>({
       query: ({ projectId, data }) => ({ url: `/projects/${projectId}/activities`, method: 'POST', body: data }),
-      invalidatesTags: (_result, _error, { projectId }) => [{ type: 'Activity', id: `List-${projectId}` }],
+      invalidatesTags: (_result, _error, { projectId }) => [{ type: 'Activity', id: projectId }],
     }),
     updateProjectActivity: builder.mutation<any, { projectId: string; actId: string; data: any }>({
       query: ({ projectId, actId, data }) => ({ url: `/projects/${projectId}/activities/${actId}`, method: 'PATCH', body: data }),
-      invalidatesTags: (_result, _error, { projectId }) => [{ type: 'Activity', id: `List-${projectId}` }],
+      invalidatesTags: (_result, _error, { projectId }) => [{ type: 'Activity', id: projectId }],
     }),
 
     // ==========================================
@@ -560,6 +560,10 @@ export const apiSlice = createApi({
       query: (id) => ({ url: `/public-holidays/${id}`, method: 'DELETE' }),
       invalidatesTags: ['PublicHoliday'],
     }),
+    importPublicHolidays: builder.mutation<any, FormData>({
+      query: (body) => ({ url: '/public-holidays/import', method: 'POST', body }),
+      invalidatesTags: ['PublicHoliday'],
+    }),
 
     // ==========================================
     // USER PREFERENCES
@@ -593,6 +597,23 @@ export const apiSlice = createApi({
         url: `/notifications/${id}/read`,
         method: 'PATCH',
       }),
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+        const patchResult = dispatch(
+          apiSlice.util.updateQueryData('getMyNotifications', undefined, (draft) => {
+            if (Array.isArray(draft)) {
+              const target = draft.find((n) => n.id === id);
+              if (target) {
+                target.isRead = true;
+              }
+            }
+          })
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patchResult.undo();
+        }
+      },
       invalidatesTags: ['Notification'],
     }),
     markAllNotificationsAsRead: builder.mutation<void, void>({
@@ -600,6 +621,22 @@ export const apiSlice = createApi({
         url: '/notifications/mark-all-read',
         method: 'PATCH',
       }),
+      async onQueryStarted(_, { dispatch, queryFulfilled }) {
+        const patchResult = dispatch(
+          apiSlice.util.updateQueryData('getMyNotifications', undefined, (draft) => {
+            if (Array.isArray(draft)) {
+              draft.forEach((n) => {
+                n.isRead = true;
+              });
+            }
+          })
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patchResult.undo();
+        }
+      },
       invalidatesTags: ['Notification'],
     }),
   }),
@@ -706,6 +743,7 @@ export const {
   useCreatePublicHolidayMutation,
   useUpdatePublicHolidayMutation,
   useDeletePublicHolidayMutation,
+  useImportPublicHolidaysMutation,
 
   useGetMyPreferencesQuery,
   useUpdateMyPreferencesMutation,

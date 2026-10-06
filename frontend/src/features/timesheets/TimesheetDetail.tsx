@@ -231,7 +231,7 @@ export const TimesheetDetail = () => {
   if (error || !timesheet) {
     return (
       <div className="p-8 max-w-xl mx-auto text-center space-y-4">
-        <AlertCircle className="w-12 h-12 text-rose-500 mx-auto" />
+        <AlertCircle className="w-12 h-9 text-rose-500 mx-auto" />
         <h2 className="text-xl font-bold text-slate-900 font-display">Timesheet Not Found</h2>
         <p className="text-sm text-rose-600">{error || 'The requested timesheet could not be retrieved.'}</p>
         <Link
@@ -320,16 +320,18 @@ export const TimesheetDetail = () => {
           )}
           <button
             onClick={fetchTimesheet}
-            className="p-2 border border-slate-200/90 rounded-xl hover:bg-slate-50 text-slate-600 transition-all shadow-2xs cursor-pointer active:scale-95"
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
             title="Refresh timesheet"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 text-slate-500 transition-transform duration-500 group-hover:rotate-180 group-active:rotate-180 ${loading ? 'animate-spin text-slate-900' : ''}`} />
+            <span>Refresh</span>
           </button>
         </div>
       </div>
 
       {actionFeedback && (
-        <div className={`p-4 border rounded-2xl text-xs font-mono flex items-center gap-2.5 animate-fadeIn shadow-2xs ${
+        <div className={`p-4 border rounded-[14px] text-xs font-mono flex items-center gap-2.5 animate-fadeIn shadow-2xs ${
           actionFeedback.startsWith('Error')
             ? 'bg-rose-50 border-rose-200 text-rose-800'
             : 'bg-emerald-50 border-emerald-200 text-emerald-800'
@@ -343,7 +345,7 @@ export const TimesheetDetail = () => {
       )}
 
       {/* Timesheet Summary Card */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-6">
+      <div className="bg-white border border-slate-200/90 rounded-[14px] p-6 shadow-2xs space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
@@ -357,7 +359,7 @@ export const TimesheetDetail = () => {
           </div>
 
           {/* Hours Summary Panel */}
-          <div className="flex flex-wrap items-center gap-3 bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex flex-wrap items-center gap-3 bg-slate-50/80 p-4 rounded-[14px] border border-slate-200/80 shadow-2xs">
             {/* Expected */}
             <div className="min-w-[90px]">
               <p className="text-[10px] text-slate-500 font-mono font-bold uppercase tracking-wider">Expected</p>
@@ -406,7 +408,7 @@ export const TimesheetDetail = () => {
 
         {/* State Banners */}
         {timesheet.status === 'REJECTED' && (
-          <div className="p-4.5 bg-rose-50/80 border border-rose-200 rounded-2xl flex flex-col sm:flex-row sm:items-start gap-4 animate-fadeIn">
+          <div className="p-4.5 bg-rose-50/80 border border-rose-200 rounded-[14px] flex flex-col sm:flex-row sm:items-start gap-4 animate-fadeIn">
             <div className="flex items-start gap-3.5 flex-1">
               <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
@@ -434,7 +436,7 @@ export const TimesheetDetail = () => {
         )}
 
         {timesheet.status === 'SUBMITTED' && (
-          <div className="p-4.5 bg-blue-50/80 border border-blue-200 rounded-2xl flex items-start gap-3.5">
+          <div className="p-4.5 bg-blue-50/80 border border-blue-200 rounded-[14px] flex items-start gap-3.5">
             <Clock className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
             <div>
               <h3 className="text-sm font-bold text-blue-900">Under Review</h3>
@@ -446,7 +448,7 @@ export const TimesheetDetail = () => {
         )}
 
         {timesheet.status === 'APPROVED' && (
-          <div className="p-4.5 bg-emerald-50/80 border border-emerald-200 rounded-2xl flex items-start gap-3.5">
+          <div className="p-4.5 bg-emerald-50/80 border border-emerald-200 rounded-[14px] flex items-start gap-3.5">
             <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
             <div>
               <h3 className="text-sm font-bold text-emerald-900">Timesheet Approved</h3>
@@ -520,7 +522,7 @@ export const TimesheetDetail = () => {
       </div>
 
       {/* Entries Breakdown Table */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+      <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs">
         <div className="px-6 py-4 border-b border-slate-200/80 flex items-center justify-between bg-slate-50/70">
           <h2 className="text-sm font-bold text-slate-900 font-display">Recorded Week Entries</h2>
           <span className="text-xs font-mono font-semibold text-slate-500">{timesheet.timeEntries?.length || 0} entries</span>
@@ -553,15 +555,15 @@ export const TimesheetDetail = () => {
               <tbody className="divide-y divide-slate-100">
                 {rows.map((row: any, i) => (
                   <tr key={i} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                       <span className="font-semibold text-slate-900 truncate block max-w-[150px] text-xs sm:text-sm" title={getProjectName(row.projectId)}>
                         {getProjectName(row.projectId)}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-slate-700 text-xs truncate max-w-[150px]">
+                    <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                       {row.taskId || <span className="text-slate-300 italic">—</span>}
                     </td>
-                    <td className="px-5 py-4 text-slate-700 text-xs truncate max-w-[120px]" title={activityMap[row.activityId]}>
+                    <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100" title={activityMap[row.activityId]}>
                       {activityMap[row.activityId] || <span className="text-slate-300 italic">—</span>}
                     </td>
                     {row.days.map((hrs: number, j: number) => (
@@ -575,14 +577,14 @@ export const TimesheetDetail = () => {
                         )}
                       </td>
                     ))}
-                    <td className="px-5 py-4 text-right">
+                    <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                       <span className="font-bold text-slate-900 font-mono text-xs sm:text-sm">{row.total}h</span>
                     </td>
                   </tr>
                 ))}
                 {/* Grand Totals Row */}
                 <tr className="bg-slate-50/80 border-t-2 border-slate-200">
-                  <td colSpan={3} className="px-5 py-4 text-right font-bold text-slate-700 uppercase text-xs tracking-wider font-mono">
+                  <td colSpan={3} className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                     Daily Totals
                   </td>
                   {dayTotals.map((tot, j) => (
@@ -590,7 +592,7 @@ export const TimesheetDetail = () => {
                       {tot > 0 ? `${tot}h` : '-'}
                     </td>
                   ))}
-                  <td className="px-5 py-4 text-right font-extrabold text-slate-950 text-sm sm:text-base font-mono">
+                  <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                     {grandTotal}h
                   </td>
                 </tr>
@@ -601,7 +603,7 @@ export const TimesheetDetail = () => {
       </div>
 
       {/* Audit History Timeline */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+      <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs">
         <div className="px-6 py-4 border-b border-slate-200/80 flex items-center justify-between bg-slate-50/70">
           <h2 className="text-sm font-bold text-slate-900 font-display">Status History & Audit Ledger</h2>
         </div>

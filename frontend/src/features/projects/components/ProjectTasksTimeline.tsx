@@ -26,13 +26,9 @@ const isToday = (d: Date) => {
   const today = new Date();
   return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
 };
-const formatMonthYear = (d: Date) => d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+
 const formatDD = (d: Date) => d.getDate().toString().padStart(2, '0');
-const getWeekNumber = (d: Date) => {
-  const firstDayOfYear = new Date(d.getFullYear(), 0, 1);
-  const pastDaysOfYear = (d.getTime() - firstDayOfYear.getTime()) / 86400000;
-  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-};
+// Removed unused getWeekNumber function
 // MAIN COMPONENT
 // ==========================================
 export const ProjectTasksTimeline = ({
@@ -46,7 +42,9 @@ export const ProjectTasksTimeline = ({
   employees: Employee[];
   onViewDetail: (t: Task) => void;
 }) => {
-  const [dayWidth, setDayWidth] = useState(30);
+  const MIN_DAY_WIDTH = 28;
+  const MAX_DAY_WIDTH = 64;
+  const [dayWidth, setDayWidth] = useState(36);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   
   // Ref for synced scrolling
@@ -108,9 +106,10 @@ export const ProjectTasksTimeline = ({
       }
     });
 
-    const minD = addDays(new Date(minT), -7);
-    const maxD = addDays(new Date(maxT), 21);
-    const tDays = Math.max(differenceInDays(maxD, minD), 30);
+    // Buffer days before and after: compact and relevant without excess empty space
+    const minD = addDays(new Date(minT), -3);
+    const maxD = addDays(new Date(maxT), 7);
+    const tDays = Math.max(differenceInDays(maxD, minD), 14);
     
     const dts = [];
     for (let i = 0; i <= tDays; i++) {
@@ -119,6 +118,25 @@ export const ProjectTasksTimeline = ({
     
     return { minDate: minD, totalDays: tDays, dates: dts };
   }, [tasks, milestones]);
+
+  // Group dates by month for the clean top-tier banner (prevents collisions)
+  const monthGroups = useMemo(() => {
+    const groups: { monthKey: string; label: string; daysCount: number }[] = [];
+    dates.forEach(d => {
+      const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup && lastGroup.monthKey === monthKey) {
+        lastGroup.daysCount += 1;
+      } else {
+        groups.push({
+          monthKey,
+          label: d.toLocaleString('en-US', { month: 'short', year: 'numeric' }),
+          daysCount: 1,
+        });
+      }
+    });
+    return groups;
+  }, [dates]);
 
   // 3. Grid rendering helpers
   const getX = (dateStr?: string | null) => {
@@ -129,95 +147,129 @@ export const ProjectTasksTimeline = ({
 
   const todayX = differenceInDays(new Date(), minDate) * dayWidth;
 
+  // Dynamic height calculation: generous minimum height (380px) for professional Gantt chart aesthetics
+  const HEADER_HEIGHT = 58;
+  const MIN_CONTAINER_HEIGHT = 380;
+  const MAX_CONTAINER_HEIGHT = 560;
+  const rowsContentHeight = 44 + (flatTasks.length * ROW_HEIGHT);
+  const totalNeededHeight = HEADER_HEIGHT + rowsContentHeight + 16;
+  const isScrollable = totalNeededHeight > MAX_CONTAINER_HEIGHT;
+  const containerHeight = Math.max(MIN_CONTAINER_HEIGHT, Math.min(totalNeededHeight, MAX_CONTAINER_HEIGHT));
+
   return (
-    <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden flex flex-col h-[600px]">
+    <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-[14px] shadow-xs overflow-hidden flex flex-col transition-shadow duration-300 hover:shadow-md">
       
       {/* TOOLBAR */}
-      <div className="p-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+      <div className="px-5 py-3 border-b border-slate-200/80 flex items-center justify-between bg-slate-50/80 flex-wrap gap-3">
         <div className="flex items-center gap-4">
-          <h3 className="text-sm font-bold font-display text-slate-800">Project Timeline</h3>
-          <div className="flex items-center bg-slate-200/50 rounded-lg p-0.5">
-            <button onClick={() => setDayWidth(Math.max(10, dayWidth - 5))} className="p-1 hover:bg-white rounded text-slate-600 shadow-xs transition-all" title="Zoom Out">
+          <h3 className="text-sm font-bold text-slate-900 tracking-tight font-sans">Project Timeline</h3>
+          <div className="flex items-center bg-white border border-slate-200/80 rounded-full p-0.5 shadow-2xs">
+            <button 
+              onClick={() => setDayWidth(w => Math.max(MIN_DAY_WIDTH, w - 6))} 
+              disabled={dayWidth <= MIN_DAY_WIDTH}
+              className="p-1 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-slate-600 transition-colors cursor-pointer" 
+              title="Zoom Out (Min 28px/day)"
+            >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
-            <span className="text-[10px] font-mono px-2 text-slate-500">{dayWidth}px/d</span>
-            <button onClick={() => setDayWidth(Math.min(60, dayWidth + 5))} className="p-1 hover:bg-white rounded text-slate-600 shadow-xs transition-all" title="Zoom In">
+            <span className="text-[11px] font-semibold px-2.5 text-slate-600 font-sans">{dayWidth}px/d</span>
+            <button 
+              onClick={() => setDayWidth(w => Math.min(MAX_DAY_WIDTH, w + 6))} 
+              disabled={dayWidth >= MAX_DAY_WIDTH}
+              className="p-1 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-slate-600 transition-colors cursor-pointer" 
+              title="Zoom In (Max 64px/day)"
+            >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-4 text-xs font-mono text-slate-500">
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Active</div>
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-300"></span> Completed</div>
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500"></span> Overdue</div>
+        <div className="flex items-center gap-4 text-xs font-medium text-slate-600 font-sans flex-wrap">
+          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-2xs"></span> Active</div>
+          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-2xs"></span> Review</div>
+          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-2xs"></span> Completed</div>
+          <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-2xs"></span> Overdue</div>
         </div>
       </div>
 
       {/* TIMELINE CONTAINER */}
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex overflow-hidden relative" style={{ height: `${containerHeight}px` }}>
         
         {/* LEFT PANEL (Hierarchy) */}
         <div 
-          className="w-[320px] shrink-0 border-r border-slate-200 flex flex-col z-20 bg-white shadow-[2px_0_10px_rgba(0,0,0,0.03)]"
-          style={{ overflowY: 'hidden' }}
+          className="w-[320px] shrink-0 border-r border-slate-200/80 flex flex-col z-20 bg-white shadow-[2px_0_10px_rgba(0,0,0,0.02)]"
+          style={{ overflowY: 'hidden', height: `${containerHeight}px` }}
         >
-          <div className="h-[60px] shrink-0 border-b border-slate-200 bg-slate-50/80 flex items-end px-4 pb-2">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Task</span>
+          <div className="h-[58px] shrink-0 border-b border-slate-200/80 bg-slate-50 flex items-center justify-between px-5">
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider font-sans">Task</span>
+            <span className="text-[11px] font-semibold text-slate-400 font-sans">{flatTasks.length} task{flatTasks.length !== 1 ? 's' : ''}</span>
           </div>
           
           <div 
             ref={leftPanelRef}
-            className="flex-1 overflow-y-auto pb-10"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            className="flex-1 pb-1"
+            style={{ 
+              overflowY: isScrollable ? 'auto' : 'hidden', 
+              scrollbarWidth: 'none', 
+              msOverflowStyle: 'none' 
+            }}
             onScroll={(e) => {
               if (rightPanelRef.current) rightPanelRef.current.scrollTop = e.currentTarget.scrollTop;
             }}
           >
             {/* Milestones row header */}
-            <div className="h-[44px] flex items-center px-4 border-b border-slate-100 bg-amber-50/30">
-              <Flag className="w-3.5 h-3.5 text-amber-500 mr-2" />
-              <span className="text-xs font-bold text-amber-900 font-display">Milestones</span>
+            <div className="h-[44px] flex items-center px-5 border-b border-slate-100 bg-amber-50/30">
+              <Flag className="w-3.5 h-3.5 text-amber-600 mr-2 shrink-0" />
+              <span className="text-xs font-bold text-amber-900 font-sans">Milestones</span>
+              <span className="ml-auto text-[10px] font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">
+                {milestones.length}
+              </span>
             </div>
 
             {flatTasks.map(t => (
               <div 
-                key={t.id}
-                className="flex items-center px-4 border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer group"
-                style={{ height: ROW_HEIGHT, paddingLeft: `${16 + (t.level * 16)}px` }}
+                key={t.id} 
+                className="flex items-center px-5 border-b border-slate-100 hover:bg-slate-50/70 transition-colors cursor-pointer group"
+                style={{ height: ROW_HEIGHT, paddingLeft: `${20 + (t.level * 16)}px` }}
                 onClick={() => onViewDetail(t)}
               >
                 {t.hasChildren ? (
-                  <div 
-                    className="w-4 h-4 flex items-center justify-center mr-1 text-slate-400 hover:text-slate-900"
+                  <button 
+                    type="button"
+                    className="w-4 h-4 flex items-center justify-center mr-1 text-slate-400 hover:text-slate-900 cursor-pointer"
                     onClick={(e) => { e.stopPropagation(); toggleExpand(t.id); }}
+                    title={t.isExpanded ? 'Collapse subtasks' : 'Expand subtasks'}
                   >
-                    {t.isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                  </div>
+                    {t.isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                  </button>
                 ) : (
                   <div className="w-4 h-4 mr-1"></div>
                 )}
                 
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
-                  <div className="text-xs font-semibold text-slate-800 truncate" title={t.name}>
-                    <span className="text-slate-400 font-mono mr-1.5 font-normal text-xs">{t.ticketId}</span>
-                    {t.name}
+                  <div className="text-xs font-semibold text-slate-900 truncate font-sans group-hover:text-indigo-600 transition-colors flex items-center gap-1.5" title={t.name}>
+                    {t.ticketId && (
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200/80 shrink-0 shadow-2xs">
+                        {t.ticketId}
+                      </span>
+                    )}
+                    <span className="truncate">{t.name}</span>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className={`px-1 rounded text-[8px] font-bold font-mono ${statusColors[t.status] || 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold font-sans border ${statusColors[t.status] || 'bg-slate-100 text-slate-600'}`}>
                       {t.status.replace('_', ' ')}
                     </span>
-                    {!t.isActive && <span className="text-[8px] font-mono text-slate-400">INACTIVE</span>}
+                    {!t.isActive && <span className="text-[9px] font-bold text-slate-400 font-sans">INACTIVE</span>}
                   </div>
                 </div>
 
                 <div className="shrink-0 ml-2">
                   {t.assigneeId ? (
-                    <div className="w-5 h-5 rounded-full bg-slate-800 text-white text-[9px] font-bold flex items-center justify-center" title={getEmployee(t.assigneeId)?.name}>
+                    <div className="w-6 h-6 rounded-full bg-slate-800 text-white text-[10px] font-bold flex items-center justify-center shadow-2xs font-sans" title={getEmployee(t.assigneeId)?.name}>
                       {getEmployee(t.assigneeId)?.name.slice(0, 1).toUpperCase()}
                     </div>
                   ) : (
-                    <div className="w-5 h-5 rounded-full border border-slate-200 bg-slate-50 text-slate-300 flex items-center justify-center">
-                      <User className="w-3 h-3" />
+                    <div className="w-6 h-6 rounded-full border border-slate-200 bg-slate-50 text-slate-300 flex items-center justify-center" title="Unassigned">
+                      <User className="w-3.5 h-3.5" />
                     </div>
                   )}
                 </div>
@@ -229,60 +281,81 @@ export const ProjectTasksTimeline = ({
         {/* RIGHT PANEL (Timeline) */}
         <div 
           ref={rightPanelRef}
-          className="flex-1 overflow-auto relative bg-slate-50/30"
+          className="flex-1 overflow-x-auto relative bg-slate-50/20"
+          style={{ 
+            height: `${containerHeight}px`,
+            overflowY: isScrollable ? 'auto' : 'hidden'
+          }}
           onScroll={(e) => {
             if (leftPanelRef.current) leftPanelRef.current.scrollTop = e.currentTarget.scrollTop;
           }}
         >
-          {/* Header Dates */}
-          <div className="sticky top-0 z-30 h-[60px] bg-white border-b border-slate-200 flex">
-            {dates.map((d, i) => {
-              const isStartOfWeek = d.getDay() === 1;
-              const isStartOfMonth = d.getDate() === 1;
-              return (
-                <div 
-                  key={i} 
-                  className="shrink-0 border-r border-slate-100 flex flex-col justify-end pb-1 relative"
-                  style={{ width: dayWidth }}
+          {/* Header Dates (Clean Two-Tier Structure: Month Banner + Day Cells) */}
+          <div className="sticky top-0 z-30 h-[58px] bg-slate-50 border-b border-slate-200/80 flex flex-col min-w-full" style={{ width: totalDays * dayWidth }}>
+            {/* Tier 1: Months Banner */}
+            <div className="h-[28px] border-b border-slate-200/80 flex bg-slate-100/70">
+              {monthGroups.map((group, idx) => (
+                <div
+                  key={group.monthKey}
+                  className={`h-full flex items-center px-3 border-r border-slate-200/80 text-xs font-bold text-slate-800 tracking-tight font-sans overflow-hidden whitespace-nowrap ${
+                    idx % 2 === 0 ? 'bg-slate-100/90' : 'bg-slate-50/90'
+                  }`}
+                  style={{ width: group.daysCount * dayWidth }}
                 >
-                  {isStartOfMonth && (
-                    <div className="absolute top-1 left-1 text-[10px] font-bold font-display text-slate-700 whitespace-nowrap z-40 bg-white/80 px-1 rounded">
-                      {formatMonthYear(d)}
-                    </div>
-                  )}
-                  {isStartOfWeek && !isStartOfMonth && (
-                    <div className="absolute top-1 left-1 text-[9px] font-mono text-slate-400 whitespace-nowrap z-40 bg-white/80 px-1 rounded">
-                      Week {getWeekNumber(d)}
-                    </div>
-                  )}
-                  <div className={`text-[10px] font-mono text-center relative z-40 ${isToday(d) ? 'text-blue-600 font-bold bg-blue-50 mx-1 rounded' : 'text-slate-400'}`}>
-                    {formatDD(d)}
-                  </div>
+                  <span className="truncate">{group.label}</span>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+
+            {/* Tier 2: Days Row */}
+            <div className="h-[30px] flex bg-slate-50/80">
+              {dates.map((d, i) => {
+                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                const isCurToday = isToday(d);
+                return (
+                  <div
+                    key={i}
+                    className={`shrink-0 border-r border-slate-200/60 flex items-center justify-center relative font-sans ${
+                      isWeekend ? 'bg-slate-100/40 text-slate-400' : 'text-slate-600'
+                    }`}
+                    style={{ width: dayWidth }}
+                    title={d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                  >
+                    <span
+                      className={`text-[11px] font-semibold flex items-center justify-center ${
+                        isCurToday
+                          ? 'w-6 h-6 rounded-full bg-indigo-600 text-white font-bold shadow-xs'
+                          : ''
+                      }`}
+                    >
+                      {formatDD(d)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Grid Content */}
-          <div className="relative pb-10" style={{ width: totalDays * dayWidth }}>
+          <div className="relative min-w-full" style={{ width: totalDays * dayWidth, minHeight: `${containerHeight - HEADER_HEIGHT}px` }}>
             
             {/* Vertical grid lines */}
-            <div className="absolute inset-0 pointer-events-none flex" style={{ opacity: 0.4 }}>
+            <div className="absolute inset-0 pointer-events-none flex" style={{ opacity: 0.35 }}>
                {dates.map((d, i) => (
-                 <div key={i} className={`shrink-0 border-r ${d.getDay() === 0 || d.getDay() === 6 ? 'bg-slate-100/50 border-slate-200' : 'border-slate-100'}`} style={{ width: dayWidth }}></div>
+                 <div key={i} className={`shrink-0 border-r ${d.getDay() === 0 || d.getDay() === 6 ? 'bg-slate-100/60 border-slate-200' : 'border-slate-100'}`} style={{ width: dayWidth }}></div>
                ))}
             </div>
 
             {/* Today indicator */}
             {todayX > 0 && todayX < totalDays * dayWidth && (
               <div 
-                className="absolute top-0 bottom-0 border-l-2 border-blue-500/50 z-10 pointer-events-none"
+                className="absolute top-0 bottom-0 border-l-2 border-indigo-500/70 z-10 pointer-events-none"
                 style={{ left: todayX + (dayWidth / 2) }}
               />
             )}
 
             {/* Milestones Row */}
-            <div className="h-[44px] border-b border-slate-100/50 relative bg-amber-50/10">
+            <div className="h-[44px] border-b border-slate-100/60 relative bg-amber-50/15">
               {milestones.map(m => {
                 if (!m.targetDate) return null;
                 const x = getX(m.targetDate) ?? 0;
@@ -293,9 +366,9 @@ export const ProjectTasksTimeline = ({
                     style={{ left: x + (dayWidth / 2) }}
                     title={m.title}
                   >
-                    <div className="w-4 h-4 bg-amber-500 rotate-45 shadow-sm border border-amber-600 flex items-center justify-center">
+                    <div className="w-4 h-4 bg-amber-500 rotate-45 shadow-xs border border-amber-600 flex items-center justify-center transition-transform group-hover:scale-125">
                     </div>
-                    <div className="absolute top-5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 whitespace-nowrap bg-slate-900 text-white text-[10px] py-0.5 px-2 rounded font-mono shadow-md z-30 pointer-events-none transition-opacity">
+                    <div className="absolute top-5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 whitespace-nowrap bg-slate-900 text-white text-[10px] py-0.5 px-2 rounded font-sans font-medium shadow-md z-30 pointer-events-none transition-opacity">
                       {m.title}
                     </div>
                   </div>
@@ -319,8 +392,8 @@ export const ProjectTasksTimeline = ({
                   
                   // For F* types we start from dueDate. For S* types we start from startDate.
                   // For *F types we end at dueDate. For *S types we end at startDate.
-                  const startX = type.startsWith('F') ? getX(t.dueDate) : getX(t.startDate);
-                  const endX = type.endsWith('F') ? getX(successorTask.dueDate) : getX(successorTask.startDate);
+                  const startX = (type.startsWith('F') ? getX(t.dueDate || t.startDate) : getX(t.startDate || t.dueDate)) ?? 0;
+                  const endX = (type.endsWith('F') ? getX(successorTask.dueDate || successorTask.startDate) : getX(successorTask.startDate || successorTask.dueDate)) ?? 0;
                   
                   if (startX === null || endX === null) return null; // Can't draw if dates are missing
                   
@@ -357,42 +430,49 @@ export const ProjectTasksTimeline = ({
 
             {/* Task Rows & Bars */}
             {flatTasks.map((t, _idx) => {
-              const startX = getX(t.startDate) ?? 0;
-              const endX = getX(t.dueDate) ?? 0;
-              let barWidth = endX - startX;
-              if (barWidth < dayWidth && t.startDate) barWidth = dayWidth; // Min width 1 day
+              const hasStart = !!t.startDate;
+              const hasDue = !!t.dueDate;
+              const startX = getX(t.startDate || t.dueDate) ?? 0;
+              const endX = getX(t.dueDate || t.startDate) ?? 0;
+              let barWidth = hasStart && hasDue ? endX - startX : dayWidth * 2;
+              if (barWidth < dayWidth) barWidth = dayWidth;
 
               const isOverdue = t.status !== 'DONE' && t.dueDate && parseISO(t.dueDate) < new Date();
               const isDone = t.status === 'DONE';
               
-              let barColor = 'bg-blue-500 border-blue-600';
-              if (isDone) barColor = 'bg-slate-300 border-slate-400 opacity-70';
-              else if (isOverdue) barColor = 'bg-rose-500 border-rose-600';
-              else if (t.status === 'TODO') barColor = 'bg-slate-400 border-slate-500';
+              let barColor = 'bg-blue-600 border-blue-700 text-white';
+              if (isDone) barColor = 'bg-emerald-600 border-emerald-700 text-white opacity-85';
+              else if (isOverdue) barColor = 'bg-rose-600 border-rose-700 text-white';
+              else if (t.status === 'REVIEW') barColor = 'bg-amber-500 border-amber-600 text-white';
+              else if (t.status === 'TODO') barColor = 'bg-slate-400 border-slate-500 text-white';
 
               return (
                 <div 
                   key={t.id} 
-                  className="border-b border-slate-100/50 relative hover:bg-slate-50/50 transition-colors"
+                  className="border-b border-slate-100/60 relative hover:bg-slate-50/50 transition-colors"
                   style={{ height: ROW_HEIGHT }}
                 >
-                  
-                  {t.startDate && (
+                  {(hasStart || hasDue) ? (
                     <div 
-                      className={`absolute top-[8px] h-[28px] rounded-md shadow-xs border flex items-center px-2 cursor-pointer group ${barColor} ${!t.isActive ? 'opacity-40' : ''}`}
-                      style={{ left: startX, width: barWidth, zIndex: 5 }}
+                      className={`absolute top-[8px] h-[28px] rounded-lg shadow-2xs border flex items-center px-2.5 cursor-pointer group transition-transform hover:scale-[1.01] ${barColor} ${!t.isActive ? 'opacity-40' : ''}`}
+                      style={{ left: startX, width: Math.max(barWidth, dayWidth), zIndex: 5 }}
                       onClick={() => onViewDetail(t)}
+                      title={`${t.ticketId}: ${t.name}${isOverdue ? ' (Overdue)' : ''}`}
                     >
-                      <span className="text-[10px] font-semibold text-white truncate drop-shadow-xs">
-                        <span className="text-white/70 font-mono mr-1.5 font-normal text-xs">{t.ticketId}</span>
-                        {t.name}
+                      <span className="text-[11px] font-semibold truncate drop-shadow-2xs font-sans flex items-center gap-1.5">
+                        <span className="opacity-80 font-mono text-[10px] font-normal">{t.ticketId}</span>
+                        <span>{t.name}</span>
                       </span>
-                      {isOverdue && <AlertCircle className="w-3 h-3 text-white absolute -right-4 text-rose-500" />}
+                      {isOverdue && (
+                        <span className="ml-1.5 shrink-0" title="Overdue">
+                          <AlertCircle className="w-3.5 h-3.5 text-white drop-shadow-xs" />
+                        </span>
+                      )}
                     </div>
-                  )}
-                  
-                  {!t.startDate && (
-                    <div className="absolute top-[12px] text-[10px] text-slate-400 font-mono italic px-2">Unscheduled</div>
+                  ) : (
+                    <div className="absolute top-[12px] text-[10px] text-slate-400 font-sans italic px-2.5 font-medium">
+                      Unscheduled
+                    </div>
                   )}
                 </div>
               );

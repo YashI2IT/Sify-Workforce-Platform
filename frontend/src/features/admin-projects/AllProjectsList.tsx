@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { Modal } from '../../components/ui/Modal';
+import { Select } from '../../components/ui/Select';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import {
   useGetProjectsQuery,
@@ -10,18 +11,19 @@ import {
 } from '../../store/apiSlice';
 import { 
   Plus, 
-  Edit2, 
+  Pencil,
   ExternalLink, 
   Search, 
   AlertCircle, 
-  RefreshCw,
+  RefreshCw, 
   CheckCircle2,
   Clock,
-  ChevronDown,
+  ChevronDown, ChevronRight,
   Check,
   X,
   Filter,
-  Layers
+  Layers,
+  Briefcase
 } from 'lucide-react';
 
 interface Project {
@@ -47,6 +49,14 @@ const stateOptions = [
   { value: 'all', label: 'All States' },
   { value: 'active', label: 'Active Only' },
   { value: 'inactive', label: 'Archived Only' },
+];
+
+const projectStatusFormOptions = [
+  { value: 'PLANNING', label: 'Planning' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'IN_PROGRESS', label: 'In Progress' },
+  { value: 'ON_HOLD', label: 'On Hold' },
+  { value: 'COMPLETED', label: 'Completed' },
 ];
 
 export const AllProjectsList = () => {
@@ -200,42 +210,42 @@ export const AllProjectsList = () => {
     switch (status.toUpperCase()) {
       case 'ACTIVE':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold font-mono bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <span className="inline-flex items-center justify-center gap-1.5 w-[92px] h-7 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-sans whitespace-nowrap">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             ACTIVE
           </span>
         );
       case 'IN_PROGRESS':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
+          <span className="inline-flex items-center justify-center gap-1.5 min-w-[92px] px-2.5 h-7 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200/80 font-sans whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
             IN_PROGRESS
           </span>
         );
       case 'PLANNING':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold font-mono bg-purple-50 text-purple-700 border border-purple-200/80 shadow-2xs">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[92px] h-7 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200/80 font-sans whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
             PLANNING
           </span>
         );
       case 'ON_HOLD':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold font-mono bg-amber-50 text-amber-700 border border-amber-200/80 shadow-2xs">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[92px] h-7 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/80 font-sans whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
             ON_HOLD
           </span>
         );
       case 'COMPLETED':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold font-mono bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[92px] h-7 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 font-sans whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
             COMPLETED
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold font-mono bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
+          <span className="inline-flex items-center justify-center gap-1.5 min-w-[92px] px-2.5 h-7 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 font-sans whitespace-nowrap">
             {status}
           </span>
         );
@@ -250,188 +260,156 @@ export const AllProjectsList = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Executive Command Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
-        <div className="space-y-1">
+    <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6">
+      {/* Header — Public Holidays / Teams / Employees Style */}
+      <div className="animate-slideUpFade flex items-center justify-between flex-wrap gap-4">
+        <div>
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-slate-950 text-white shadow-xs border border-slate-800 flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-              </svg>
-            </div>
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight font-display">
-                  Projects
-                </h1>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
-                  {projects.length} {projects.length === 1 ? 'initiative' : 'initiatives'}
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                Portfolio initiatives, resource assignment milestones, deliverables, and lifecycle tracking.
-              </p>
-            </div>
+            <h1 className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              Projects
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-sans">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {projects.length} {projects.length === 1 ? 'initiative' : 'initiatives'}
+            </span>
           </div>
+          <p className="text-[14px] leading-[21px] text-slate-500 font-medium mt-1.5">
+            Manage organization project initiatives, codes, lifecycle status, and operational states.
+          </p>
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-3">
           <button
             onClick={loadProjects}
-            className="p-2.5 border border-slate-200/90 rounded-xl hover:bg-slate-50 text-slate-600 transition-all shadow-2xs cursor-pointer active:scale-95"
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
             title="Refresh projects"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 transition-transform duration-500 group-hover:rotate-180 group-active:rotate-180 ${loading ? 'animate-spin text-slate-900' : 'text-slate-500'}`} />
+            Refresh
           </button>
           <button
             onClick={openCreateModal}
-            className="inline-flex items-center gap-2 bg-slate-950 hover:bg-slate-800 text-white font-medium px-4 py-2.5 rounded-xl text-sm transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+            className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:scale-[0.98]"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
             Create Project
           </button>
         </div>
       </div>
 
       {/* Executive Telemetry Strip (4 Metric Cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Active Portfolio */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+      <div className="animate-slideUpFade-d1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Projects */}
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-5 hover:shadow-md transition-all duration-200">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
-              Portfolio Vitality
+            <span className="text-xs font-semibold text-slate-900 uppercase tracking-wider font-sans">
+              Total Projects
             </span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-900">
+              <Briefcase className="w-4 h-4" />
+            </div>
           </div>
-          <div className="my-2.5">
+          <div className="mt-3">
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-slate-950 tracking-tight font-display">
-                {loading ? '—' : activeCount}
-              </span>
-              <span className="text-xs text-slate-400 font-mono font-medium">
-                / {projects.length} active ({activeRate}%)
-              </span>
-            </div>
-            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden flex mt-2">
-              <div 
-                className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
-                style={{ width: `${activeRate}%` }} 
-              />
-            </div>
-          </div>
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-            <span>Archived initiatives</span>
-            <span className="font-mono text-slate-700">{archivedCount}</span>
-          </div>
-        </div>
-
-        {/* Card 2: Execution Pacing */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
-              Active Delivery
-            </span>
-            <Clock className="w-4 h-4 text-blue-600" />
-          </div>
-          <div className="my-2.5">
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-slate-950 tracking-tight font-display">
-                {loading ? '—' : executionCount}
-              </span>
-              <span className="text-xs text-slate-400 font-mono font-medium">
-                in execution ({executionRate}%)
-              </span>
-            </div>
-            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden flex mt-2 gap-0.5">
-              <div 
-                className="bg-blue-600 h-full transition-all" 
-                style={{ width: `${projects.length > 0 ? (inProgressCount / projects.length) * 100 : 0}%` }} 
-                title={`${inProgressCount} In Progress`}
-              />
-              <div 
-                className="bg-emerald-500 h-full transition-all" 
-                style={{ width: `${projects.length > 0 ? (activeStatusCount / projects.length) * 100 : 0}%` }} 
-                title={`${activeStatusCount} Active`}
-              />
-              <div 
-                className="bg-purple-400 h-full transition-all" 
-                style={{ width: `${projects.length > 0 ? (planningCount / projects.length) * 100 : 0}%` }} 
-                title={`${planningCount} Planning`}
-              />
-            </div>
-          </div>
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-            <span>In progress · Planning</span>
-            <span className="font-mono text-slate-700">{inProgressCount} · {planningCount}</span>
-          </div>
-        </div>
-
-        {/* Card 3: Completion Rate */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
-              Completion Rate
-            </span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="my-2.5">
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-slate-950 tracking-tight font-display">
-                {loading ? '—' : `${completionRate}%`}
-              </span>
-              <span className="text-xs text-slate-400 font-mono font-medium">
-                ({completedCount} delivered)
-              </span>
-            </div>
-            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden flex mt-2">
-              <div 
-                className="bg-slate-900 h-full rounded-full transition-all duration-500" 
-                style={{ width: `${completionRate}%` }} 
-              />
-            </div>
-          </div>
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-            <span>On hold / paused</span>
-            <span className="font-mono text-slate-700">{onHoldCount}</span>
-          </div>
-        </div>
-
-        {/* Card 4: Governance Pipeline */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
-              Code Governance
-            </span>
-            <Layers className="w-4 h-4 text-slate-400" />
-          </div>
-          <div className="my-2.5">
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-slate-950 tracking-tight font-display">
+              <span className="text-[28px] font-bold text-slate-900 tracking-tight">
                 {loading ? '—' : projects.length}
               </span>
-              <span className="text-xs text-slate-400 font-mono font-medium">
-                tracked codes
+              <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 font-sans">
+                {activeRate}% active
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 font-medium mt-1">
-              Structured time allocation billing keys
+            <p className="text-xs text-slate-500 mt-1 font-medium font-sans">
+              {archivedCount > 0
+                ? `${activeCount} active, ${archivedCount} archived in portfolio`
+                : 'All projects currently active'}
             </p>
           </div>
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-            <span>Active timesheet targets</span>
-            <span className="font-mono text-slate-700">{activeCount}</span>
+        </div>
+
+        {/* Card 2: Active Delivery */}
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-5 hover:shadow-md transition-all duration-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-900 uppercase tracking-wider font-sans">
+              Active Delivery
+            </span>
+            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-900">
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="flex items-baseline gap-2">
+              <span className="text-[28px] font-bold text-slate-900 tracking-tight">
+                {loading ? '—' : executionCount}
+              </span>
+              <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 font-sans">
+                {executionRate}%
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1 font-medium font-sans">
+              {executionCount > 0
+                ? `${inProgressCount} in progress, ${planningCount} in planning`
+                : 'No projects currently in execution'}
+            </p>
+          </div>
+        </div>
+
+        {/* Card 3: Delivered Projects */}
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-5 hover:shadow-md transition-all duration-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-900 uppercase tracking-wider font-sans">
+              Delivered
+            </span>
+            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-900">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="flex items-baseline gap-2">
+              <span className="text-[28px] font-bold text-slate-900 tracking-tight">
+                {loading ? '—' : completedCount}
+              </span>
+              <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 font-sans">
+                {completionRate}%
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1 font-medium font-sans">
+              {completedCount > 0
+                ? `${completedCount} ${completedCount === 1 ? 'project' : 'projects'} completed & delivered`
+                : 'No projects completed yet'}
+            </p>
+          </div>
+        </div>
+
+        {/* Card 4: On Hold */}
+        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-5 hover:shadow-md transition-all duration-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-900 uppercase tracking-wider font-sans">
+              On Hold
+            </span>
+            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-900">
+              <Layers className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-[28px] font-bold text-slate-900 tracking-tight">
+              {loading ? '—' : onHoldCount}
+            </span>
+            <p className="text-xs text-slate-500 mt-1 font-medium font-sans">
+              {onHoldCount > 0
+                ? `${onHoldCount} ${onHoldCount === 1 ? 'project' : 'projects'} paused or awaiting review`
+                : 'No initiatives currently on hold'}
+            </p>
           </div>
         </div>
       </div>
 
       {/* Main Container / Filter Bar & Ledger */}
-      <div className="space-y-4">
+      <div className="space-y-4 animate-slideUpFade-d2">
         {/* Filter & Search Toolbar */}
-        <div className="bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col gap-3">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="relative z-30 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-[14px] border border-slate-200/80 shadow-xs flex flex-col gap-4">
+          <div className="relative z-20 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {/* Search Input */}
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
@@ -440,12 +418,13 @@ export const AllProjectsList = () => {
                 placeholder="Search projects by name or code..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 bg-slate-50/50 border border-slate-200/90 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs"
+                className="w-full pl-10 pr-9 py-2.5 bg-slate-50/70 border border-slate-200 rounded-full text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:outline-none transition-all shadow-2xs font-sans"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-2.5 p-0.5 text-slate-400 hover:text-slate-600 rounded-md cursor-pointer"
+                  className="absolute right-3.5 top-2.5 p-0.5 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
+                  title="Clear search"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -453,19 +432,19 @@ export const AllProjectsList = () => {
             </div>
 
             {/* Custom Modern Dropdowns */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               {/* Status Filter Popover */}
-              <div className="relative" ref={statusDropdownRef}>
+              <div className={`relative ${statusDropdownOpen ? 'z-50' : 'z-20'}`} ref={statusDropdownRef}>
                 <button
                   type="button"
                   onClick={() => {
                     setStatusDropdownOpen(!statusDropdownOpen);
                     setStateDropdownOpen(false);
                   }}
-                  className={`h-9 sm:h-10 rounded-xl border bg-slate-50/50 hover:bg-white px-3 text-xs sm:text-sm text-slate-800 flex items-center justify-between gap-2.5 transition-all shadow-2xs cursor-pointer min-w-[140px] sm:min-w-[160px] ${
+                  className={`h-10 rounded-full border bg-slate-50/70 hover:bg-white px-4 text-xs sm:text-sm text-slate-800 flex items-center justify-between gap-2.5 transition-all shadow-2xs cursor-pointer min-w-[140px] sm:min-w-[160px] font-sans ${
                     statusDropdownOpen
                       ? 'border-slate-900 ring-2 ring-slate-950/15 bg-white'
-                      : 'border-slate-200/90 hover:border-slate-300'
+                      : 'border-slate-200 hover:border-slate-300'
                   }`}
                   aria-label="Filter by Status"
                 >
@@ -480,7 +459,7 @@ export const AllProjectsList = () => {
                 </button>
 
                 {statusDropdownOpen && (
-                  <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-1.5 z-30 min-w-[180px] rounded-xl bg-white border border-slate-200 shadow-xl shadow-slate-900/10 p-1 space-y-0.5 animate-fadeIn">
+                  <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-2 z-50 min-w-[180px] max-h-72 overflow-y-auto rounded-xl bg-white border border-slate-200 shadow-2xl shadow-slate-900/15 p-1 space-y-0.5 animate-selectDropdownDown">
                     {statusOptions.map(opt => {
                       const isSelected = statusFilter === opt.value;
                       return (
@@ -506,17 +485,17 @@ export const AllProjectsList = () => {
               </div>
 
               {/* State Filter Popover */}
-              <div className="relative" ref={stateDropdownRef}>
+              <div className={`relative ${stateDropdownOpen ? 'z-50' : 'z-20'}`} ref={stateDropdownRef}>
                 <button
                   type="button"
                   onClick={() => {
                     setStateDropdownOpen(!stateDropdownOpen);
                     setStatusDropdownOpen(false);
                   }}
-                  className={`h-9 sm:h-10 rounded-xl border bg-slate-50/50 hover:bg-white px-3 text-xs sm:text-sm text-slate-800 flex items-center justify-between gap-2.5 transition-all shadow-2xs cursor-pointer min-w-[130px] sm:min-w-[150px] ${
+                  className={`h-10 rounded-full border bg-slate-50/70 hover:bg-white px-4 text-xs sm:text-sm text-slate-800 flex items-center justify-between gap-2.5 transition-all shadow-2xs cursor-pointer min-w-[130px] sm:min-w-[150px] font-sans ${
                     stateDropdownOpen
                       ? 'border-slate-900 ring-2 ring-slate-950/15 bg-white'
-                      : 'border-slate-200/90 hover:border-slate-300'
+                      : 'border-slate-200 hover:border-slate-300'
                   }`}
                   aria-label="Filter by State"
                 >
@@ -531,7 +510,7 @@ export const AllProjectsList = () => {
                 </button>
 
                 {stateDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-1.5 z-30 min-w-[170px] rounded-xl bg-white border border-slate-200 shadow-xl shadow-slate-900/10 p-1 space-y-0.5 animate-fadeIn">
+                  <div className="absolute right-0 top-full mt-2 z-50 min-w-[170px] max-h-72 overflow-y-auto rounded-xl bg-white border border-slate-200 shadow-2xl shadow-slate-900/15 p-1 space-y-0.5 animate-selectDropdownDown">
                     {stateOptions.map(opt => {
                       const isSelected = activeFilter === opt.value;
                       return (
@@ -559,20 +538,20 @@ export const AllProjectsList = () => {
           </div>
 
           {/* Quick Filter Tag Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-mono font-medium text-slate-400 mr-1 flex items-center gap-1">
-                <Filter className="w-3 h-3" /> Quick:
+          <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold text-slate-500 mr-1.5 flex items-center gap-1.5 font-sans">
+                <Filter className="w-3.5 h-3.5 text-slate-700" /> Filter:
               </span>
               <button
                 onClick={() => {
                   setStatusFilter('');
                   setActiveFilter('all');
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-sans transition-all cursor-pointer ${
                   statusFilter === '' && activeFilter === 'all'
-                    ? 'bg-slate-950 text-white font-semibold shadow-2xs'
-                    : 'bg-slate-100 hover:bg-slate-200/70 text-slate-600'
+                    ? 'bg-[#12161F] text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                 }`}
               >
                 All ({projects.length})
@@ -582,10 +561,10 @@ export const AllProjectsList = () => {
                   setStatusFilter('IN_PROGRESS');
                   setActiveFilter('active');
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-sans transition-all cursor-pointer ${
                   statusFilter === 'IN_PROGRESS'
-                    ? 'bg-slate-950 text-white font-semibold shadow-2xs'
-                    : 'bg-slate-100 hover:bg-slate-200/70 text-slate-600'
+                    ? 'bg-[#12161F] text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                 }`}
               >
                 In Progress ({inProgressCount})
@@ -595,10 +574,10 @@ export const AllProjectsList = () => {
                   setStatusFilter('ACTIVE');
                   setActiveFilter('active');
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-sans transition-all cursor-pointer ${
                   statusFilter === 'ACTIVE'
-                    ? 'bg-slate-950 text-white font-semibold shadow-2xs'
-                    : 'bg-slate-100 hover:bg-slate-200/70 text-slate-600'
+                    ? 'bg-[#12161F] text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                 }`}
               >
                 Active ({activeStatusCount})
@@ -608,28 +587,28 @@ export const AllProjectsList = () => {
                   setStatusFilter('COMPLETED');
                   setActiveFilter('all');
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-sans transition-all cursor-pointer ${
                   statusFilter === 'COMPLETED'
-                    ? 'bg-slate-950 text-white font-semibold shadow-2xs'
-                    : 'bg-slate-100 hover:bg-slate-200/70 text-slate-600'
+                    ? 'bg-[#12161F] text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                 }`}
               >
                 Completed ({completedCount})
               </button>
             </div>
 
-            <div className="text-[11px] font-mono text-slate-500">
-              Showing <span className="font-semibold text-slate-900">{filteredProjects.length}</span> of {projects.length} initiatives
+            <div className="text-xs text-slate-500 font-medium font-sans">
+              Showing <span className="font-bold text-slate-900">{filteredProjects.length}</span> of {projects.length} initiatives
             </div>
           </div>
         </div>
 
         {/* Enterprise Projects Ledger Table */}
-        <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+        <div className="relative z-10 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-[14px] overflow-hidden shadow-xs transition-shadow duration-300 hover:shadow-md">
           {loading ? (
             <div className="py-20 text-center text-slate-500 space-y-3">
               <LoadingSpinner size="md" />
-              <p className="text-xs font-mono font-medium text-slate-500">Loading project initiatives...</p>
+              <p className="text-xs font-sans font-medium text-slate-500">Loading project initiatives...</p>
             </div>
           ) : error ? (
             <div className="p-8 text-center text-rose-600 space-y-3">
@@ -638,7 +617,7 @@ export const AllProjectsList = () => {
               <p className="text-sm text-rose-600">{error}</p>
               <button
                 onClick={loadProjects}
-                className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-950 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition-colors shadow-2xs cursor-pointer"
+                className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-slate-950 text-white rounded-full text-xs font-bold hover:bg-slate-800 transition-colors shadow-2xs cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 Try Again
@@ -646,17 +625,11 @@ export const AllProjectsList = () => {
             </div>
           ) : filteredProjects.length === 0 ? (
             <div className="py-16 px-4 text-center">
-              {/* Handcrafted Architectural Vector SVG Empty State */}
-              <svg className="w-24 h-24 mx-auto text-slate-300 mb-3" viewBox="0 0 120 120" fill="none">
-                <rect x="22" y="26" width="76" height="68" rx="12" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="2" strokeDasharray="4 4" />
-                <rect x="36" y="44" width="48" height="8" rx="3" fill="#E2E8F0" />
-                <rect x="36" y="58" width="32" height="6" rx="3" fill="#CBD5E1" />
-                <rect x="36" y="70" width="24" height="6" rx="3" fill="#CBD5E1" />
-                <circle cx="88" cy="36" r="10" fill="#0F172A" />
-                <path d="M88 32V40M84 36H92" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-              <p className="text-base font-bold text-slate-900 font-display">No projects found</p>
-              <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-sm mx-auto">
+              <div className="w-12 h-9 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                <Briefcase className="w-6 h-6 text-slate-900" />
+              </div>
+              <h3 className="text-base font-bold text-slate-800 font-sans">No projects found</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto font-sans font-medium">
                 {searchQuery || statusFilter || activeFilter !== 'all'
                   ? 'No projects matched your search criteria. Try adjusting your filters.'
                   : 'Get started by creating your first organizational project initiative.'}
@@ -668,7 +641,7 @@ export const AllProjectsList = () => {
                     setStatusFilter('');
                     setActiveFilter('all');
                   }}
-                  className="mt-3.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-mono font-semibold rounded-lg transition-colors cursor-pointer"
+                  className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-full transition-colors cursor-pointer active:scale-95 font-sans"
                 >
                   <X className="w-3.5 h-3.5" />
                   Clear All Filters
@@ -676,9 +649,9 @@ export const AllProjectsList = () => {
               ) : (
                 <button
                   onClick={openCreateModal}
-                  className="mt-4 inline-flex items-center gap-1.5 bg-slate-950 hover:bg-slate-800 text-white font-medium px-4 py-2 rounded-xl text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:scale-[0.98]"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4" strokeWidth={2.5} />
                   Create First Project
                 </button>
               )}
@@ -686,40 +659,40 @@ export const AllProjectsList = () => {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                <thead className="bg-slate-50 border-b border-slate-200/80">
                   <tr>
-                    <th scope="col" className="px-6 py-4">Code</th>
-                    <th scope="col" className="px-5 py-4">Project Initiative</th>
-                    <th scope="col" className="px-5 py-4">Lifecycle Status</th>
-                    <th scope="col" className="px-5 py-4">Operational State</th>
-                    <th scope="col" className="px-6 py-4 text-right">Actions</th>
+                    <th scope="col" className="px-4 py-3 text-[12px] leading-[16px] font-semibold text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80 bg-slate-50/50">Code</th>
+                    <th scope="col" className="px-4 py-3 text-[12px] leading-[16px] font-semibold text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80 bg-slate-50/50">Project Initiative</th>
+                    <th scope="col" className="px-4 py-3 text-[12px] leading-[16px] font-semibold text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80 bg-slate-50/50">Lifecycle Status</th>
+                    <th scope="col" className="px-4 py-3 text-[12px] leading-[16px] font-semibold text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80 bg-slate-50/50">Operational State</th>
+                    <th scope="col" className="px-4 py-3 text-[12px] leading-[16px] font-semibold text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80 bg-slate-50/50">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredProjects.map(proj => (
-                    <tr key={proj.id} className="hover:bg-slate-50/70 transition-colors duration-150">
+                    <tr key={proj.id} className="hover:bg-slate-50/60 transition-colors duration-150 group">
                       {/* Project Code */}
-                      <td className="px-6 py-4.5 font-mono text-xs">
-                        <span className="inline-block font-mono text-xs text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/80 font-bold tracking-wide shadow-2xs">
+                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold font-sans tracking-wide text-slate-900 bg-slate-100 border border-slate-200/80 shadow-2xs">
                           {proj.code}
                         </span>
                       </td>
 
                       {/* Project Name */}
-                      <td className="px-5 py-4.5">
+                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-slate-950 text-white font-mono font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs border border-slate-800">
+                          <div className="w-9 h-9 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs border border-slate-800 transition-transform duration-200 group-hover:scale-105">
                             {getProjectInitials(proj.code, proj.name)}
                           </div>
                           <div className="min-w-0">
                             <Link
                               to={`/projects/${proj.id}`}
-                              className="font-semibold text-slate-900 text-sm hover:text-slate-950 transition-colors inline-flex items-center gap-1.5 group"
+                              className="font-bold text-slate-900 text-sm hover:text-slate-950 transition-colors inline-flex items-center gap-1.5 group/link"
                             >
-                              <span className="truncate group-hover:underline">{proj.name}</span>
-                              <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 transition-colors" />
+                              <span className="truncate group-hover/link:underline">{proj.name}</span>
+                              <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover/link:text-slate-900 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 transition-all duration-150" />
                             </Link>
-                            <span className="text-[11px] font-mono text-slate-400 block">
+                            <span className="text-xs text-slate-400 font-medium block">
                               Organizational Initiative
                             </span>
                           </div>
@@ -727,39 +700,40 @@ export const AllProjectsList = () => {
                       </td>
 
                       {/* Status */}
-                      <td className="px-5 py-4.5">
+                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                         {renderStatusBadge(proj.status)}
                       </td>
 
                       {/* Operational State */}
-                      <td className="px-5 py-4.5">
+                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shadow-2xs ${
+                          className={`inline-flex items-center justify-center gap-1.5 w-[92px] h-7 rounded-full text-xs font-bold font-sans whitespace-nowrap ${
                             proj.isActive
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
                               : 'bg-slate-100 text-slate-600 border border-slate-200/80'
                           }`}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full ${proj.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                          <span className={`w-1.5 h-1.5 rounded-full ${proj.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
                           {proj.isActive ? 'Active' : 'Archived'}
                         </span>
                       </td>
 
                       {/* Actions */}
-                      <td className="px-6 py-4.5 text-right">
+                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => openEditModal(proj)}
-                            className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                             title="Edit project"
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Pencil className="w-4 h-4" />
                           </button>
                           <Link
                             to={`/projects/${proj.id}`}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-white rounded-xl text-xs font-medium transition-all shadow-xs active:scale-[0.99]"
+                            className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-[#12161F] hover:text-slate-600 transition-colors font-sans group rounded-md"
                           >
-                            Manage →
+                            <span>Manage</span>
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" strokeWidth={2.5} />
                           </Link>
                         </div>
                       </td>
@@ -788,7 +762,7 @@ export const AllProjectsList = () => {
 
         <form onSubmit={handleCreateSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
+            <label className="block text-xs font-bold text-slate-800 font-sans mb-1.5">
               Project Name *
             </label>
             <input
@@ -797,12 +771,12 @@ export const AllProjectsList = () => {
               placeholder="e.g. Workforce Analytics Engine"
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
-              className="w-full border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-sm bg-white text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs"
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50/50 hover:bg-white focus:bg-white text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs font-sans"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
+            <label className="block text-xs font-bold text-slate-800 font-sans mb-1.5">
               Project Code *
             </label>
             <input
@@ -811,52 +785,72 @@ export const AllProjectsList = () => {
               placeholder="e.g. PRJ-ANALYTICS"
               value={formData.code}
               onChange={e => setFormData({ ...formData, code: e.target.value })}
-              className="w-full border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-sm uppercase focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs font-mono bg-white text-slate-900"
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm uppercase bg-slate-50/50 hover:bg-white focus:bg-white text-slate-900 focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs font-sans font-bold tracking-wider"
             />
+            <p className="text-[11px] text-slate-400 mt-1 font-medium font-sans">
+              Unique tracking identifier used across timesheets and audit logs.
+            </p>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
+            <label className="block text-xs font-bold text-slate-800 font-sans mb-1.5">
               Initial Status *
             </label>
-            <select
+            <Select
               value={formData.status}
-              onChange={e => setFormData({ ...formData, status: e.target.value })}
-              className="w-full border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-sm bg-white text-slate-900 focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs"
-            >
-              <option value="PLANNING">Planning</option>
-              <option value="ACTIVE">Active</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="ON_HOLD">On Hold</option>
-              <option value="COMPLETED">Completed</option>
-            </select>
+              onChange={val => setFormData({ ...formData, status: val })}
+              options={projectStatusFormOptions}
+              size="md"
+              className="w-full font-sans"
+              triggerClassName="!bg-slate-50/50 hover:!bg-white !rounded-xl !border-slate-200 !text-slate-900 !font-sans"
+            />
           </div>
 
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              type="checkbox"
-              id="create-project-active"
-              checked={formData.isActive}
-              onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
-              className="rounded border-slate-300 text-slate-950 focus:ring-slate-950 h-4 w-4"
-            />
-            <label htmlFor="create-project-active" className="text-sm font-medium text-slate-700">
-              Active Project
+          <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+            <div>
+              <label htmlFor="create-project-active" className="text-sm font-bold text-slate-800 font-sans block cursor-pointer">
+                Active Project
+              </label>
+              <p className="text-xs text-slate-400 mt-0.5 font-medium font-sans">
+                {formData.isActive
+                  ? 'Initiative is active and selectable on weekly employee timesheets.'
+                  : 'Initiative is archived and hidden from new timesheet entries.'}
+              </p>
+            </div>
+            <label htmlFor="create-project-active" className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                id="create-project-active"
+                checked={formData.isActive}
+                onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
+                className="sr-only"
+              />
+              <div
+                className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out p-0.5 ${
+                  formData.isActive ? 'bg-slate-900' : 'bg-slate-200'
+                }`}
+              >
+                <div
+                  className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                    formData.isActive ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </div>
             </label>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setIsCreateOpen(false)}
-              className="px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={formSubmitting}
-              className="px-4 py-2.5 bg-slate-950 hover:bg-slate-800 text-white font-medium rounded-xl text-sm transition-all shadow-xs cursor-pointer active:scale-[0.99] disabled:opacity-50"
+              className="px-6 py-2.5 bg-[#12161F] hover:bg-slate-800 text-white font-bold rounded-full text-xs sm:text-sm transition-all shadow-xs cursor-pointer active:scale-[0.98] disabled:opacity-50 font-sans"
             >
               {formSubmitting ? 'Creating...' : 'Create Project'}
             </button>
@@ -880,7 +874,7 @@ export const AllProjectsList = () => {
 
         <form onSubmit={handleEditSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
+            <label className="block text-xs font-bold text-slate-800 font-sans mb-1.5">
               Project Name *
             </label>
             <input
@@ -888,12 +882,12 @@ export const AllProjectsList = () => {
               required
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
-              className="w-full border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-sm bg-white text-slate-900 focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs"
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50/50 hover:bg-white focus:bg-white text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs font-sans"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
+            <label className="block text-xs font-bold text-slate-800 font-sans mb-1.5">
               Project Code *
             </label>
             <input
@@ -901,52 +895,72 @@ export const AllProjectsList = () => {
               required
               value={formData.code}
               onChange={e => setFormData({ ...formData, code: e.target.value })}
-              className="w-full border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-sm uppercase focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs font-mono bg-white text-slate-900"
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm uppercase bg-slate-50/50 hover:bg-white focus:bg-white text-slate-900 focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs font-sans font-bold tracking-wider"
             />
+            <p className="text-[11px] text-slate-400 mt-1 font-medium font-sans">
+              Unique tracking identifier used across timesheets and audit logs.
+            </p>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
+            <label className="block text-xs font-bold text-slate-800 font-sans mb-1.5">
               Project Status *
             </label>
-            <select
+            <Select
               value={formData.status}
-              onChange={e => setFormData({ ...formData, status: e.target.value })}
-              className="w-full border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-sm bg-white text-slate-900 focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs"
-            >
-              <option value="PLANNING">Planning</option>
-              <option value="ACTIVE">Active</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="ON_HOLD">On Hold</option>
-              <option value="COMPLETED">Completed</option>
-            </select>
+              onChange={val => setFormData({ ...formData, status: val })}
+              options={projectStatusFormOptions}
+              size="md"
+              className="w-full font-sans"
+              triggerClassName="!bg-slate-50/50 hover:!bg-white !rounded-xl !border-slate-200 !text-slate-900 !font-sans"
+            />
           </div>
 
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              type="checkbox"
-              id="edit-project-active"
-              checked={formData.isActive}
-              onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
-              className="rounded border-slate-300 text-slate-950 focus:ring-slate-950 h-4 w-4"
-            />
-            <label htmlFor="edit-project-active" className="text-sm font-medium text-slate-700">
-              Active Project
+          <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+            <div>
+              <label htmlFor="edit-project-active" className="text-sm font-bold text-slate-800 font-sans block cursor-pointer">
+                Active Project
+              </label>
+              <p className="text-xs text-slate-400 mt-0.5 font-medium font-sans">
+                {formData.isActive
+                  ? 'Initiative is active and selectable on weekly employee timesheets.'
+                  : 'Initiative is archived and hidden from new timesheet entries.'}
+              </p>
+            </div>
+            <label htmlFor="edit-project-active" className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                id="edit-project-active"
+                checked={formData.isActive}
+                onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
+                className="sr-only"
+              />
+              <div
+                className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out p-0.5 ${
+                  formData.isActive ? 'bg-slate-900' : 'bg-slate-200'
+                }`}
+              >
+                <div
+                  className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                    formData.isActive ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </div>
             </label>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setEditingProject(null)}
-              className="px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={formSubmitting}
-              className="px-4 py-2.5 bg-slate-950 hover:bg-slate-800 text-white font-medium rounded-xl text-sm transition-all shadow-xs cursor-pointer active:scale-[0.99] disabled:opacity-50"
+              className="px-6 py-2.5 bg-[#12161F] hover:bg-slate-800 text-white font-bold rounded-full text-xs sm:text-sm transition-all shadow-xs cursor-pointer active:scale-[0.98] disabled:opacity-50 font-sans"
             >
               {formSubmitting ? 'Saving...' : 'Save Changes'}
             </button>

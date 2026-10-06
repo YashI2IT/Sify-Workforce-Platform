@@ -16,12 +16,12 @@ export class ProjectsService {
 
     if (isAdmin) {
       const [projects, countResult] = await Promise.all([
-        db.orm.public.Project.where({ organizationId, isActive: true })
+        db.orm.public.Project.where({ organizationId })
           .orderBy(m => m.createdAt.desc())
           .limit(limit)
           .offset(offset)
           .all(),
-        db.orm.public.Project.where({ organizationId, isActive: true })
+        db.orm.public.Project.where({ organizationId })
           .aggregate((a: any) => ({ count: a.count() })),
       ]);
       const total = Number((countResult as any)?.count ?? 0);
@@ -58,15 +58,15 @@ export class ProjectsService {
 
     const assignedProjectIds = assignments.map((a: any) => a.projectId);
 
-    // Fetch matching active projects via DB
+    // Fetch matching projects via DB
     const [paginated, countResult] = await Promise.all([
-      db.orm.public.Project.where({ organizationId, isActive: true })
+      db.orm.public.Project.where({ organizationId })
         .where((p: any) => p.id.in(assignedProjectIds))
         .orderBy((m: any) => m.createdAt.desc())
         .limit(limit)
         .offset(offset)
         .all(),
-      db.orm.public.Project.where({ organizationId, isActive: true })
+      db.orm.public.Project.where({ organizationId })
         .where((p: any) => p.id.in(assignedProjectIds))
         .aggregate((a: any) => ({ count: a.count() })),
     ]);
@@ -272,7 +272,34 @@ export class ProjectsService {
        if (evidence.length > 0) summary = 'Attention Needed';
     }
 
-    if (evidence.length === 0) {
+    if (tasks.length === 0) {
+       summary = 'Setup Required';
+       evidence.push('No tasks created yet — define project tasks or milestones to begin execution');
+       
+       let assignedCount = 0;
+       try {
+           const rows = await db.orm.public.EmployeeProject.where({ projectId: id }).all();
+           assignedCount = rows.length;
+       } catch {
+           assignedCount = 0;
+       }
+       
+       if (assignedCount === 0) {
+          evidence.push('No team members assigned — assign personnel to staff this project');
+       }
+
+       let activitiesCount = 0;
+       try {
+           const rows = await db.orm.public.Activity.where({ projectId: id, isActive: true }).all();
+           activitiesCount = rows.length;
+       } catch {
+           activitiesCount = 0;
+       }
+
+       if (activitiesCount === 0) {
+          evidence.push('No activities configured — add activities to enable timesheet logging');
+       }
+    } else if (evidence.length === 0) {
        evidence.push('All schedule, workload, and execution signals are healthy');
     }
 

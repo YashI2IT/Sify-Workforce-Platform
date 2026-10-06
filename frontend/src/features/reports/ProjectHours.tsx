@@ -91,9 +91,9 @@ export const ProjectHours = () => {
       ) : (
         <div className="p-6 sm:p-7 space-y-7">
           {/* Executive Overview Banner */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-white border border-slate-200/90 rounded-[14px] p-5 sm:p-6 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200/80 flex items-center justify-center shrink-0 shadow-2xs">
+              <div className="w-12 h-9 rounded-[14px] bg-emerald-50 text-emerald-600 border border-emerald-200/80 flex items-center justify-center shrink-0 shadow-2xs">
                 <CheckCircle2 className="w-6 h-6 stroke-[2]" />
               </div>
               <div>
@@ -121,7 +121,7 @@ export const ProjectHours = () => {
           {/* 2-Column Responsive Breakdown Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-7 items-start">
             {/* Column 1: Employee Breakdown */}
-            <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+            <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs">
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-slate-950" />
@@ -145,7 +145,7 @@ export const ProjectHours = () => {
                   <tbody className="divide-y divide-slate-100">
                     {data.employeeBreakdown?.map((emp: any) => (
                       <tr key={emp.employeeId} className="hover:bg-slate-50/70 transition-colors duration-150">
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-slate-200/80">
                               {getInitials(emp.name)}
@@ -160,7 +160,7 @@ export const ProjectHours = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                           <span className="inline-flex items-center font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/80 text-xs shadow-2xs">
                             {emp.hours}h
                           </span>
@@ -173,7 +173,7 @@ export const ProjectHours = () => {
             </div>
 
             {/* Column 2: Task Breakdown */}
-            <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+            <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs">
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-slate-950" />
@@ -197,7 +197,7 @@ export const ProjectHours = () => {
                   <tbody className="divide-y divide-slate-100">
                     {data.taskBreakdown?.map((task: any) => (
                       <tr key={task.taskId} className="hover:bg-slate-50/70 transition-colors duration-150">
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                           <div className="flex items-center gap-2.5">
                             <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 border border-slate-200/80">
                               <Layers className="w-3.5 h-3.5 text-slate-500" />
@@ -207,7 +207,7 @@ export const ProjectHours = () => {
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                           <span className="inline-flex items-center font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/80 text-xs shadow-2xs">
                             {task.hours}h
                           </span>

@@ -38,7 +38,7 @@ export function ReportLayout({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-slate-950 text-white shadow-xs border border-slate-800 flex items-center justify-center shrink-0">
+            <div className="w-11 h-9 rounded-[14px] bg-slate-950 text-white shadow-xs border border-slate-800 flex items-center justify-center shrink-0">
               <Icon className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -61,14 +61,14 @@ export function ReportLayout({
             disabled={loading}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-950 hover:bg-slate-800 text-white font-medium text-xs sm:text-sm rounded-xl shadow-xs transition-all cursor-pointer active:scale-[0.99] disabled:opacity-50"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 transition-transform duration-500 group-hover:rotate-180 group-active:rotate-180 ${loading ? 'animate-spin text-slate-900' : 'text-slate-500'}`} />
             {loading ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
       </div>
 
       {/* Modern Filter Toolbar */}
-      <div className="relative z-20 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-wrap items-end gap-3.5 sm:gap-4">
+      <div className="relative z-20 bg-white p-3.5 sm:p-4 rounded-[14px] border border-slate-200/90 shadow-2xs flex flex-wrap items-end gap-3.5 sm:gap-4">
         <div className="space-y-1.5 min-w-[160px]">
           <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide">
             Start Date
@@ -96,14 +96,14 @@ export function ReportLayout({
 
       {/* Error Banner */}
       {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2.5 text-rose-800 text-sm shadow-2xs">
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-[14px] flex items-center gap-2.5 text-rose-800 text-sm shadow-2xs">
           <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
           <p className="font-medium">{error}</p>
         </div>
       )}
 
       {/* Main Content Ledger */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden min-h-[320px] relative">
+      <div className="bg-white border border-slate-200/90 rounded-[14px] shadow-2xs overflow-hidden min-h-[320px] relative">
         {loading && !error && (
           <div className="absolute inset-0 bg-white/70 backdrop-blur-xs z-10 flex flex-col items-center justify-center space-y-3">
             <LoadingSpinner size="lg" />

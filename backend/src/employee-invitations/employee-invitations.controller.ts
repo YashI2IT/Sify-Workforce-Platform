@@ -13,7 +13,7 @@ export class EmployeeInvitationsController {
   constructor(private readonly employeeInvitationsService: EmployeeInvitationsService) {}
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Create a new employee invitation' })
   @ApiBody({
     schema: {
@@ -106,14 +106,14 @@ export class EmployeeInvitationsController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Cancel a pending invitation' })
   async cancel(@Param('id') id: string, @GetAuthContext() auth: AuthenticatedContext) {
     return await this.employeeInvitationsService.cancel(id, auth.organizationId);
   }
 
   @Post(':id/resend')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Resend a pending or expired invitation' })
   async resend(@Param('id') id: string, @GetAuthContext() auth: AuthenticatedContext) {
     return await this.employeeInvitationsService.resend(id, auth.organizationId);

@@ -12,21 +12,16 @@ import { MyTimeEntries } from './features/time-entries/MyTimeEntries';
 import { MyTimesheets } from './features/timesheets/MyTimesheets';
 import { TimesheetDetail } from './features/timesheets/TimesheetDetail';
 import { ManagerApprovals } from './features/approvals/ManagerApprovals';
+import { ManagerTimesheetReview } from './features/approvals/ManagerTimesheetReview';
 import { SubmissionApprovals } from './features/timesheets/SubmissionApprovals';
 import { EmployeesList } from './features/employees/EmployeesList';
 import { TeamsList } from './features/teams/TeamsList';
 import { AllProjectsList } from './features/admin-projects/AllProjectsList';
 import { OrganizationOverview } from './features/organization/OrganizationOverview';
 import { OrganizationSettings } from './features/organization/OrganizationSettings';
+import { OrganizationDetail } from './features/organization/OrganizationDetail';
 
 import { ReportsAndAnalytics } from './features/reports/ReportsAndAnalytics';
-import { EmployeeSummary } from './features/reports/EmployeeSummary';
-import { ManagerDashboard } from './features/reports/ManagerDashboard';
-import { TeamUtilization } from './features/reports/TeamUtilization';
-import { ProjectHours } from './features/reports/ProjectHours';
-import { ProjectAnalysis } from './features/reports/ProjectAnalysis';
-import { AdvancedAnalytics } from './features/reports/advanced-analytics/AdvancedAnalytics';
-import { ResourceAllocation } from './features/reports/resource-allocation/ResourceAllocation';
 
 import { AuditLogsList } from './features/system/AuditLogsList';
 
@@ -62,28 +57,23 @@ function App() {
             <Route path="/timesheets" element={<MyTimesheets />} />
             <Route path="/timesheets/:id" element={<TimesheetDetail />} />
             <Route path="/approvals" element={<ManagerApprovals />} />
+            <Route path="/approvals/timesheets/:id" element={<ManagerTimesheetReview />} />
             <Route path="/submission-approvals" element={<SubmissionApprovals />} />
             <Route path="/employees" element={<EmployeesList />} />
             <Route path="/teams" element={<TeamsList />} />
             <Route path="/organization" element={<OrganizationOverview />} />
-            <Route path="/organization/overview" element={<Navigate to="/organization" replace />} />
-            <Route path="/organization/profile" element={<Navigate to="/organization" replace />} />
+            <Route path="/organization/overview" element={<OrganizationOverview />} />
+            <Route path="/organization/profile" element={<OrganizationDetail />} />
             <Route path="/organization/settings" element={<OrganizationSettings />} />
             <Route path="/admin/projects" element={<AllProjectsList />} />
             <Route path="/admin/working-times" element={<WorkingTimesConfig />} />
             <Route path="/settings/timesheets" element={<ManagerWorkingTimesView />} />
             <Route path="/admin/public-holidays" element={<PublicHolidaysConfig />} />
             
-            {/* Reports Routing */}
-            <Route path="/reports" element={<ReportsAndAnalytics />}>
-              <Route path="employee-summary" element={<EmployeeSummary />} />
-              <Route path="manager-dashboard" element={<ManagerDashboard />} />
-              <Route path="team-utilization" element={<TeamUtilization />} />
-              <Route path="project-hours" element={<ProjectHours />} />
-              <Route path="project-analysis" element={<ProjectAnalysis />} />
-              <Route path="advanced-analytics" element={<AdvancedAnalytics />} />
-              <Route path="resource-allocation" element={<ResourceAllocation />} />
-            </Route>
+            {/* Reports Routing - Unified Single Page */}
+            <Route path="/reports" element={<ReportsAndAnalytics />} />
+            <Route path="/reports/advanced-analytics" element={<Navigate to="/reports" replace />} />
+            <Route path="/reports/*" element={<Navigate to="/reports" replace />} />
 
             {/* System */}
             <Route path="/admin/audit-logs" element={<AuditLogsList />} />

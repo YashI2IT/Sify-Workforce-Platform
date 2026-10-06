@@ -201,20 +201,30 @@ describe('EmployeesList RBAC', () => {
       });
     });
 
-    it('hides employee mutation controls for Manager', async () => {
+    it('shows employee mutation controls for Manager', async () => {
+      (apiClient as any).mockImplementation((url: string) => {
+        if (url.includes('/employees')) return Promise.resolve({ data: [{
+          id: 'emp1',
+          name: 'Regular Emp',
+          email: 'reg@example.com',
+          isActive: true,
+          role: 'EMPLOYEE',
+        }] });
+        return Promise.resolve({ data: [] });
+      });
+
       renderWithProviders(<EmployeesList />);
       
-      await screen.findByText('Employees');
+      await screen.findByText('Regular Emp');
       
-      // Should not see Invite Employee
-      expect(screen.queryByText('Invite Employee')).toBeNull();
+      // Should see Invite Employee
+      expect(screen.queryByText('Invite Employee')).not.toBeNull();
       
-      // Should not see Actions column header
-      expect(screen.queryByText('Actions')).toBeNull();
+      // Should see Actions column header
+      expect(screen.queryByText('Actions')).not.toBeNull();
       
-      // Should not see Edit/Deactivate buttons
-      expect(screen.queryByTitle('Edit employee')).toBeNull();
-      expect(screen.queryByTitle('Deactivate employee')).toBeNull();
+      // Should see Edit buttons
+      expect(screen.queryAllByTitle('Edit employee').length).toBeGreaterThan(0);
     });
   });
 

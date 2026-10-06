@@ -95,7 +95,7 @@ export const ManagerWorkingTimesView: React.FC = () => {
           </p>
         </div>
 
-        <div className="space-y-8 divide-y divide-slate-200/80 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
+        <div className="space-y-8 divide-y divide-slate-200/80 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] overflow-hidden">
           
           <div className="p-6 sm:p-8 space-y-8">
 
@@ -215,7 +215,7 @@ export const ManagerWorkingTimesView: React.FC = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg border border-slate-200/60 overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-[14px] shadow-xl w-full max-w-lg border border-slate-200/60 overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
               <h2 className="text-lg font-bold text-slate-900">
                 {editEmployeeId ? 'Edit Employee Override' : 'Add Employee Override'}
@@ -224,7 +224,7 @@ export const ManagerWorkingTimesView: React.FC = () => {
             <div className="overflow-y-auto p-6">
               <form id="overrideForm" onSubmit={handleSave} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Employee</label>
+                  <label className="block text-[13px] leading-[18px] font-medium text-slate-700">Employee</label>
                   <select
                     value={editEmployeeId}
                     onChange={(e) => setEditEmployeeId(e.target.value)}

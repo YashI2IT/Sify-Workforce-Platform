@@ -129,28 +129,35 @@ export const MilestoneFormModal = ({
             {error}
           </div>
         )}
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Name *</label>
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold text-slate-700 tracking-tight font-sans">
+            Milestone Name <span className="text-rose-500">*</span>
+          </label>
           <input
             type="text"
             required
+            placeholder="e.g. Beta Release"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-950 focus:border-transparent bg-white shadow-sm transition-all"
+            className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 bg-white shadow-2xs transition-all font-sans text-slate-900 placeholder:text-slate-400 font-medium"
           />
         </div>
         
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Target Date *</label>
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-700 tracking-tight font-sans">
+              Target Date <span className="text-rose-500">*</span>
+            </label>
             <DatePicker
               value={form.targetDate}
               onChange={(val) => setForm({ ...form, targetDate: val })}
               className="w-full"
             />
           </div>
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Status</label>
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-700 tracking-tight font-sans">
+              Status
+            </label>
             <Select
               value={form.status}
               onChange={(val) => setForm({ ...form, status: val })}
@@ -165,24 +172,27 @@ export const MilestoneFormModal = ({
           </div>
         </div>
 
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Description</label>
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold text-slate-700 tracking-tight font-sans">
+            Description
+          </label>
           <textarea
             rows={3}
+            placeholder="Key deliverables and objectives for this milestone..."
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
-            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-950 focus:border-transparent bg-white shadow-sm transition-all resize-none"
+            className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 bg-white shadow-2xs transition-all font-sans text-slate-900 placeholder:text-slate-400 font-medium resize-none"
           />
         </div>
         
-        <div className="flex justify-between gap-3 pt-4 border-t border-slate-100">
+        <div className="flex justify-between items-center gap-3 pt-4 border-t border-slate-100">
           <div>
             {editingMilestone && (
               <button
                 type="button"
                 onClick={handleDelete}
                 disabled={submitting}
-                className="px-4 py-2 text-sm font-medium text-rose-600 bg-white border border-rose-200 rounded-xl hover:bg-rose-50 cursor-pointer disabled:opacity-50 transition-colors shadow-2xs"
+                className="px-5 py-2.5 text-xs font-bold text-rose-600 bg-white border border-rose-200 rounded-full hover:bg-rose-50 cursor-pointer disabled:opacity-50 transition-all shadow-xs active:scale-[0.97] font-sans"
               >
                 Delete
               </button>
@@ -192,14 +202,14 @@ export const MilestoneFormModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 cursor-pointer shadow-2xs transition-colors"
+              className="px-5 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-full hover:bg-slate-50 cursor-pointer shadow-xs transition-all active:scale-[0.97] font-sans"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-slate-950 border border-transparent rounded-xl hover:bg-slate-800 disabled:opacity-50 cursor-pointer shadow-xs transition-colors"
+              className="px-5 py-2.5 text-xs font-bold text-white bg-[#12161F] hover:bg-slate-800 rounded-full disabled:opacity-50 cursor-pointer shadow-xs transition-all active:scale-[0.97] font-sans"
             >
               {submitting ? 'Saving...' : 'Save Milestone'}
             </button>

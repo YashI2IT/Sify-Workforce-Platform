@@ -23,9 +23,12 @@ export async function apiClient(endpoint: string, options: RequestInit = {}, use
   const orgId = authStorage.getOrgId();
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
   };
+
+  if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (env.VITE_DEV_AUTH_BYPASS) {
     // Development mode: send real employee/org IDs to the backend DevBypassGuard.
@@ -53,8 +56,58 @@ export async function apiClient(endpoint: string, options: RequestInit = {}, use
 
   if (!response.ok) {
     if (response.status === 401 && !env.VITE_DEV_AUTH_BYPASS && !isAuthEndpoint) {
-      // Only redirect on 401 in production mode for authenticated requests — dev mode may not have
-      // a selected employee yet, and we don't want a redirect loop.
+      // Attempt to refresh the token
+      const refreshToken = authStorage.getRefreshToken();
+      if (refreshToken) {
+        try {
+          const refreshUrl = `${env.VITE_USER_MANAGEMENT_URL}/user/refresh-token`;
+          const refreshRes = await fetch(refreshUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-app-id': env.VITE_AUTH_APP_ID,
+            },
+            body: JSON.stringify({ refreshToken }),
+          });
+
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json();
+            const newAccessToken = refreshData?.data?.accessToken;
+            const newRefreshToken = refreshData?.data?.refreshToken;
+
+            if (newAccessToken && newRefreshToken) {
+              authStorage.setTokens(newAccessToken, newRefreshToken);
+              
+              // Retry the original request with the new token
+              headers['Authorization'] = `Bearer ${newAccessToken}`;
+              const retryResponse = await fetch(url, {
+                ...options,
+                headers,
+              });
+
+              if (retryResponse.ok) {
+                return retryResponse.json();
+              } else {
+                // If retry fails with an error other than 401, we want to extract its json properly below.
+                // But if it fails with 401 again, we log out.
+                if (retryResponse.status === 401) {
+                  throw new Error('Session expired. Please log in again.');
+                }
+                const errorData = await retryResponse.json().catch(() => null);
+                const errorMessage = errorData?.message || errorData?.error || `Request failed with status ${retryResponse.status}`;
+                const err = new Error(errorMessage);
+                (err as any).code = errorData?.code;
+                (err as any).status = retryResponse.status;
+                throw err;
+              }
+            }
+          }
+        } catch (refreshErr) {
+          // Fall through to logout
+        }
+      }
+
+      // If refresh failed or no refresh token, log out
       authStorage.clear();
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
         window.location.href = '/login';

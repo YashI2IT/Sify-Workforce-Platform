@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Edit2, Clock, Calendar, AlertCircle, Send, Trash2, Edit3, MessageSquare, Link, Plus } from 'lucide-react';
 import { useCurrentEmployee } from '../../../hooks/useCurrentEmployee';
-import { useGetTaskCommentsQuery, useCreateTaskCommentMutation, useUpdateTaskCommentMutation, useDeleteTaskCommentMutation, useGetTaskDependenciesQuery, useCreateTaskDependencyMutation, useDeleteTaskDependencyMutation, useGetEmployeesDirectoryQuery } from '../../../store/apiSlice';
+import { useGetTaskCommentsQuery, useCreateTaskCommentMutation, useUpdateTaskCommentMutation, useDeleteTaskCommentMutation, useGetTaskDependenciesQuery, useCreateTaskDependencyMutation, useDeleteTaskDependencyMutation, useGetEmployeesDirectoryQuery, useUpdateProjectTaskMutation } from '../../../store/apiSlice';
 import { useToast } from '../../../context/ToastContext';
+import { Select } from '../../../components/ui/Select';
 
 interface Task {
   id: string;
@@ -59,9 +61,9 @@ const isOverdue = (d?: string | null, status?: string) => {
 };
 
 const MetaRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="flex items-start gap-3 py-2 border-b border-slate-50 last:border-0">
-    <span className="text-[11px] font-bold text-slate-400 uppercase font-mono w-28 pt-0.5 shrink-0">{label}</span>
-    <div className="flex-1 min-w-0 text-xs text-slate-800 font-medium">{children}</div>
+  <div className="flex items-start gap-3 py-2.5 border-b border-slate-100 last:border-0">
+    <span className="text-xs font-semibold text-slate-500 font-sans w-28 pt-0.5 shrink-0">{label}</span>
+    <div className="flex-1 min-w-0 text-xs text-slate-800 font-medium font-sans">{children}</div>
   </div>
 );
 
@@ -78,6 +80,17 @@ export const TaskDetailPanel = ({
 }: TaskDetailPanelProps) => {
   const { employee } = useCurrentEmployee();
   const { showToast } = useToast();
+  
+  const [updateProjectTask] = useUpdateProjectTaskMutation();
+
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      await updateProjectTask({ projectId, taskId: task!.id, data: { status: newStatus } }).unwrap();
+      showToast('Task status updated', 'success');
+    } catch (e: any) {
+      showToast(e.data?.message || 'Failed to update status', 'error');
+    }
+  };
   
   // Comments API
   const { data: comments = [], isLoading: commentsLoading } = useGetTaskCommentsQuery(
@@ -142,7 +155,7 @@ export const TaskDetailPanel = ({
     return parts.map((part, i) => {
       const match = part.match(/@\[(.*?)\]\((.*?)\)/);
       if (match) {
-        return <span key={i} className="text-indigo-600 font-semibold bg-indigo-50 px-1 rounded shadow-sm">@{match[1]}</span>;
+        return <span key={i} className="text-indigo-600 font-semibold bg-indigo-50 px-1 rounded shadow-xs">@{match[1]}</span>;
       }
       return <span key={i}>{part}</span>;
     });
@@ -181,6 +194,22 @@ export const TaskDetailPanel = ({
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen || !task) return null;
 
   const getEmployee = (id?: string | null) => employees.find(e => e.id === id);
@@ -194,49 +223,54 @@ export const TaskDetailPanel = ({
   const priorityCls = priorityColors[task.priority ?? 'MEDIUM'] ?? priorityColors.MEDIUM;
   const overdue = isOverdue(task.dueDate, task.status);
 
-  return (
-    <>
-      {/* Backdrop */}
+  const panelNode = (
+    <div className="fixed inset-0 z-[100] flex justify-end">
+      {/* Backdrop covering 100% of viewport */}
       <div
-        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
+        className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs transition-opacity duration-200 animate-fadeIn"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Panel */}
-      <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[520px] bg-white shadow-2xl flex flex-col animate-[slideInRight_0.2s_ease-out]">
+      {/* Panel covering 100% height from top to bottom */}
+      <div
+        className="relative z-10 w-full sm:w-[540px] h-full bg-white shadow-2xl flex flex-col border-l border-slate-200 animate-[slideInRight_0.2s_ease-out] overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="task-detail-title"
+      >
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
+        <div className="px-6 py-4.5 border-b border-slate-100 flex items-start justify-between gap-3 shrink-0 bg-white">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold font-mono border bg-blue-50 text-blue-600 border-blue-100">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
                 {task.ticketId}
               </span>
-              <span className={'px-2 py-0.5 rounded-md text-[10px] font-bold font-mono border ' + statusCls}>
+              <span className={'px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono border ' + statusCls}>
                 {task.status.replace('_', ' ')}
               </span>
-              <span className={'px-2 py-0.5 rounded text-[10px] font-bold font-mono ' + priorityCls}>
+              <span className={'px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono ' + priorityCls}>
                 {task.priority ?? 'MEDIUM'}
               </span>
               {!task.isActive && (
-                <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-slate-100 text-slate-400 border border-slate-200 rounded">
+                <span className="px-2.5 py-0.5 text-[10px] font-mono font-bold bg-slate-100 text-slate-500 border border-slate-200 rounded-full">
                   INACTIVE
                 </span>
               )}
             </div>
-            <h2 className="mt-2 text-lg font-extrabold text-slate-900 font-display leading-tight">
+            <h2 id="task-detail-title" className="mt-2.5 text-lg font-bold text-slate-900 font-sans tracking-tight leading-tight">
               {task.name}
             </h2>
             {task.description && (
-              <p className="mt-1 text-sm text-slate-500 leading-relaxed">{task.description}</p>
+              <p className="mt-1.5 text-xs sm:text-sm text-slate-500 leading-relaxed font-sans">{task.description}</p>
             )}
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1 shrink-0 -mr-1">
             {isAdmin && projectIsActive && (
               <button
                 id="task-detail-edit-icon"
                 onClick={() => { onEdit(task); onClose(); }}
-                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors cursor-pointer"
+                className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                 title="Edit Task"
               >
                 <Edit2 className="w-4 h-4" />
@@ -254,42 +288,63 @@ export const TaskDetailPanel = ({
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
 
           {/* ── METADATA ── */}
           <section>
-            <p className="text-[10px] font-bold text-slate-500 uppercase font-mono mb-2">Details</p>
-            <div className="bg-slate-50/60 border border-slate-100 rounded-xl px-4 py-1">
+            <h3 className="text-xs font-bold text-slate-900 tracking-tight font-sans mb-2">Details</h3>
+            <div className="bg-slate-50/70 border border-slate-200/80 rounded-[14px] px-4 py-1.5">
               <MetaRow label="Assignee">
                 {assignee ? (
                   <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded-full bg-slate-700 text-white text-[9px] font-bold flex items-center justify-center">
+                    <div className="w-5 h-5 rounded-full bg-[#12161F] text-white text-[9px] font-bold flex items-center justify-center">
                       {assignee.name.slice(0, 1).toUpperCase()}
                     </div>
-                    <span>{assignee.name}</span>
+                    <span className="font-semibold text-slate-900">{assignee.name}</span>
                   </div>
                 ) : (
                   <span className="text-slate-400 italic">Unassigned</span>
                 )}
               </MetaRow>
               <MetaRow label="Start">
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 text-slate-700">
                   <Calendar className="w-3.5 h-3.5 text-slate-400" />
                   {fmt(task.startDate)}
                 </span>
               </MetaRow>
               <MetaRow label="Due">
-                <span className={'flex items-center gap-1.5 ' + (overdue ? 'text-rose-600 font-semibold' : '')}>
+                <span className={'flex items-center gap-1.5 ' + (overdue ? 'text-rose-600 font-bold' : 'text-slate-700')}>
                   <Clock className="w-3.5 h-3.5 text-slate-400" />
                   {fmt(task.dueDate)}
                   {overdue && <AlertCircle className="w-3.5 h-3.5 text-rose-500" />}
                 </span>
               </MetaRow>
               <MetaRow label="Est. Hours">
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 text-slate-700">
                   <Clock className="w-3.5 h-3.5 text-slate-400" />
                   {task.estimatedHours != null ? task.estimatedHours + 'h estimated' : 'Not set'}
                 </span>
+              </MetaRow>
+              <MetaRow label="Status">
+                {((isAdmin || task.assigneeId === employee?.id) && projectIsActive) ? (
+                  <div className="w-[140px]">
+                    <Select
+                      value={task.status}
+                      onChange={handleStatusChange}
+                      options={[
+                        { value: 'TODO', label: 'TODO' },
+                        { value: 'IN_PROGRESS', label: 'IN PROGRESS' },
+                        { value: 'REVIEW', label: 'REVIEW' },
+                        { value: 'DONE', label: 'DONE' }
+                      ]}
+                      triggerClassName={`!py-1 !pl-2.5 !pr-1.5 rounded-lg text-xs font-bold font-mono border shadow-2xs ${statusCls.split(' ').map(c => '!' + c).join(' ')}`}
+                    />
+                  </div>
+                ) : (
+                  <span className={'inline-flex px-2.5 py-1 rounded-lg text-xs font-bold font-mono border shadow-2xs ' + statusCls}>
+                    {task.status.replace('_', ' ')}
+                  </span>
+                )}
               </MetaRow>
             </div>
           </section>
@@ -297,31 +352,41 @@ export const TaskDetailPanel = ({
           {/* ── HIERARCHY ── */}
           {(parentTask || subtasks.length > 0) && (
             <section>
-              <p className="text-[10px] font-bold text-slate-500 uppercase font-mono mb-2">Hierarchy</p>
+              <h3 className="text-xs font-bold text-slate-900 tracking-tight font-sans mb-2">Hierarchy</h3>
               <div className="space-y-2">
                 {parentTask && (
-                  <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase font-mono mb-1">Parent</p>
+                  <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase font-sans mb-1">Parent Task</p>
                     <div className="flex items-center gap-2">
-                      <span className={'px-1.5 py-0.5 rounded text-[10px] font-bold font-mono border ' + (statusColors[parentTask.status] ?? statusColors.TODO)}>
+                      {parentTask.ticketId && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200/80 shrink-0 shadow-2xs">
+                          {parentTask.ticketId}
+                        </span>
+                      )}
+                      <span className={'px-2 py-0.5 rounded-full text-[10px] font-bold font-mono border ' + (statusColors[parentTask.status] ?? statusColors.TODO)}>
                         {parentTask.status.replace('_', ' ')}
                       </span>
-                      <span className="text-sm font-semibold text-slate-800">{parentTask.name}</span>
+                      <span className="text-xs sm:text-sm font-semibold text-slate-900 truncate font-sans">{parentTask.name}</span>
                     </div>
                   </div>
                 )}
                 {subtasks.length > 0 && (
-                  <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase font-mono mb-2">
+                  <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase font-sans mb-2">
                       Subtasks ({subtasks.length})
                     </p>
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {subtasks.map(sub => (
                         <div key={sub.id} className="flex items-center gap-2">
-                          <span className={'px-1.5 py-0.5 rounded text-[10px] font-bold font-mono border shrink-0 ' + (statusColors[sub.status] ?? statusColors.TODO)}>
+                          {sub.ticketId && (
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200/80 shrink-0 shadow-2xs">
+                              {sub.ticketId}
+                            </span>
+                          )}
+                          <span className={'px-1.5 py-0.5 rounded-full text-[10px] font-bold font-mono border shrink-0 ' + (statusColors[sub.status] ?? statusColors.TODO)}>
                             {sub.status.replace('_', ' ')}
                           </span>
-                          <span className="text-xs text-slate-700 truncate">{sub.name}</span>
+                          <span className="text-xs text-slate-800 font-medium truncate font-sans">{sub.name}</span>
                         </div>
                       ))}
                     </div>
@@ -334,22 +399,22 @@ export const TaskDetailPanel = ({
           {/* ── DEPENDENCIES ── */}
           <section>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-bold text-slate-500 uppercase font-mono">Dependencies</p>
+              <h3 className="text-xs font-bold text-slate-900 tracking-tight font-sans">Dependencies</h3>
               {isAdmin && projectIsActive && !isAddingDep && (
                 <button
                   onClick={() => setIsAddingDep(true)}
-                  className="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-1 hover:text-indigo-700"
+                  className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1 font-sans cursor-pointer transition-colors"
                 >
-                  <Plus className="w-3 h-3" /> Add
+                  <Plus className="w-3.5 h-3.5" /> Add
                 </button>
               )}
             </div>
 
             {isAddingDep && (
-              <div className="p-3 mb-3 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-2">
+              <div className="p-3.5 mb-3 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-2.5">
                 <div className="flex gap-2">
                   <select 
-                    className="flex-1 text-xs border border-slate-200 rounded-lg p-1.5 bg-white"
+                    className="flex-1 text-xs border border-slate-200 rounded-lg p-2 bg-white outline-none"
                     value={newDepId}
                     onChange={(e) => setNewDepId(e.target.value)}
                   >
@@ -359,7 +424,7 @@ export const TaskDetailPanel = ({
                     ))}
                   </select>
                   <select
-                    className="w-20 text-xs border border-slate-200 rounded-lg p-1.5 bg-white font-mono"
+                    className="w-20 text-xs border border-slate-200 rounded-lg p-2 bg-white font-mono outline-none"
                     value={newDepType}
                     onChange={(e) => setNewDepType(e.target.value)}
                   >
@@ -370,8 +435,8 @@ export const TaskDetailPanel = ({
                   </select>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <button onClick={() => setIsAddingDep(false)} className="text-[10px] font-bold text-slate-500">CANCEL</button>
-                  <button onClick={handleCreateDep} disabled={!newDepId || creatingDep} className="text-[10px] font-bold text-indigo-600 disabled:opacity-50">
+                  <button onClick={() => setIsAddingDep(false)} className="px-3 py-1 text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer">CANCEL</button>
+                  <button onClick={handleCreateDep} disabled={!newDepId || creatingDep} className="px-3 py-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 disabled:opacity-50 cursor-pointer">
                     SAVE
                   </button>
                 </div>
@@ -379,14 +444,14 @@ export const TaskDetailPanel = ({
             )}
 
             {depsLoading ? (
-               <div className="text-xs text-slate-400">Loading...</div>
+               <div className="text-xs text-slate-400 font-sans">Loading...</div>
             ) : (!depsData?.predecessors?.length && !depsData?.successors?.length && !isAddingDep) ? (
-               <div className="text-xs text-slate-400 italic">No dependencies set.</div>
+               <div className="text-xs text-slate-400 italic font-sans">No dependencies set.</div>
             ) : (
               <div className="space-y-2">
                 {depsData?.predecessors?.length > 0 && (
-                  <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase font-mono mb-2 flex items-center gap-1">
+                  <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase font-sans mb-2 flex items-center gap-1">
                       <Link className="w-3 h-3" /> Waiting On (Predecessors)
                     </p>
                     <div className="space-y-1.5">
@@ -396,8 +461,8 @@ export const TaskDetailPanel = ({
                          return (
                            <div key={dep.id} className="flex items-center justify-between gap-2">
                              <div className="flex items-center gap-2 overflow-hidden">
-                               <span className="px-1 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-700 rounded font-mono shrink-0">{dep.type}</span>
-                               <span className="text-xs text-slate-700 truncate">{predTask.ticketId} {predTask.name}</span>
+                               <span className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-800 rounded font-mono shrink-0">{dep.type}</span>
+                               <span className="text-xs text-slate-800 font-medium truncate">{predTask.ticketId} {predTask.name}</span>
                              </div>
                            </div>
                          );
@@ -406,8 +471,8 @@ export const TaskDetailPanel = ({
                   </div>
                 )}
                 {depsData?.successors?.length > 0 && (
-                  <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase font-mono mb-2 flex items-center gap-1">
+                  <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase font-sans mb-2 flex items-center gap-1">
                       <Link className="w-3 h-3" /> Blocks (Successors)
                     </p>
                     <div className="space-y-1.5">
@@ -417,13 +482,14 @@ export const TaskDetailPanel = ({
                          return (
                            <div key={dep.id} className="flex items-center justify-between gap-2 group">
                              <div className="flex items-center gap-2 overflow-hidden">
-                               <span className="px-1 py-0.5 text-[9px] font-bold bg-indigo-100 text-indigo-700 rounded font-mono shrink-0">{dep.type}</span>
-                               <span className="text-xs text-slate-700 truncate">{succTask.ticketId} {succTask.name}</span>
+                               <span className="px-1.5 py-0.5 text-[9px] font-bold bg-indigo-100 text-indigo-700 rounded font-mono shrink-0">{dep.type}</span>
+                               <span className="text-xs text-slate-800 font-medium truncate">{succTask.ticketId} {succTask.name}</span>
                              </div>
                              {isAdmin && projectIsActive && (
                                <button 
                                  onClick={() => handleDeleteDep(dep.successorId)}
-                                 className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                 className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer"
+                                 title="Remove dependency"
                                >
                                  <Trash2 className="w-3.5 h-3.5" />
                                </button>
@@ -438,20 +504,22 @@ export const TaskDetailPanel = ({
             )}
           </section>
 
-          {/* ── COMMENTS ── */}
-          <section className="flex flex-col flex-1 min-h-0 border-t border-slate-100">
-            <div className="p-5 flex items-center gap-2 border-b border-slate-50">
-              <MessageSquare className="w-4 h-4 text-slate-400" />
-              <h3 className="text-xs font-bold text-slate-700 uppercase font-mono tracking-wider">Comments</h3>
+          {/* ── COMMENTS STREAM ── */}
+          <section className="space-y-3 pt-4 border-t border-slate-100">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-slate-500" />
+              <h3 className="text-xs font-bold text-slate-900 tracking-tight font-sans">
+                Comments {comments.length > 0 && `(${comments.length})`}
+              </h3>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/50">
+            <div className="space-y-3">
               {commentsLoading ? (
-                <div className="text-center py-4 text-xs text-slate-400 font-medium">Loading comments...</div>
+                <div className="text-center py-6 text-xs text-slate-400 font-medium font-sans">Loading comments...</div>
               ) : comments.length === 0 ? (
-                <div className="text-center py-8">
-                  <MessageSquare className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                  <p className="text-xs text-slate-400 font-medium">No comments yet.</p>
+                <div className="text-center py-8 bg-slate-50/60 rounded-xl border border-dashed border-slate-200/80">
+                  <MessageSquare className="w-7 h-7 text-slate-300 mx-auto mb-2" />
+                  <p className="text-xs text-slate-400 font-medium font-sans">No comments yet.</p>
                 </div>
               ) : (
                 comments.map((c: any) => {
@@ -460,16 +528,16 @@ export const TaskDetailPanel = ({
                   
                   if (editingCommentId === c.id) {
                     return (
-                      <div key={c.id} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+                      <div key={c.id} className="bg-white p-3 rounded-xl shadow-xs border border-slate-200">
                         <textarea
                           value={editContent}
                           onChange={(e) => setEditContent(e.target.value)}
-                          className="w-full text-sm border-0 focus:ring-0 p-0 resize-none bg-transparent"
+                          className="w-full text-xs sm:text-sm border-0 focus:ring-0 p-0 resize-none bg-transparent outline-none font-sans text-slate-800"
                           rows={2}
                           autoFocus
                         />
                         <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-slate-100">
-                          <button onClick={() => setEditingCommentId(null)} className="text-xs font-medium text-slate-500 hover:text-slate-700">Cancel</button>
+                          <button onClick={() => setEditingCommentId(null)} className="text-xs font-semibold text-slate-500 hover:text-slate-800 font-sans cursor-pointer">Cancel</button>
                           <button
                             onClick={async () => {
                               try {
@@ -486,7 +554,7 @@ export const TaskDetailPanel = ({
                               }
                             }}
                             disabled={!editContent.trim()}
-                            className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                            className="text-xs font-bold text-slate-900 hover:text-slate-950 disabled:opacity-40 font-sans cursor-pointer"
                           >
                             Save
                           </button>
@@ -496,15 +564,15 @@ export const TaskDetailPanel = ({
                   }
 
                   return (
-                    <div key={c.id} className="flex gap-3 group">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center shrink-0 border border-indigo-200/50">
-                        <span className="text-xs font-bold text-indigo-700">{c.author?.name?.charAt(0) || 'U'}</span>
+                    <div key={c.id} className="flex gap-3 group p-3 rounded-xl bg-slate-50/70 border border-slate-100/90 transition-colors">
+                      <div className="w-7 h-7 rounded-full bg-[#12161F] text-white flex items-center justify-center shrink-0 font-sans font-bold text-[10px]">
+                        {c.author?.name?.charAt(0) || 'U'}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start mb-1">
-                          <div>
-                            <span className="text-xs font-bold text-slate-700">{c.author?.name}</span>
-                            <span className="text-[10px] text-slate-400 ml-2 font-mono">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-bold text-slate-900 font-sans">{c.author?.name}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">
                               {new Date(c.createdAt).toLocaleDateString()} {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
@@ -522,7 +590,7 @@ export const TaskDetailPanel = ({
                                 raw = raw.replace(/@\[(.*?)\]\((.*?)\)/g, '@$1');
                                 setEditContent(raw);
                                 setSelectedMentions(mentions);
-                              }} className="p-1 text-slate-400 hover:text-indigo-600 rounded">
+                              }} className="p-1 text-slate-400 hover:text-slate-800 rounded cursor-pointer" title="Edit">
                                 <Edit3 className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={async () => {
@@ -533,76 +601,83 @@ export const TaskDetailPanel = ({
                                     showToast('Failed to delete comment', 'error');
                                   }
                                 }
-                              }} className="p-1 text-slate-400 hover:text-rose-600 rounded">
+                              }} className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer" title="Delete">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           )}
                         </div>
-                        <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{renderCommentText(c.comment)}</p>
+                        <p className="text-xs sm:text-sm text-slate-700 whitespace-pre-wrap leading-relaxed font-sans">{renderCommentText(c.comment)}</p>
                       </div>
                     </div>
                   );
                 })
               )}
             </div>
-
-            <div className="p-4 border-t border-slate-100 bg-white">
-              <div className="relative">
-                <textarea
-                  value={newComment}
-                  onChange={handleTextChange}
-                  placeholder="Add a comment... (Type @ to mention)"
-                  rows={2}
-                  className="w-full px-4 py-3 pr-12 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100/50 transition-colors resize-none"
-                />
-                
-                {mentionQuery.active && filteredMentions.length > 0 && (
-                  <div className="absolute bottom-full left-0 mb-1 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
-                    {filteredMentions.map((emp: any) => (
-                      <button
-                        key={emp.id}
-                        onClick={() => handleMentionSelect(emp)}
-                        className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
-                      >
-                        {emp.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <button
-                  disabled={(() => {
-                    let text = newComment;
-                    selectedMentions.forEach(m => {
-                      const regex = new RegExp(`@${m.name}(?!\\w)`, 'g');
-                      text = text.replace(regex, '');
-                    });
-                    return text.trim().length === 0 || isCreating;
-                  })()}
-                  onClick={async () => {
-                    try {
-                      let finalComment = newComment;
-                      selectedMentions.forEach(m => {
-                        const regex = new RegExp(`@${m.name}(?!\\w)`, 'g');
-                        finalComment = finalComment.replace(regex, `@[${m.name}](${m.id})`);
-                      });
-                      await createComment({ projectId, taskId: task.id, comment: finalComment.trim() }).unwrap();
-                      setNewComment('');
-                      setSelectedMentions([]);
-                    } catch (err) {
-                      showToast('Failed to post comment', 'error');
-                    }
-                  }}
-                  className="absolute right-2 bottom-2 p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors shadow-sm"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
           </section>
         </div>
 
+        {/* Pinned Bottom Footer for Add Comment */}
+        <div className="p-4 border-t border-slate-200/80 bg-slate-50/50 shrink-0">
+          <div className="relative bg-white border border-slate-200 rounded-xl focus-within:ring-2 focus-within:ring-slate-900/10 focus-within:border-slate-900 transition-all shadow-xs">
+            <textarea
+              value={newComment}
+              onChange={handleTextChange}
+              placeholder="Write a comment... (Type @ to mention)"
+              rows={2}
+              className="w-full px-3.5 py-3 text-xs sm:text-sm border-0 bg-transparent resize-none outline-none font-sans text-slate-800 placeholder:text-slate-400"
+            />
+            
+            <div className="px-2 pb-2 flex justify-between items-center">
+              <div className="flex-1" />
+              <button
+                disabled={(() => {
+                  let text = newComment;
+                  selectedMentions.forEach(m => {
+                    const regex = new RegExp(`@${m.name}(?!\\w)`, 'g');
+                    text = text.replace(regex, '');
+                  });
+                  return text.trim().length === 0 || isCreating;
+                })()}
+                onClick={async () => {
+                  try {
+                    let finalComment = newComment;
+                    selectedMentions.forEach(m => {
+                      const regex = new RegExp(`@${m.name}(?!\\w)`, 'g');
+                      finalComment = finalComment.replace(regex, `@[${m.name}](${m.id})`);
+                    });
+                    await createComment({ projectId, taskId: task.id, comment: finalComment.trim() }).unwrap();
+                    setNewComment('');
+                    setSelectedMentions([]);
+                  } catch (err) {
+                    showToast('Failed to post comment', 'error');
+                  }
+                }}
+                className="inline-flex items-center justify-center p-2 bg-[#12161F] text-white rounded-lg hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-[#12161F] transition-all shadow-xs cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {mentionQuery.active && filteredMentions.length > 0 && (
+              <div className="absolute bottom-full left-0 mb-1 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
+                {filteredMentions.map((emp: any) => (
+                  <button
+                    key={emp.id}
+                    onClick={() => handleMentionSelect(emp)}
+                    className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
+                  >
+                    {emp.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
-    </>
+    </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(panelNode, document.body) : panelNode;
 };

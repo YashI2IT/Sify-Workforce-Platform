@@ -5,15 +5,13 @@ import { PaginatedResponse } from '../common/pagination.dto.js';
 import { WorkingTimesService } from '../working-times/working-times.service.js';
 import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
-import { MailService } from '../mail/mail.service.js';
 
 @Injectable()
 export class TimesheetsService {
   constructor(
     private readonly workingTimesService: WorkingTimesService,
     private readonly auditLogsService: AuditLogsService,
-    private readonly notificationsService: NotificationsService,
-    private readonly mailService: MailService
+    private readonly notificationsService: NotificationsService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -144,7 +142,7 @@ export class TimesheetsService {
     } else {
       const managedTeams = await db.orm.public.Team.where({ managerId: auth.employeeId, organizationId: auth.organizationId }).all();
       const teamIds = managedTeams.map(t => t.id);
-      if (teamIds.length === 0) return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
+      if (teamIds.length === 0) return { data: [], meta: { total: 0, page, limit, totalPages: 0, totalTeamMembers: 0 } };
 
       // Single batch query instead of N per-team loops
       const members = await db.orm.public.Employee
@@ -155,7 +153,7 @@ export class TimesheetsService {
       employeeIds = members.map((e: any) => e.id);
     }
 
-    if (employeeIds.length === 0) return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
+    if (employeeIds.length === 0) return { data: [], meta: { total: 0, page, limit, totalPages: 0, totalTeamMembers: 0 } };
 
     // Fetch page + count in parallel; DB handles the filtering — no Node-side accumulation
     const [page_data, countResult] = await Promise.all([
@@ -193,13 +191,18 @@ export class TimesheetsService {
 
     return {
       data: enriched,
-      meta: { total: Number(total), page, limit, totalPages: Math.ceil(Number(total) / limit) }
+      meta: { 
+        total: Number(total), 
+        page, 
+        limit, 
+        totalPages: Math.ceil(Number(total) / limit),
+        totalTeamMembers: employeeIds.length 
+      }
     };
   }
 
   async submit(id: string, auth: AuthenticatedContext) {
     const employeeId = auth.employeeId;
-    let mailPayload: any = null;
 
     const updated = await db.transaction(async (tx) => {
       const timesheet = await tx.orm.public.Timesheet.where({ id }).first();
@@ -244,30 +247,17 @@ export class TimesheetsService {
             relatedEntityId: timesheet.id,
           }, tx);
 
-          if (manager && manager.email) {
-            mailPayload = {
-              managerEmail: manager.email,
-              employeeName: emp.name,
-              weekStart: this.extractDateString(timesheet.startDate),
-              weekEnd: this.extractDateString(timesheet.endDate),
-              action: actionVerb,
-            };
-          }
         }
       }
 
       return updatedTs;
     });
 
-    if (mailPayload) {
-      this.mailService.sendTimesheetResubmissionEmail(mailPayload).catch(console.error);
-    }
     return updated;
   }
 
   async approve(id: string, auth: AuthenticatedContext) {
     const managerId = auth.employeeId;
-    let mailPayload: any = null;
 
     const updated = await db.transaction(async (tx) => {
       const timesheet = await tx.orm.public.Timesheet.where({ id }).first();
@@ -289,6 +279,7 @@ export class TimesheetsService {
       }
 
       const updatedTs = await tx.orm.public.Timesheet.where({ id }).update({ status: 'APPROVED' });
+      await tx.orm.public.TimeEntry.where({ timesheetId: id }).update({ approvalStatus: 'APPROVED' });
       
       await tx.orm.public.TimesheetAudit.create({
         timesheetId: id,
@@ -311,22 +302,11 @@ export class TimesheetsService {
           relatedEntityId: timesheet.id,
         }, tx);
 
-        if (emp.email) {
-          mailPayload = {
-            email: emp.email,
-            employeeName: emp.name,
-            weekStart: this.extractDateString(timesheet.startDate),
-            weekEnd: this.extractDateString(timesheet.endDate),
-          };
-        }
       }
 
       return updatedTs;
     });
 
-    if (mailPayload) {
-      this.mailService.sendTimesheetApprovalEmail(mailPayload).catch(console.error);
-    }
     return updated;
   }
 
@@ -335,7 +315,6 @@ export class TimesheetsService {
     if (!comment || comment.trim() === '') {
       throw new BadRequestException('Rejection requires a non-empty comment');
     }
-    let mailPayload: any = null;
 
     const updated = await db.transaction(async (tx) => {
       const timesheet = await tx.orm.public.Timesheet.where({ id }).first();
@@ -357,6 +336,7 @@ export class TimesheetsService {
       }
 
       const updatedTs = await tx.orm.public.Timesheet.where({ id }).update({ status: 'REJECTED', rejectionComment: comment.trim() });
+      await tx.orm.public.TimeEntry.where({ timesheetId: id }).update({ approvalStatus: 'REJECTED' });
 
       await tx.orm.public.TimesheetAudit.create({
         timesheetId: id,
@@ -381,23 +361,11 @@ export class TimesheetsService {
           relatedEntityId: timesheet.id,
         }, tx);
 
-        if (emp.email) {
-          mailPayload = {
-            email: emp.email,
-            employeeName: emp.name,
-            weekStart: this.extractDateString(timesheet.startDate),
-            weekEnd: this.extractDateString(timesheet.endDate),
-            remark: comment.trim()
-          };
-        }
       }
 
       return updatedTs;
     });
 
-    if (mailPayload) {
-      this.mailService.sendTimesheetRejectionEmail(mailPayload).catch(console.error);
-    }
     return updated;
   }
 

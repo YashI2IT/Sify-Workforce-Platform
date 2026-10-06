@@ -245,7 +245,7 @@ export const Onboarding = () => {
         <div className="rounded-[28px] bg-white border border-slate-200/90 shadow-2xl shadow-slate-200/70 overflow-hidden transition-all duration-300">
           <div className="p-6 sm:p-8 space-y-5">
             {/* Brand Logo Squircle */}
-            <div className="w-12 h-12 rounded-[18px] bg-slate-900 border border-slate-800 flex items-center justify-center shadow-md mx-auto transition-transform hover:scale-105 duration-200">
+            <div className="w-12 h-9 rounded-[18px] bg-slate-900 border border-slate-800 flex items-center justify-center shadow-md mx-auto transition-transform hover:scale-105 duration-200">
               <span className="w-5 h-5 rounded bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-xs">
                 SW
               </span>
@@ -253,7 +253,7 @@ export const Onboarding = () => {
 
             {/* Header Titles */}
             <div className="text-center space-y-1">
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              <h1 className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                 Set up your Workforce account
               </h1>
               <p className="text-xs sm:text-sm text-slate-500">
@@ -262,7 +262,7 @@ export const Onboarding = () => {
             </div>
 
             {/* 2-Mode Segmented Switcher with Curve Animation */}
-            <div className="relative p-1 bg-slate-100/90 rounded-2xl grid grid-cols-2 gap-1 text-xs sm:text-[13px] font-medium border border-slate-200/70 select-none">
+            <div className="relative p-1 bg-slate-100/90 rounded-[14px] grid grid-cols-2 gap-1 text-xs sm:text-[13px] font-medium border border-slate-200/70 select-none">
               {/* Sliding Pill Indicator */}
               <div
                 className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-xl bg-white shadow-xs ring-1 ring-slate-900/5 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none ${
@@ -326,7 +326,7 @@ export const Onboarding = () => {
                           type="text"
                           placeholder="e.g. Acme Corporation, Sify Telecom"
                           disabled={loading}
-                          className={`w-full h-11 rounded-xl border bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all shadow-2xs ${
+                          className={`w-full h-9 rounded-xl border bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all shadow-2xs ${
                             fieldErrors.name 
                               ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500' 
                               : 'border-slate-200/90 focus:ring-slate-950/15 focus:border-slate-900'
@@ -348,26 +348,25 @@ export const Onboarding = () => {
                         Organization Type *
                       </label>
                       <input
-                        id="org-type"
-                        type="text"
+                        type="hidden"
+                        name="org-type"
                         value={organizationType}
-                        onChange={(e) => setOrganizationType(e.target.value)}
                         className="sr-only"
-                        tabIndex={-1}
                         aria-hidden="true"
                       />
                       <button
+                        id="org-type"
                         type="button"
                         disabled={loading}
                         onClick={() => setDropdownOpen(!dropdownOpen)}
-                        className="w-full h-11 rounded-xl border border-slate-200/90 bg-white px-3.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 transition-all flex items-center justify-between shadow-2xs cursor-pointer hover:border-slate-300"
+                        className="w-full h-9 rounded-xl border border-slate-200/90 bg-white px-3.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 transition-all flex items-center justify-between shadow-2xs cursor-pointer hover:border-slate-300"
                       >
                         <span className="font-medium text-slate-800">{orgTypes.find(t => t.value === organizationType)?.label || organizationType}</span>
                         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${dropdownOpen ? 'rotate-180 text-slate-700' : ''}`} />
                       </button>
 
                       {dropdownOpen && (
-                        <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-white border border-slate-200/90 rounded-2xl shadow-xl py-1.5 max-h-52 overflow-y-auto">
+                        <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-white border border-slate-200/90 rounded-[14px] shadow-xl py-1.5 max-h-52 overflow-y-auto">
                           {orgTypes.map((type) => (
                             <button
                               key={type.value}
@@ -413,7 +412,7 @@ export const Onboarding = () => {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full h-11 bg-slate-950 hover:bg-slate-800 active:scale-[0.99] text-white font-semibold px-4 rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
+                      className="w-full h-9 bg-slate-950 hover:bg-slate-800 active:scale-[0.99] text-white font-semibold px-4 rounded-xl shadow-xs hover:shadow transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
                     >
                       {loading ? (
                         <>
@@ -441,8 +440,8 @@ export const Onboarding = () => {
                         <span>Checking for invitations...</span>
                       </div>
                     ) : invites.length === 0 ? (
-                      <div className="py-10 text-center space-y-3 border border-dashed border-slate-200 rounded-2xl p-5 bg-slate-50/50">
-                        <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center justify-center mx-auto text-slate-400">
+                      <div className="py-10 text-center space-y-3 border border-dashed border-slate-200 rounded-[14px] p-5 bg-slate-50/50">
+                        <div className="w-12 h-9 rounded-[14px] bg-white border border-slate-200/80 shadow-xs flex items-center justify-center mx-auto text-slate-400">
                           <Mail className="w-6 h-6" />
                         </div>
                         <div className="space-y-1">
@@ -470,7 +469,7 @@ export const Onboarding = () => {
                         {invites.map((invite) => (
                           <div
                             key={invite.id}
-                            className="p-4 rounded-2xl border border-slate-200/90 bg-white space-y-3 shadow-2xs hover:border-slate-300 transition-all"
+                            className="p-4 rounded-[14px] border border-slate-200/90 bg-white space-y-3 shadow-2xs hover:border-slate-300 transition-all"
                           >
                             <div className="flex items-start justify-between">
                               <div>

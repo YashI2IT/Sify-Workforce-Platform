@@ -4,8 +4,8 @@ import { useGetResourceAllocationReportQuery } from '../../../store/apiSlice';
 import { ReportLayout } from '../components/ReportLayout';
 
 const ReportEmptyState = ({ message }: { message: string }) => (
-  <div className="flex flex-col items-center justify-center p-8 sm:p-12 text-center bg-slate-50/50 rounded-2xl border border-slate-100 border-dashed">
-    <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shadow-xs border border-slate-200/60 mb-3">
+  <div className="flex flex-col items-center justify-center p-8 sm:p-12 text-center bg-slate-50/50 rounded-[14px] border border-slate-100 border-dashed">
+    <div className="w-12 h-9 rounded-xl bg-white flex items-center justify-center shadow-xs border border-slate-200/60 mb-3">
       <Briefcase className="w-5 h-5 text-slate-400" />
     </div>
     <p className="text-sm font-medium text-slate-600">{message}</p>
@@ -47,7 +47,7 @@ export function ResourceAllocation() {
 
     return (
       <div className="space-y-6">
-        <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+        <div className="bg-white border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
@@ -63,7 +63,7 @@ export function ResourceAllocation() {
               <tbody className="divide-y divide-slate-100">
                 {data.map((emp: any) => (
                   <tr key={emp.employeeId} className={`hover:bg-slate-50/50 transition-colors ${emp.isOverAllocated ? 'bg-rose-50/30' : ''}`}>
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                       <div className="flex items-center gap-2">
                         <div className="font-semibold text-slate-900">{emp.employeeName}</div>
                         {emp.isOverAllocated && (
@@ -73,16 +73,16 @@ export function ResourceAllocation() {
                         )}
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-right font-medium text-slate-600">
+                    <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                       {emp.availableCapacity}
                     </td>
-                    <td className="px-5 py-4 text-right font-medium text-slate-600">
+                    <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                       {emp.plannedDemand}
                     </td>
                     <td className={`px-5 py-4 text-right font-bold ${emp.remainingCapacity < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
                       {emp.remainingCapacity}
                     </td>
-                    <td className="px-5 py-4 text-right">
+                    <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                       <div className="flex flex-col gap-1.5 items-end">
                         <span className={`font-bold ${emp.utilizationPercentage > 100 ? 'text-rose-600' : emp.utilizationPercentage > 80 ? 'text-amber-600' : 'text-emerald-600'}`}>
                           {emp.utilizationPercentage}%
@@ -95,7 +95,7 @@ export function ResourceAllocation() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                       <div className="flex flex-col gap-1 text-xs">
                         {emp.projectDemand.length === 0 ? (
                           <span className="text-slate-400">None</span>

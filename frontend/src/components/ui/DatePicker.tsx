@@ -10,11 +10,14 @@ interface DatePickerProps {
   onChange: (val: string) => void;
   placeholder?: string;
   className?: string;
+  buttonClassName?: string;
   isOverdue?: boolean;
+  openUpward?: boolean;
 }
 
-export function DatePicker({ value, onChange, placeholder = 'mm/dd/yyyy', className = '', isOverdue = false }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = 'mm/dd/yyyy', className = '', buttonClassName = '', isOverdue = false, openUpward = false }: DatePickerProps) {
   const [open, setOpen] = useState(false);
+  const [computedUpward, setComputedUpward] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(value ? new Date(value) : new Date());
   const ref = useRef<HTMLDivElement>(null);
 
@@ -41,15 +44,31 @@ export function DatePicker({ value, onChange, placeholder = 'mm/dd/yyyy', classN
   const days = eachDayOfInterval({ start: startDate, end: endDate });
   const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
+  const toggleOpen = () => {
+    if (!open) {
+      if (value) setCurrentMonth(new Date(value));
+      if (ref.current) {
+        const rect = ref.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        if (spaceBelow < 310 && spaceAbove > spaceBelow) {
+          setComputedUpward(true);
+        } else {
+          setComputedUpward(false);
+        }
+      }
+    }
+    setOpen(!open);
+  };
+
+  const isUpward = openUpward || computedUpward;
+
   return (
     <div className={`relative ${className}`} ref={ref}>
       <button
         type="button"
-        onClick={() => {
-          if (!open && value) setCurrentMonth(new Date(value));
-          setOpen(!open);
-        }}
-        className={`w-full flex items-center justify-between text-xs px-3 py-2 border rounded-xl focus:ring-2 focus:ring-slate-950 focus:border-transparent transition-colors shadow-2xs ${
+        onClick={toggleOpen}
+        className={buttonClassName || `w-full flex items-center justify-between text-xs px-3 py-2 border rounded-xl focus:ring-2 focus:ring-slate-950 focus:border-transparent transition-colors shadow-2xs ${
           isOverdue ? 'border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
         }`}
       >
@@ -60,7 +79,9 @@ export function DatePicker({ value, onChange, placeholder = 'mm/dd/yyyy', classN
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 w-[260px] left-auto right-0">
+        <div className={`absolute z-50 bg-white border border-slate-200 rounded-xl shadow-2xl p-3 w-[260px] left-auto right-0 font-sans animate-slideUpFade ${
+          isUpward ? 'bottom-full mb-2' : 'top-full mt-2'
+        }`}>
           <div className="flex items-center justify-between mb-3">
             <button type="button" onClick={prevMonth} className="p-1 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
               <ChevronLeft className="w-4 h-4" />

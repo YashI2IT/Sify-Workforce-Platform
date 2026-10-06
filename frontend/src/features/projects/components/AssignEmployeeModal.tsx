@@ -62,12 +62,17 @@ export const AssignEmployeeModal = ({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-mono">
+          <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-sans font-medium">
             {error}
           </div>
         )}
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Select Employee</label>
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold text-slate-700 tracking-tight font-sans">
+            Select Employee <span className="text-rose-500">*</span>
+          </label>
+          <p className="text-xs text-slate-500 font-sans pb-1">
+            Choose a workforce member to assign to this project workspace.
+          </p>
           <Select
             value={selectedEmpId}
             onChange={setSelectedEmpId}
@@ -85,14 +90,14 @@ export const AssignEmployeeModal = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 cursor-pointer shadow-2xs transition-colors"
+            className="px-5 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-full hover:bg-slate-50 cursor-pointer shadow-xs transition-all active:scale-[0.97] font-sans"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={submitting || unassignedEmployees.length === 0}
-            className="px-4 py-2 text-sm font-medium text-white bg-slate-950 border border-transparent rounded-xl hover:bg-slate-800 disabled:opacity-50 cursor-pointer shadow-xs transition-colors"
+            className="px-5 py-2.5 text-xs font-bold text-white bg-[#12161F] hover:bg-slate-800 rounded-full disabled:opacity-50 cursor-pointer shadow-xs transition-all active:scale-[0.97] font-sans"
           >
             {submitting ? 'Assigning...' : 'Assign'}
           </button>

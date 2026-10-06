@@ -100,7 +100,7 @@ export const EmployeeSummary = () => {
           {/* Executive Telemetry Row (4 Cards) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Card 1: Total Recorded Hours */}
-            <div className="bg-slate-50/70 p-4.5 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col justify-between">
+            <div className="bg-slate-50/70 p-4.5 rounded-[14px] border border-slate-200/80 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                   Total Hours
@@ -109,7 +109,7 @@ export const EmployeeSummary = () => {
               </div>
               <div className="my-2.5">
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+                  <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                     {totalHrs}
                   </span>
                   <span className="text-xs text-slate-400 font-mono font-medium">hrs</span>
@@ -122,7 +122,7 @@ export const EmployeeSummary = () => {
             </div>
 
             {/* Card 2: Active Logging Days */}
-            <div className="bg-slate-50/70 p-4.5 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col justify-between">
+            <div className="bg-slate-50/70 p-4.5 rounded-[14px] border border-slate-200/80 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                   Days Active
@@ -131,7 +131,7 @@ export const EmployeeSummary = () => {
               </div>
               <div className="my-2.5">
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+                  <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                     {data.dailyTotals?.length || 0}
                   </span>
                   <span className="text-xs text-slate-400 font-mono font-medium">days</span>
@@ -147,7 +147,7 @@ export const EmployeeSummary = () => {
             </div>
 
             {/* Card 3: Projects Contributed */}
-            <div className="bg-slate-50/70 p-4.5 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col justify-between">
+            <div className="bg-slate-50/70 p-4.5 rounded-[14px] border border-slate-200/80 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                   Projects Contributed
@@ -156,7 +156,7 @@ export const EmployeeSummary = () => {
               </div>
               <div className="my-2.5">
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+                  <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                     {data.projectBreakdown?.length || 0}
                   </span>
                   <span className="text-xs text-slate-400 font-mono font-medium">initiatives</span>
@@ -172,7 +172,7 @@ export const EmployeeSummary = () => {
             </div>
 
             {/* Card 4: Approval Velocity */}
-            <div className="bg-slate-50/70 p-4.5 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col justify-between">
+            <div className="bg-slate-50/70 p-4.5 rounded-[14px] border border-slate-200/80 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                   Approval Ratio
@@ -181,7 +181,7 @@ export const EmployeeSummary = () => {
               </div>
               <div className="my-2.5">
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+                  <span className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
                     {approvalRate}%
                   </span>
                   <span className="text-xs text-slate-400 font-mono font-medium">approved</span>
@@ -198,7 +198,7 @@ export const EmployeeSummary = () => {
           </div>
 
           {/* Timesheet Status Breakdown Strip */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs">
+          <div className="bg-white border border-slate-200/90 rounded-[14px] p-4 sm:p-5 shadow-2xs">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider font-mono mb-3.5">
               Timesheet Status Breakdown
             </p>
@@ -253,7 +253,7 @@ export const EmployeeSummary = () => {
             {data.projectBreakdown?.length === 0 ? (
               <ReportEmptyState message="No project time logged in this period." />
             ) : (
-              <div className="border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+              <div className="border border-slate-200/90 rounded-[14px] overflow-hidden shadow-2xs">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
                     <tr>
@@ -268,20 +268,20 @@ export const EmployeeSummary = () => {
                       const percent = data.totalHours > 0 ? ((proj.hours / data.totalHours) * 100).toFixed(1) : '0.0';
                       return (
                         <tr key={proj.projectId} className="hover:bg-slate-50/70 transition-colors duration-150">
-                          <td className="px-6 py-4 font-mono text-xs">
+                          <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                             <span className="inline-block font-mono text-xs text-slate-700 bg-slate-100/90 px-2 py-0.5 rounded border border-slate-200/80 font-medium">
                               {proj.projectId.substring(0, 8).toUpperCase()}
                             </span>
                           </td>
-                          <td className="px-5 py-4 font-semibold text-slate-900 text-sm">
+                          <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                             {proj.projectName}
                           </td>
-                          <td className="px-5 py-4 text-right">
+                          <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                             <span className="inline-flex items-center gap-1 font-bold font-mono text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/80 text-xs shadow-2xs">
                               {proj.hours || 0}h
                             </span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
                             <div className="flex items-center justify-end gap-3">
                               <div className="w-28 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                 <div 

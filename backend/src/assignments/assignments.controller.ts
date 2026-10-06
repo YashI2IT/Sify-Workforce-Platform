@@ -54,7 +54,7 @@ export class AssignmentsController {
   }
 
   @Get('projects/:projectId/unassigned-employees')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'List active organization employees not yet assigned to a project' })
   @ApiParam({ name: 'projectId', description: 'Project UUID' })
   async getUnassignedEmployees(

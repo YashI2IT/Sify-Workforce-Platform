@@ -1,14 +1,13 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Clock, FileText, CheckCircle2, TrendingUp, AlertCircle, 
-  ArrowRight, Users, UsersRound, Building, CalendarDays, 
-  ArrowUpRight, RefreshCw, Copy, ChevronRight, Plus,
-  UserPlus, Mail, Briefcase
+import {
+  Clock, FileText, CheckCircle2, AlertCircle,
+  Users, UsersRound, Building, CalendarDays,
+  RefreshCw, Plus, ArrowRight,
+  Mail, Briefcase
 } from 'lucide-react';
 import { apiClient } from '../../lib/apiClient';
 import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { formatDateRange, getThisMonday, getTodayString } from '../../utils/date';
 import { getStatusBadgeClass } from '../../utils/status';
 
@@ -21,6 +20,7 @@ interface AdminDashboardViewProps {
   activeEmployees: number;
   inactiveEmployees: number;
   totalEmployees: number;
+  auditLogs: any[];
   totalTeams: number;
   teamsWithoutManager: number;
   activeProjectsCount: number;
@@ -40,6 +40,218 @@ interface AdminDashboardViewProps {
   dashboardError?: string | null;
 }
 
+interface FormattedActivity {
+  title: string;
+  description: string;
+  iconType: 'project' | 'time' | 'user' | 'team' | 'org' | 'default';
+}
+
+function formatAuditActivity(log: any): FormattedActivity {
+  const action = (log?.action || '').toUpperCase();
+  const details = log?.details || {};
+
+  switch (action) {
+    case 'PROJECT_CREATED':
+      return {
+        title: 'Project Created',
+        description: details.name ? `Created project "${details.name}"` : 'Created a new project',
+        iconType: 'project',
+      };
+    case 'PROJECT_UPDATED': {
+      const fields = Array.isArray(details.updatedFields) ? details.updatedFields.join(', ') : '';
+      return {
+        title: 'Project Updated',
+        description: fields ? `Updated ${fields}` : 'Updated project details',
+        iconType: 'project',
+      };
+    }
+    case 'PROJECT_ACTIVATED':
+      return {
+        title: 'Project Activated',
+        description: 'Set project status to active',
+        iconType: 'project',
+      };
+    case 'PROJECT_DEACTIVATED':
+      return {
+        title: 'Project Deactivated',
+        description: 'Archived project from active list',
+        iconType: 'project',
+      };
+    case 'EMPLOYEE_ASSIGNED_TO_PROJECT':
+      return {
+        title: 'Project Assignment',
+        description: 'Assigned employee to project',
+        iconType: 'project',
+      };
+    case 'EMPLOYEE_REMOVED_FROM_PROJECT':
+      return {
+        title: 'Project Assignment Removed',
+        description: 'Removed employee from project',
+        iconType: 'project',
+      };
+    case 'TIME_ENTRY_CREATED':
+      return {
+        title: 'Time Entry Logged',
+        description: details.hours ? `Logged ${details.hours} hrs on time entry` : 'Logged a new time entry',
+        iconType: 'time',
+      };
+    case 'TIME_ENTRY_UPDATED': {
+      const fields = Array.isArray(details.updatedFields) ? details.updatedFields.join(', ') : '';
+      return {
+        title: 'Time Entry Updated',
+        description: fields ? `Updated ${fields}` : 'Modified time entry details',
+        iconType: 'time',
+      };
+    }
+    case 'TIME_ENTRY_DELETED':
+      return {
+        title: 'Time Entry Deleted',
+        description: 'Deleted time entry record',
+        iconType: 'time',
+      };
+    case 'TIMESHEET_SUBMITTED':
+    case 'SUBMISSION_CREATED':
+      return {
+        title: 'Timesheet Submitted',
+        description: details.weekStart
+          ? `Submitted timesheet for week of ${details.weekStart}`
+          : details.date
+            ? `Submitted timesheet for ${details.date}`
+            : 'Submitted timesheet for manager review',
+        iconType: 'time',
+      };
+    case 'TIMESHEET_APPROVED':
+    case 'SUBMISSION_APPROVED':
+      return {
+        title: 'Timesheet Approved',
+        description: 'Timesheet approved by manager',
+        iconType: 'time',
+      };
+    case 'TIMESHEET_REJECTED':
+    case 'SUBMISSION_REJECTED':
+      return {
+        title: 'Timesheet Rejected',
+        description: details.comment ? `Rejected: "${details.comment}"` : 'Timesheet rejected for revision',
+        iconType: 'time',
+      };
+    case 'TEAM_CREATED':
+      return {
+        title: 'Team Created',
+        description: details.name ? `Created team "${details.name}"` : 'Created a new team',
+        iconType: 'team',
+      };
+    case 'TEAM_UPDATED': {
+      const fields = Array.isArray(details.updatedFields) ? details.updatedFields.join(', ') : '';
+      return {
+        title: 'Team Updated',
+        description: fields ? `Updated ${fields}` : 'Updated team information',
+        iconType: 'team',
+      };
+    }
+    case 'TEAM_MANAGER_ASSIGNED':
+      return {
+        title: 'Team Manager Assigned',
+        description: 'Assigned manager to lead team',
+        iconType: 'team',
+      };
+    case 'TEAM_MANAGER_REMOVED':
+      return {
+        title: 'Team Manager Removed',
+        description: 'Removed manager from team',
+        iconType: 'team',
+      };
+    case 'EMPLOYEE_CREATED':
+      return {
+        title: 'Employee Added',
+        description: details.name ? `Added ${details.name} to directory` : 'Added new employee to organization',
+        iconType: 'user',
+      };
+    case 'EMPLOYEE_UPDATED': {
+      const fields = Array.isArray(details.updatedFields) ? details.updatedFields.join(', ') : '';
+      return {
+        title: 'Employee Updated',
+        description: fields ? `Updated ${fields}` : 'Modified employee account details',
+        iconType: 'user',
+      };
+    }
+    case 'EMPLOYEE_ACTIVATED':
+      return {
+        title: 'Employee Activated',
+        description: 'Activated employee account access',
+        iconType: 'user',
+      };
+    case 'EMPLOYEE_DEACTIVATED':
+      return {
+        title: 'Employee Deactivated',
+        description: 'Deactivated employee account access',
+        iconType: 'user',
+      };
+    case 'INVITATION_CREATED':
+      return {
+        title: 'Invitation Sent',
+        description: details.invitedEmail ? `Sent invite to ${details.invitedEmail}` : 'Sent invitation to new team member',
+        iconType: 'user',
+      };
+    case 'INVITATION_ACCEPTED':
+      return {
+        title: 'Invitation Accepted',
+        description: 'New member accepted invite and joined',
+        iconType: 'user',
+      };
+    case 'INVITATION_DECLINED':
+      return {
+        title: 'Invitation Declined',
+        description: 'Employee invitation was declined',
+        iconType: 'user',
+      };
+    case 'INVITATION_REVOKED':
+      return {
+        title: 'Invitation Revoked',
+        description: 'Pending invitation was cancelled',
+        iconType: 'user',
+      };
+    case 'INVITATION_RESENT':
+      return {
+        title: 'Invitation Resent',
+        description: 'Resent invitation link to employee',
+        iconType: 'user',
+      };
+    case 'ORGANIZATION_CREATED':
+      return {
+        title: 'Organization Created',
+        description: 'Organization workspace initialized',
+        iconType: 'org',
+      };
+    case 'ORGANIZATION_UPDATED':
+    case 'ORGANIZATION_SETTINGS_UPDATED':
+      return {
+        title: 'Organization Updated',
+        description: 'Company settings or configuration updated',
+        iconType: 'org',
+      };
+    default: {
+      const cleanTitle = action
+        ? action
+          .split('_')
+          .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+          .join(' ')
+        : 'Activity Logged';
+      const cleanDesc = details.comment
+        ? `Note: ${details.comment}`
+        : details.updatedFields && Array.isArray(details.updatedFields)
+          ? `Updated ${details.updatedFields.join(', ')}`
+          : log?.resourceType
+            ? `Action performed on ${log.resourceType}`
+            : 'System activity recorded';
+      return {
+        title: cleanTitle,
+        description: cleanDesc,
+        iconType: 'default',
+      };
+    }
+  }
+}
+
 const AdminDashboardView = ({
   employee,
   orgSummary,
@@ -48,6 +260,7 @@ const AdminDashboardView = ({
   activeEmployees,
   inactiveEmployees,
   totalEmployees,
+  auditLogs,
   totalTeams,
   teamsWithoutManager,
   activeProjectsCount,
@@ -60,110 +273,86 @@ const AdminDashboardView = ({
   getGreeting,
   dashboardError,
 }: AdminDashboardViewProps) => {
+  const totalProjects = projectsData.length;
+
   return (
     <div className="space-y-7">
       {dashboardError && (
-        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="p-3.5 bg-amber-50 border border-amber-200/80 rounded-[14px] text-xs text-amber-800 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2.5">
             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>{dashboardError}</span>
+            <span className="font-medium">{dashboardError}</span>
           </div>
           <button
             onClick={() => fetchDashboardData()}
-            className="text-amber-900 font-semibold hover:underline cursor-pointer ml-3 shrink-0"
+            className="text-amber-900 font-bold hover:underline cursor-pointer ml-3 shrink-0"
           >
             Retry
           </button>
         </div>
       )}
 
-      {/* 1. Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-200/80">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
-              Admin Dashboard
-            </h1>
-            
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold tracking-wider uppercase bg-slate-900 text-white font-mono shadow-2xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                ADMIN
-              </span>
-              {employee?.roles?.filter((r: string) => r !== 'ADMIN').map((role: string) => (
-                <span
-                  key={role}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold tracking-wider uppercase bg-slate-100 text-slate-800 border border-slate-200/90 font-mono"
-                >
-                  {role}
+      {/* ── 1. Page Header ──────────────────────────────────────────────── */}
+      <div className="animate-slideUpFade flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200/80">
+        <div>
+          <h1 className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
+            Admin Dashboard
+          </h1>
+          <p className="text-[14px] leading-[21px] text-slate-500 font-medium mt-1.5">
+            <span>{getGreeting()}, <span className="font-semibold text-slate-700">{employee?.name?.split(' ')[0] || employee?.name}</span></span>
+            {orgSummary?.name ? (
+              <>
+                <span className="text-slate-300">•</span>
+                <span className="inline-flex items-center gap-1.5 text-slate-700 font-semibold">
+                  <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  {orgSummary.name}
                 </span>
-              ))}
-            </div>
-
-            <span className="text-xs text-slate-400 font-mono hidden sm:inline">•</span>
-            <span className="text-xs text-slate-500 font-mono">
-              {getGreeting()}, {employee?.name?.split(' ')[0]}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
-            <Building className="w-4 h-4 text-slate-400 shrink-0" />
-            <span className="text-slate-950 font-bold truncate">
-              {orgSummary?.name || 'Sify Workforce Platform'}
-            </span>
-            <span className="text-slate-300">•</span>
-            <span className="text-slate-500">Executive Control Center</span>
-          </div>
+              </>
+            ) : loading ? (
+              <>
+                <span className="text-slate-300">•</span>
+                <span className="inline-block w-36 h-4 bg-slate-200/70 rounded-md animate-pulse align-middle" />
+              </>
+            ) : null}
+          </p>
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white border border-slate-200 shadow-xs text-[13.5px] font-semibold text-slate-700">
+            <CalendarDays className="w-4 h-4 text-slate-400" />
+            <span>
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+              })}
+            </span>
+          </div>
+
           <button
             onClick={() => fetchDashboardData()}
             disabled={loading}
-            className="inline-flex items-center gap-2 p-2.5 sm:px-3.5 sm:py-2 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 text-slate-600 hover:text-slate-950 transition-all shadow-2xs cursor-pointer disabled:opacity-50 text-xs font-semibold font-mono"
+            className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
             title="Refresh dashboard metrics"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-slate-950' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
+            <RefreshCw className={`w-4 h-4 text-slate-500 transition-transform duration-500 group-hover:rotate-180 group-active:rotate-180 ${loading ? 'animate-spin text-slate-900' : ''}`} />
+            <span>Refresh</span>
           </button>
-
-          <div className="h-6 w-px bg-slate-200 hidden sm:block mx-1" />
-
-          <Link
-            to="/employees"
-            className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 px-3.5 py-2 rounded-xl text-xs font-semibold shadow-2xs transition-all cursor-pointer font-mono"
-          >
-            <UserPlus className="w-3.5 h-3.5 text-slate-600" />
-            <span>Invite Employee</span>
-          </Link>
-          <Link
-            to="/teams"
-            className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 px-3.5 py-2 rounded-xl text-xs font-semibold shadow-2xs transition-all cursor-pointer font-mono"
-          >
-            <UsersRound className="w-3.5 h-3.5 text-slate-600" />
-            <span>Create Team</span>
-          </Link>
-          <Link
-            to="/admin/projects"
-            className="inline-flex items-center gap-1.5 bg-slate-950 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer font-mono"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Create Project</span>
-          </Link>
         </div>
       </div>
 
-      {/* 2. Organization Snapshot */}
-      <div className="space-y-3">
+      {/* ── 2. Organization Snapshot (Level 1: Key Metrics) ─────────────── */}
+      <div className="space-y-3.5 animate-slideUpFade">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-slate-950" />
-            <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">
-              Organization Snapshot
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-900 opacity-60"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-900"></span>
+            </span>
+            <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+              Overview
             </h2>
           </div>
-          <span className="text-[11px] font-mono text-slate-400">
-            Real-time operational telemetry
+          <span className="text-xs font-medium text-slate-400">
+            Key metrics across your organization
           </span>
         </div>
 
@@ -171,112 +360,115 @@ const AdminDashboardView = ({
           {/* Active Employees */}
           <Link
             to="/employees"
-            className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between group cursor-pointer"
+            className="bg-white/95 backdrop-blur-md p-5 rounded-[14px] border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Active Employees
               </span>
-              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-slate-950 group-hover:text-white transition-colors">
-                <Users className="w-3.5 h-3.5" />
+              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-[#12161F] group-hover:text-white transition-colors duration-200">
+                <Users className="w-4 h-4" />
               </div>
             </div>
             <div className="my-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-slate-900 tracking-tight ">
-                  {loading ? <span className="text-slate-300 font-mono">—</span> : activeEmployees}
+                <span className="text-3xl font-bold text-slate-900 tracking-tight">
+                  {loading ? '—' : activeEmployees}
                 </span>
-                <span className="text-xs text-slate-400 font-mono font-medium">members</span>
+                <span className="text-xs text-slate-400 font-medium">active</span>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium mt-1">
-                {inactiveEmployees > 0 ? `${inactiveEmployees} inactive records` : 'Active organizational members'}
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                {inactiveEmployees > 0 ? `${inactiveEmployees} inactive` : `Total: ${totalEmployees} employees`}
               </p>
             </div>
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium group-hover:text-slate-900">
+            <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-500 group-hover:text-slate-900">
               <span>Directory</span>
-              <span className="font-semibold text-slate-800">Manage Roster →</span>
+              <span className="font-semibold text-slate-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                View Employees <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+              </span>
             </div>
           </Link>
 
           {/* Active Teams */}
           <Link
             to="/teams"
-            className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between group cursor-pointer"
+            className="bg-white/95 backdrop-blur-md p-5 rounded-[14px] border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Active Teams
               </span>
-              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-slate-950 group-hover:text-white transition-colors">
-                <UsersRound className="w-3.5 h-3.5" />
+              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-[#12161F] group-hover:text-white transition-colors duration-200">
+                <UsersRound className="w-4 h-4" />
               </div>
             </div>
             <div className="my-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-slate-900 tracking-tight ">
-                  {loading ? <span className="text-slate-300 font-mono">—</span> : totalTeams}
+                <span className="text-3xl font-bold text-slate-900 tracking-tight">
+                  {loading ? '—' : totalTeams}
                 </span>
-                <span className="text-xs text-slate-400 font-mono font-medium">teams</span>
+                <span className="text-xs text-slate-400 font-medium">teams</span>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium mt-1">
-                {teamsWithoutManager > 0 ? `${teamsWithoutManager} without manager` : 'Functional team structures'}
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                {teamsWithoutManager > 0 ? `${teamsWithoutManager} without manager` : 'All teams have managers'}
               </p>
             </div>
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium group-hover:text-slate-900">
-              <span>Structures</span>
-              <span className="font-semibold text-slate-800">Manage Teams →</span>
+            <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-500 group-hover:text-slate-900">
+              <span>Teams</span>
+              <span className="font-semibold text-slate-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                View Teams <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+              </span>
             </div>
           </Link>
 
           {/* Active Projects */}
           <Link
             to="/admin/projects"
-            className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between group cursor-pointer"
+            className="bg-white/95 backdrop-blur-md p-5 rounded-[14px] border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Active Projects
               </span>
-              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-slate-950 group-hover:text-white transition-colors">
-                <Briefcase className="w-3.5 h-3.5" />
+              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-[#12161F] group-hover:text-white transition-colors duration-200">
+                <Briefcase className="w-4 h-4" />
               </div>
             </div>
             <div className="my-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-slate-900 tracking-tight ">
-                  {loading ? <span className="text-slate-300 font-mono">—</span> : activeProjectsCount}
+                <span className="text-3xl font-bold text-slate-900 tracking-tight">
+                  {loading ? '—' : activeProjectsCount}
                 </span>
-                <span className="text-xs text-slate-400 font-mono font-medium">initiatives</span>
+                <span className="text-xs text-slate-400 font-medium">projects</span>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium mt-1">
-                {projectStatusCounts.COMPLETED > 0 ? `${projectStatusCounts.COMPLETED} completed` : 'Current operations'}
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                {projectStatusCounts.COMPLETED > 0 ? `${projectStatusCounts.COMPLETED} completed` : `Total: ${totalProjects} projects`}
               </p>
             </div>
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium group-hover:text-slate-900">
-              <span>Portfolio</span>
-              <span className="font-semibold text-slate-800">Projects List →</span>
+            <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-500 group-hover:text-slate-900">
+              <span>Projects</span>
+              <span className="font-semibold text-slate-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                View Projects <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+              </span>
             </div>
           </Link>
 
           {/* Pending Actions */}
           <div
-            className={`p-5 rounded-2xl border shadow-2xs transition-all flex flex-col justify-between ${
-              !loading && pendingActionsCount > 0
-                ? 'bg-amber-50/40 border-amber-200/90'
-                : 'bg-white border-slate-200/90'
-            }`}
+            className={`p-5 rounded-[14px] border shadow-xs transition-all duration-200 flex flex-col justify-between ${!loading && pendingActionsCount > 0
+              ? 'bg-amber-50/40 border-amber-200/80'
+              : 'bg-white/95 backdrop-blur-md border-slate-200/80'
+              }`}
           >
             <div className="flex items-center justify-between">
-              <span className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
-                !loading && pendingActionsCount > 0 ? 'text-amber-800' : 'text-slate-500'
-              }`}>
+              <span className={`text-xs font-bold uppercase tracking-wider ${!loading && pendingActionsCount > 0 ? 'text-amber-800' : 'text-slate-500'
+                }`}>
                 Pending Actions
               </span>
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
-                !loading && pendingActionsCount > 0
-                  ? 'bg-amber-100 text-amber-900 border border-amber-200'
-                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-              }`}>
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${!loading && pendingActionsCount > 0
+                ? 'bg-amber-100 text-amber-900 border border-amber-200/80'
+                : 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
+                }`}>
                 {!loading && pendingActionsCount > 0 ? (
                   <AlertCircle className="w-4 h-4 text-amber-600" />
                 ) : (
@@ -286,72 +478,77 @@ const AdminDashboardView = ({
             </div>
             <div className="my-3">
               <div className="flex items-baseline gap-2">
-                <span className={`text-2xl font-bold tracking-tight ${
-                  !loading && pendingActionsCount > 0 ? 'text-amber-950' : 'text-slate-950'
-                }`}>
-                  {loading ? <span className="text-slate-300 font-mono">—</span> : pendingActionsCount}
+                <span className={`text-3xl font-bold tracking-tight ${!loading && pendingActionsCount > 0 ? 'text-amber-950' : 'text-slate-950'
+                  }`}>
+                  {loading ? '—' : pendingActionsCount}
                 </span>
-                <span className="text-xs text-slate-400 font-mono font-medium">unresolved</span>
+                <span className="text-xs text-slate-400 font-medium">pending</span>
               </div>
-              <p className={`text-[11px] font-medium mt-1 ${
-                !loading && pendingActionsCount > 0 ? 'text-amber-800' : 'text-slate-500'
-              }`}>
+              <p className={`text-xs font-medium mt-1 ${!loading && pendingActionsCount > 0 ? 'text-amber-800' : 'text-slate-500'
+                }`}>
                 {!loading && pendingActionsCount > 0
-                  ? 'Requires administrative attention'
-                  : 'Operational workflow up to date'}
+                  ? 'Items requiring your attention'
+                  : 'All workflows are up to date'}
               </p>
             </div>
-            <div className="pt-2 border-t border-slate-100/80 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-              <span>Operational backlog</span>
-              <span className="font-semibold text-slate-800">See Below ↓</span>
+            <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium">
+              <span className="text-slate-500">Status</span>
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${!loading && pendingActionsCount > 0
+                ? 'bg-amber-100 text-amber-800 border border-amber-200/60'
+                : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                }`}>
+                {!loading && pendingActionsCount > 0 ? 'Review below ↓' : 'All Clear'}
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 3. NEEDS ATTENTION */}
-      <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+      {/* ── 3. Needs Attention (Level 2: Unified Operational Tray) ─────── */}
+      <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] overflow-hidden hover:shadow-md transition-shadow duration-200">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2.5">
             <span className="w-2 h-2 rounded-full bg-amber-500" />
-            <h2 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
+            <h2 className="text-sm font-bold text-slate-900 tracking-tight">
               Needs Attention
             </h2>
           </div>
-          <span className="text-xs font-mono font-semibold text-slate-600 bg-white px-2.5 py-1 rounded-md border border-slate-200/80 shadow-2xs">
-            {pendingActionsCount} Action Item{pendingActionsCount === 1 ? '' : 's'}
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${pendingActionsCount > 0
+            ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+            : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+            }`}>
+            {pendingActionsCount} {pendingActionsCount === 1 ? 'Action Item' : 'Action Items'}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
           {/* A. Pending Invitations */}
           <Link
             to="/employees"
-            className="p-5 hover:bg-slate-50/70 transition-colors flex flex-col justify-between group cursor-pointer"
+            className="p-5 hover:bg-slate-50/60 transition-colors flex flex-col justify-between group cursor-pointer"
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Pending Invitations
                 </span>
                 <Mail className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className={`text-2xl font-bold ${
-                  pendingInvitationsCount > 0 ? 'text-amber-600' : 'text-slate-900'
-                }`}>
+                <span className={`text-2xl font-bold ${pendingInvitationsCount > 0 ? 'text-amber-600' : 'text-slate-900'
+                  }`}>
                   {loading ? '—' : pendingInvitationsCount}
                 </span>
-                <span className="text-[11px] font-mono text-slate-400">invites</span>
+                <span className="text-xs text-slate-400 font-medium">pending</span>
               </div>
-              <p className="text-xs text-slate-500 mt-1">
-                {pendingInvitationsCount > 0 ? 'Candidates awaiting acceptance' : 'No pending employee invites'}
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                {pendingInvitationsCount > 0 ? 'Invites awaiting employee acceptance' : 'No pending invitations'}
               </p>
             </div>
-            <div className="mt-4 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-600 group-hover:text-slate-900">
-              <span>Employees</span>
-              <span className="font-semibold flex items-center gap-1 font-mono text-[11px]">
-                Review <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600 group-hover:text-slate-900">
+              <span>Invitations</span>
+              <span className="flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                View <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
               </span>
             </div>
           </Link>
@@ -359,63 +556,61 @@ const AdminDashboardView = ({
           {/* B. Teams Without Manager */}
           <Link
             to="/teams"
-            className="p-5 hover:bg-slate-50/70 transition-colors flex flex-col justify-between group cursor-pointer"
+            className="p-5 hover:bg-slate-50/60 transition-colors flex flex-col justify-between group cursor-pointer"
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Teams Without Manager
                 </span>
                 <UsersRound className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className={`text-2xl font-bold ${
-                  teamsWithoutManager > 0 ? 'text-rose-600' : 'text-slate-900'
-                }`}>
+                <span className={`text-2xl font-bold ${teamsWithoutManager > 0 ? 'text-rose-600' : 'text-slate-900'
+                  }`}>
                   {loading ? '—' : teamsWithoutManager}
                 </span>
-                <span className="text-[11px] font-mono text-slate-400">squads</span>
+                <span className="text-xs text-slate-400 font-medium">teams</span>
               </div>
-              <p className="text-xs text-slate-500 mt-1">
-                {teamsWithoutManager > 0 ? 'Leadership unassigned' : 'All teams have assigned managers'}
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                {teamsWithoutManager > 0 ? 'Teams without an assigned manager' : 'All teams have assigned managers'}
               </p>
             </div>
-            <div className="mt-4 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-600 group-hover:text-slate-900">
+            <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600 group-hover:text-slate-900">
               <span>Teams</span>
-              <span className="font-semibold flex items-center gap-1 font-mono text-[11px]">
-                Assign <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              <span className="flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                Assign <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
               </span>
             </div>
           </Link>
 
-          {/* C. Pending Timesheet Approvals */}
+          {/* C. Pending Approvals */}
           <Link
             to="/approvals"
-            className="p-5 hover:bg-slate-50/70 transition-colors flex flex-col justify-between group cursor-pointer"
+            className="p-5 hover:bg-slate-50/60 transition-colors flex flex-col justify-between group cursor-pointer"
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Pending Approvals
                 </span>
                 <Clock className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className={`text-2xl font-bold ${
-                  pendingApprovalsCount > 0 ? 'text-amber-600' : 'text-slate-900'
-                }`}>
+                <span className={`text-2xl font-bold ${pendingApprovalsCount > 0 ? 'text-amber-600' : 'text-slate-900'
+                  }`}>
                   {loading ? '—' : pendingApprovalsCount}
                 </span>
-                <span className="text-[11px] font-mono text-slate-400">timesheets</span>
+                <span className="text-xs text-slate-400 font-medium">timesheets</span>
               </div>
-              <p className="text-xs text-slate-500 mt-1">
-                {pendingApprovalsCount > 0 ? 'Submitted cycles awaiting review' : 'No timesheets pending review'}
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                {pendingApprovalsCount > 0 ? 'Timesheets waiting for approval' : 'No timesheets pending review'}
               </p>
             </div>
-            <div className="mt-4 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-600 group-hover:text-slate-900">
-              <span>Approvals Queue</span>
-              <span className="font-semibold flex items-center gap-1 font-mono text-[11px]">
-                Open <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600 group-hover:text-slate-900">
+              <span>Approvals</span>
+              <span className="flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                Review <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
               </span>
             </div>
           </Link>
@@ -423,221 +618,108 @@ const AdminDashboardView = ({
           {/* D. Overdue Project Work */}
           <Link
             to="/admin/projects"
-            className="p-5 hover:bg-slate-50/70 transition-colors flex flex-col justify-between group cursor-pointer"
+            className="p-5 hover:bg-slate-50/60 transition-colors flex flex-col justify-between group cursor-pointer"
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Overdue Project Work
                 </span>
                 <AlertCircle className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className={`text-2xl font-bold ${
-                  overdueTasksCount > 0 ? 'text-rose-600' : 'text-slate-900'
-                }`}>
+                <span className={`text-2xl font-bold ${overdueTasksCount > 0 ? 'text-rose-600' : 'text-slate-900'
+                  }`}>
                   {loading ? '—' : overdueTasksCount}
                 </span>
-                <span className="text-[11px] font-mono text-slate-400">tasks</span>
+                <span className="text-xs text-slate-400 font-medium">tasks</span>
               </div>
-              <p className="text-xs text-slate-500 mt-1">
-                {overdueTasksCount > 0 ? 'Active tasks past deadline' : 'No active tasks overdue'}
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                {overdueTasksCount > 0 ? 'Tasks past their due date' : 'No tasks overdue'}
               </p>
             </div>
-            <div className="mt-4 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-600 group-hover:text-slate-900">
-              <span>Project Workspaces</span>
-              <span className="font-semibold flex items-center gap-1 font-mono text-[11px]">
-                View <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600 group-hover:text-slate-900">
+              <span>Projects</span>
+              <span className="flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                View <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
               </span>
             </div>
           </Link>
         </div>
       </div>
 
-      {/* 4. WORKFORCE & PROJECT HEALTH */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-7 items-start">
-        {/* Workforce Status: 5 Columns */}
-        <div className="lg:col-span-5 bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-slate-950" />
-              <h3 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
-                Workforce Status
-              </h3>
-            </div>
-            <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
-              Total: {totalEmployees}
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            <div>
-              <div className="flex items-center justify-between text-xs font-mono mb-1.5">
-                <span className="font-semibold text-slate-700 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  Active Employees
-                </span>
-                <span className="font-bold text-slate-900">
-                  {activeEmployees} ({totalEmployees > 0 ? Math.round((activeEmployees / totalEmployees) * 100) : 100}%)
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${totalEmployees > 0 ? (activeEmployees / totalEmployees) * 100 : 100}%` }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between text-xs font-mono mb-1.5">
-                <span className="font-semibold text-slate-700 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-slate-400" />
-                  Inactive Employees
-                </span>
-                <span className="font-bold text-slate-900">
-                  {inactiveEmployees} ({totalEmployees > 0 ? Math.round((inactiveEmployees / totalEmployees) * 100) : 0}%)
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-slate-400 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${totalEmployees > 0 ? (inactiveEmployees / totalEmployees) * 100 : 0}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Project Status: 7 Columns */}
-        <div className="lg:col-span-7 bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-600" />
-              <h3 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
-                Project Status
-              </h3>
-            </div>
-            <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
-              Portfolio: {projectsData.length} Initiatives
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div className="p-3 rounded-xl border border-slate-200/70 bg-slate-50/50">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-emerald-800 font-mono uppercase">Active</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              </div>
-              <span className="text-2xl font-bold text-slate-900 mt-1 block">
-                {projectStatusCounts.ACTIVE}
-              </span>
-              <span className="text-[11px] text-slate-400 font-mono">Live execution</span>
-            </div>
-
-            <div className="p-3 rounded-xl border border-slate-200/70 bg-slate-50/50">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-blue-800 font-mono uppercase">In Progress</span>
-                <span className="w-2 h-2 rounded-full bg-blue-600" />
-              </div>
-              <span className="text-2xl font-bold text-slate-900 mt-1 block">
-                {projectStatusCounts.IN_PROGRESS}
-              </span>
-              <span className="text-[11px] text-slate-400 font-mono">Sprint underway</span>
-            </div>
-
-            <div className="p-3 rounded-xl border border-slate-200/70 bg-slate-50/50">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-amber-800 font-mono uppercase">Planning</span>
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-              </div>
-              <span className="text-2xl font-bold text-slate-900 mt-1 block">
-                {projectStatusCounts.PLANNING}
-              </span>
-              <span className="text-[11px] text-slate-400 font-mono">Scoping & backlog</span>
-            </div>
-
-            <div className="p-3 rounded-xl border border-slate-200/70 bg-slate-50/50">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-700 font-mono uppercase">On Hold</span>
-                <span className="w-2 h-2 rounded-full bg-slate-400" />
-              </div>
-              <span className="text-2xl font-bold text-slate-900 mt-1 block">
-                {projectStatusCounts.ON_HOLD}
-              </span>
-              <span className="text-[11px] text-slate-400 font-mono">Paused initiatives</span>
-            </div>
-
-            <div className="p-3 rounded-xl border border-slate-200/70 bg-slate-50/50">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-purple-800 font-mono uppercase">Completed</span>
-                <span className="w-2 h-2 rounded-full bg-purple-500" />
-              </div>
-              <span className="text-2xl font-bold text-slate-900 mt-1 block">
-                {projectStatusCounts.COMPLETED}
-              </span>
-              <span className="text-[11px] text-slate-400 font-mono">Delivered projects</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 5. RECENT ACTIVITY */}
-      <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+      {/* ── 4. Recent Activity (Level 3: Governance Stream) ─────────────── */}
+      <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] overflow-hidden hover:shadow-md transition-shadow duration-200">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2.5">
-            <span className="w-2 h-2 rounded-full bg-slate-950" />
-            <h2 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
+            <span className="w-2 h-2 rounded-full bg-slate-900" />
+            <h2 className="text-sm font-bold text-slate-900 tracking-tight">
               Recent Activity
             </h2>
           </div>
-          <span className="text-[11px] font-mono text-slate-400 uppercase font-semibold">
-            Organization Audit Stream
+          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+            Activity Log
           </span>
         </div>
 
-        <div className="py-12 px-6 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3 border border-slate-200/80">
-            <Clock className="w-6 h-6" />
+        {auditLogs && auditLogs.length > 0 ? (
+          <div className="divide-y divide-slate-100">
+            {auditLogs.map((log) => {
+              const activity = formatAuditActivity(log);
+              return (
+                <div key={log.id} className="p-4 sm:px-6 flex items-center justify-between hover:bg-slate-50/60 transition-colors gap-4">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+                      {activity.iconType === 'project' && <Briefcase className="w-4 h-4" />}
+                      {activity.iconType === 'time' && <Clock className="w-4 h-4" />}
+                      {activity.iconType === 'user' && <Users className="w-4 h-4" />}
+                      {activity.iconType === 'team' && <UsersRound className="w-4 h-4" />}
+                      {activity.iconType === 'org' && <Building className="w-4 h-4" />}
+                      {activity.iconType === 'default' && <Clock className="w-4 h-4" />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate">{activity.title}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 truncate">{activity.description}</p>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs font-semibold text-slate-800">
+                      {log.actorName || log.actorEmail || 'System'}
+                    </p>
+                    <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                      {new Date(log.createdAt).toLocaleString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <h3 className="text-sm font-bold text-slate-900 ">
-            Organization activity will appear here once system activity tracking is enabled.
-          </h3>
-          <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-            System-wide operational audit ledger and event streaming will automatically populate security, workforce, and governance actions as they occur.
-          </p>
-        </div>
+        ) : (
+          <div className="py-14 px-6 text-center">
+            <div className="w-12 h-9 rounded-[14px] bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3.5 border border-slate-200/80">
+              <Clock className="w-6 h-6" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900">
+              Organization activity will appear here once system activity tracking is enabled.
+            </h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+              System-wide operational audit ledger and event streaming will automatically populate security, workforce, and governance actions as they occur.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-interface WorkingTimeConfig {
-  monday: number;
-  tuesday: number;
-  wednesday: number;
-  thursday: number;
-  friday: number;
-  saturday: number;
-  sunday: number;
-}
 
-const DAY_LABELS: { key: keyof WorkingTimeConfig; label: string }[] = [
-  { key: 'monday', label: 'Mon' },
-  { key: 'tuesday', label: 'Tue' },
-  { key: 'wednesday', label: 'Wed' },
-  { key: 'thursday', label: 'Thu' },
-  { key: 'friday', label: 'Fri' },
-  { key: 'saturday', label: 'Sat' },
-  { key: 'sunday', label: 'Sun' },
-];
 
-interface TimesheetStatusCounts {
-  DRAFT: number;
-  SUBMITTED: number;
-  APPROVED: number;
-  REJECTED: number;
-}
 
 interface ManagerDashboardViewProps {
   employee: any;
@@ -647,16 +729,15 @@ interface ManagerDashboardViewProps {
   managerTeams: any[];
   managerProjects: any[];
   approvalsCount: number;
-  workingTimeConfig: WorkingTimeConfig | null;
   dashboardError?: string | null;
-  managerReport: { 
-    totalTeamMembers: number; 
+  managerReport: {
+    totalTeamMembers: number;
     managedTeamsCount: number;
     activeProjectsCount?: number;
     projectStatusCounts?: any;
   } | null;
-  managerTimesheetStatus: TimesheetStatusCounts | null;
   managerOverdueTasks: number;
+  auditLogs: any[];
 }
 
 const StatSkeleton = () => (
@@ -671,35 +752,17 @@ const ManagerDashboardView = ({
   managerTeams,
   managerProjects,
   approvalsCount,
-  workingTimeConfig,
   dashboardError,
   managerReport,
-  managerTimesheetStatus,
   managerOverdueTasks,
+  auditLogs,
 }: ManagerDashboardViewProps) => {
 
-  // ── Workforce Standard ──────────────────────────────────────────────────────
-  const wtWeeklyHours = workingTimeConfig
-    ? DAY_LABELS.reduce((sum, d) => sum + (Number(workingTimeConfig[d.key]) || 0), 0)
-    : 0;
   // ── Team Snapshot ───────────────────────────────────────────────────────────
   const teamMembersCount = managerReport?.totalTeamMembers
     ?? managerTeams.reduce((acc, t) => acc + (t.memberCount || 0), 0);
   // ── Project Status ──────────────────────────────────────────────────────────
   const activeProjectsCount = managerReport?.activeProjectsCount ?? managerProjects.filter(p => p.isActive !== false).length;
-  
-  const projectStatusCounts = managerReport?.projectStatusCounts ?? {
-    ACTIVE:      managerProjects.filter(p => p.status === 'ACTIVE').length,
-    IN_PROGRESS: managerProjects.filter(p => p.status === 'IN_PROGRESS').length,
-    PLANNING:    managerProjects.filter(p => p.status === 'PLANNING').length,
-    ON_HOLD:     managerProjects.filter(p => p.status === 'ON_HOLD').length,
-    COMPLETED:   managerProjects.filter(p => p.status === 'COMPLETED').length,
-  };
-
-  // ── Team Timesheet Status totals ────────────────────────────────────────────
-  const tsTotal = managerTimesheetStatus
-    ? Object.values(managerTimesheetStatus).reduce((a, b) => a + b, 0)
-    : 0;
 
   return (
     <div className="space-y-7 animate-fadeIn">
@@ -720,21 +783,20 @@ const ManagerDashboardView = ({
       )}
 
       {/* ── 1. Header ────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
-        <div className="space-y-1">
+      <div className="animate-slideUpFade flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200/80">
+        <div className="space-y-1.5">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
+            <h1 className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight flex items-center gap-2">
               {getGreeting()}, {employee?.name?.split(' ')[0]}
             </h1>
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               {employee?.roles?.map((role: string) => (
                 <span
                   key={role}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold tracking-wider uppercase font-mono ${
-                    role === 'MANAGER'
-                      ? 'bg-blue-900 text-white shadow-2xs'
-                      : 'bg-slate-100 text-slate-800 border border-slate-200/90'
-                  }`}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${role === 'MANAGER'
+                    ? 'bg-[#12161F] text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-700 border border-slate-200'
+                    }`}
                 >
                   {role === 'MANAGER' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />}
                   {role}
@@ -742,13 +804,13 @@ const ManagerDashboardView = ({
               ))}
             </div>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500">
+          <p className="text-sm text-slate-500 font-medium">
             Team control center — approvals, workforce health, and project status.
           </p>
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 shadow-2xs text-xs font-semibold text-slate-700 font-mono">
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white border border-slate-200 shadow-xs text-[13.5px] font-semibold text-slate-700">
             <CalendarDays className="w-4 h-4 text-slate-400" />
             <span>
               {new Date().toLocaleDateString('en-US', {
@@ -759,128 +821,166 @@ const ManagerDashboardView = ({
           <button
             onClick={() => fetchDashboardData()}
             disabled={loading}
-            className="inline-flex items-center gap-2 p-2.5 sm:px-3.5 sm:py-2 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 text-slate-600 hover:text-slate-950 transition-all shadow-2xs cursor-pointer disabled:opacity-50 text-xs font-semibold font-mono"
+            className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
             title="Refresh dashboard metrics"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-slate-950' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
+            <RefreshCw className={`w-4 h-4 text-slate-500 transition-transform duration-500 group-hover:rotate-180 group-active:rotate-180 ${loading ? 'animate-spin text-slate-900' : ''}`} />
+            <span>Refresh Dashboard</span>
           </button>
         </div>
       </div>
 
-
-
-      {/* ── 3. Team Snapshot ─────────────────────────────────────────────────── */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-blue-600" />
-          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">
-            Team Snapshot
-          </h2>
+      {/* ── 2. Team Snapshot (Distinct KPIs) ────────────────────────────────── */}
+      <div className="space-y-3.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-600" />
+            <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+              Team Snapshot
+            </h2>
+          </div>
+          <span className="text-xs font-medium text-slate-400">
+            Managed functional telemetry
+          </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {/* Team Members */}
-          <Link to="/teams" className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all group">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          {/* Managed Teams */}
+          <Link
+            to="/teams"
+            className="bg-white/95 backdrop-blur-md p-5 rounded-[14px] border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Team Members</span>
-              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-slate-950 group-hover:text-white transition-colors">
-                <Users className="w-3.5 h-3.5" />
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Managed Teams</span>
+              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-[#12161F] group-hover:text-white transition-colors duration-200">
+                <UsersRound className="w-4 h-4" />
               </div>
             </div>
             <div className="my-3">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
-                {loading ? <StatSkeleton /> : teamMembersCount}
+              <span className="text-3xl font-bold text-slate-900 tracking-tight">
+                {loading ? <StatSkeleton /> : (managerTeams.length || 1)}
+              </span>
+              <p className="text-xs text-slate-500 font-medium mt-1">Assigned squads</p>
+            </div>
+            <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-500 group-hover:text-slate-900">
+              <span>Teams</span>
+              <span className="font-semibold text-slate-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                Manage <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 font-mono">Total managed members</p>
           </Link>
 
-          {/* Active Members */}
-          <Link to="/employees" className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all group">
+          {/* Team Members */}
+          <Link
+            to="/employees"
+            className="bg-white/95 backdrop-blur-md p-5 rounded-[14px] border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Active Members</span>
-              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-slate-950 group-hover:text-white transition-colors">
-                <UsersRound className="w-3.5 h-3.5" />
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Team Members</span>
+              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-[#12161F] group-hover:text-white transition-colors duration-200">
+                <Users className="w-4 h-4" />
               </div>
             </div>
             <div className="my-3">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+              <span className="text-3xl font-bold text-slate-900 tracking-tight">
                 {loading ? <StatSkeleton /> : teamMembersCount}
               </span>
+              <p className="text-xs text-slate-500 font-medium mt-1">Managed personnel</p>
             </div>
-            <p className="text-[11px] text-slate-400 font-mono">Active in teams</p>
+            <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-500 group-hover:text-slate-900">
+              <span>Roster</span>
+              <span className="font-semibold text-slate-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                View <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+              </span>
+            </div>
           </Link>
 
           {/* Active Projects */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+          <Link
+            to="/projects"
+            className="bg-white/95 backdrop-blur-md p-5 rounded-[14px] border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Active Projects</span>
-              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
-                <Briefcase className="w-3.5 h-3.5" />
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Projects</span>
+              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-[#12161F] group-hover:text-white transition-colors duration-200">
+                <Briefcase className="w-4 h-4" />
               </div>
             </div>
             <div className="my-3">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight ">
+              <span className="text-3xl font-bold text-slate-900 tracking-tight">
                 {loading ? <StatSkeleton /> : activeProjectsCount}
               </span>
+              <p className="text-xs text-slate-500 font-medium mt-1">Assigned to you</p>
             </div>
-            <p className="text-[11px] text-slate-400 font-mono">Assigned to you</p>
-          </div>
+            <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-500 group-hover:text-slate-900">
+              <span>Workspaces</span>
+              <span className="font-semibold text-slate-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                Open <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+              </span>
+            </div>
+          </Link>
 
-          {/* Pending Timesheets */}
-          <Link to="/approvals" className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all group">
+          {/* Pending Review */}
+          <Link
+            to="/approvals"
+            className="bg-white/95 backdrop-blur-md p-5 rounded-[14px] border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Pending Review</span>
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-                approvalsCount > 0
-                  ? 'bg-amber-100 text-amber-700 group-hover:bg-amber-600 group-hover:text-white'
-                  : 'bg-slate-100 text-slate-600 group-hover:bg-slate-950 group-hover:text-white'
-              }`}>
-                <Clock className="w-3.5 h-3.5" />
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pending Review</span>
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors duration-200 ${approvalsCount > 0
+                ? 'bg-amber-100 text-amber-700 group-hover:bg-amber-600 group-hover:text-white'
+                : 'bg-slate-100 text-slate-600 group-hover:bg-[#12161F] group-hover:text-white'
+                }`}>
+                <Clock className="w-4 h-4" />
               </div>
             </div>
             <div className="my-3">
-              <span className={`text-2xl font-bold tracking-tight ${
-                approvalsCount > 0 ? 'text-amber-600' : 'text-slate-950'
-              }`}>
+              <span className={`text-3xl font-bold tracking-tight ${approvalsCount > 0 ? 'text-amber-600' : 'text-slate-900'
+                }`}>
                 {loading ? <StatSkeleton /> : approvalsCount}
               </span>
+              <p className="text-xs text-slate-500 font-medium mt-1">Timesheets to approve</p>
             </div>
-            <p className="text-[11px] text-slate-400 font-mono">Timesheets to approve</p>
+            <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-500 group-hover:text-slate-900">
+              <span>Approvals</span>
+              <span className="font-semibold text-slate-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                Review <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+              </span>
+            </div>
           </Link>
         </div>
       </div>
 
-      {/* ── 4. Needs Attention ───────────────────────────────────────────────── */}
-      <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+      {/* ── 3. Needs Attention ───────────────────────────────────────────────── */}
+      <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] overflow-hidden hover:shadow-md transition-shadow duration-200">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2.5">
             <span className="w-2 h-2 rounded-full bg-amber-500" />
-            <h2 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
+            <h2 className="text-sm font-bold text-slate-900 tracking-tight">
               Needs Attention
             </h2>
           </div>
-          <span className="text-[11px] font-mono text-slate-400 uppercase font-semibold">Priority Queue</span>
+          <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/60">
+            Priority Queue
+          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
           {/* A. Pending Timesheet Approvals */}
           <Link
             to="/approvals"
-            className="p-5 hover:bg-slate-50/70 transition-colors flex flex-col justify-between group cursor-pointer"
+            className="p-5 hover:bg-slate-50/60 transition-colors flex flex-col justify-between group cursor-pointer"
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Pending Approvals
                 </span>
                 <Clock className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className={`text-2xl font-bold ${
-                  loading ? '' : approvalsCount > 0 ? 'text-amber-600' : 'text-slate-900'
-                }`}>
+                <span className={`text-2xl font-bold ${loading ? '' : approvalsCount > 0 ? 'text-amber-600' : 'text-slate-900'
+                  }`}>
                   {loading ? <StatSkeleton /> : approvalsCount}
                 </span>
               </div>
@@ -891,27 +991,26 @@ const ManagerDashboardView = ({
                 </p>
               )}
             </div>
-            <div className="mt-4 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-600 group-hover:text-slate-900">
+            <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600 group-hover:text-slate-900">
               <span>Approval Queue</span>
-              <span className="font-semibold flex items-center gap-1 font-mono text-[11px]">
-                Open <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              <span className="flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                Open <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
               </span>
             </div>
           </Link>
 
           {/* B. Overdue Tasks */}
-          <div className="p-5 flex flex-col justify-between hover:bg-slate-50/70 transition-colors">
+          <div className="p-5 flex flex-col justify-between hover:bg-slate-50/60 transition-colors">
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Overdue Tasks
                 </span>
                 <AlertCircle className="w-4 h-4 text-slate-400" />
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className={`text-2xl font-bold ${
-                  loading ? '' : managerOverdueTasks > 0 ? 'text-rose-600' : 'text-slate-900'
-                }`}>
+                <span className={`text-2xl font-bold ${loading ? '' : managerOverdueTasks > 0 ? 'text-rose-600' : 'text-slate-900'
+                  }`}>
                   {loading ? <StatSkeleton /> : managerOverdueTasks}
                 </span>
               </div>
@@ -925,12 +1024,13 @@ const ManagerDashboardView = ({
               )}
             </div>
             {!loading && managerProjects.length > 0 && (
-              <div className="mt-4 pt-2 border-t border-slate-100">
+              <div className="mt-4 pt-2.5 border-t border-slate-100">
                 <Link
                   to="/projects"
-                  className="text-[11px] font-mono font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1"
+                  className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1 group"
                 >
-                  View Projects <ChevronRight className="w-3.5 h-3.5" />
+                  <span>View Projects</span>
+                  <span className="group-hover:translate-x-0.5 transition-transform"><ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} /></span>
                 </Link>
               </div>
             )}
@@ -938,200 +1038,75 @@ const ManagerDashboardView = ({
         </div>
       </div>
 
-      {/* ── 5. Team & Project Health ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-7 items-start">
 
-        {/* A. Project Status */}
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-600" />
-              <h3 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
-                Project Status
-              </h3>
-            </div>
-            <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
-              {loading ? '—' : managerProjects.length + ' total'}
-            </span>
-          </div>
 
-          {!loading && managerProjects.length === 0 ? (
-            <div className="py-6 text-center text-slate-400">
-              <Briefcase className="w-6 h-6 mx-auto mb-2 text-slate-300" />
-              <p className="text-xs">No projects assigned to you.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: 'Active', count: projectStatusCounts.ACTIVE, color: 'emerald' },
-                { label: 'In Progress', count: projectStatusCounts.IN_PROGRESS, color: 'blue' },
-                { label: 'Completed', count: projectStatusCounts.COMPLETED, color: 'purple' },
-                { label: 'On Hold / Plan', count: projectStatusCounts.ON_HOLD + projectStatusCounts.PLANNING, color: 'slate' },
-              ].map(({ label, count, color }) => (
-                <div key={label} className="p-3 rounded-xl border border-slate-200/70 bg-slate-50/50">
-                  <div className="flex items-center justify-between">
-                    <span className={`text-[11px] font-bold text-${color}-800 font-mono uppercase`}>{label}</span>
-                    <span className={`w-2 h-2 rounded-full bg-${color}-500`} />
-                  </div>
-                  <span className="text-2xl font-bold text-slate-900 mt-1 block">
-                    {loading ? '—' : count}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* B. Team Timesheet Status */}
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4 flex flex-col">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-slate-950" />
-              <h3 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
-                Team Timesheet Status
-              </h3>
-            </div>
-            <Link
-              to="/approvals"
-              className="text-[11px] font-mono font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-0.5"
-            >
-              Review <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          {loading ? (
-            <div className="space-y-2 py-2">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-10 bg-slate-100 rounded-xl animate-pulse" />
-              ))}
-            </div>
-          ) : managerTimesheetStatus === null || tsTotal === 0 ? (
-            <div className="flex-1 flex flex-col justify-center items-center py-8 text-center text-slate-500">
-              <CheckCircle2 className="w-8 h-8 mx-auto mb-3 text-slate-300" />
-              <p className="text-sm font-bold text-slate-900 ">All caught up</p>
-              <p className="text-xs mt-1 max-w-[200px] mx-auto">
-                No timesheet activity in the current period.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {([
-                { key: 'SUBMITTED', label: 'Submitted — Awaiting Approval', color: 'bg-amber-500', textColor: 'text-amber-700' },
-                { key: 'APPROVED',  label: 'Approved',                       color: 'bg-emerald-500', textColor: 'text-emerald-700' },
-                { key: 'DRAFT',     label: 'Draft — Not Yet Submitted',      color: 'bg-slate-400', textColor: 'text-slate-600' },
-                { key: 'REJECTED',  label: 'Rejected — Needs Resubmission',  color: 'bg-rose-500', textColor: 'text-rose-700' },
-              ] as const).map(({ key, color, textColor }) => {
-                const count = managerTimesheetStatus[key as keyof TimesheetStatusCounts];
-                const pct = tsTotal > 0 ? Math.round((count / tsTotal) * 100) : 0;
-                return (
-                  <div key={key} className="flex items-center gap-3">
-                    <div className="w-20 shrink-0">
-                      <span className={`text-[10px] font-mono font-bold uppercase ${textColor}`}>{key}</span>
-                    </div>
-                    <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
-                      <div
-                        className={`h-2 rounded-full transition-all ${color}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <span className="text-xs font-bold text-slate-900 w-6 text-right font-mono">{count}</span>
-                  </div>
-                );
-              })}
-              <p className="text-[10px] text-slate-400 font-mono pt-1">
-                Based on current team utilization report (last 30 days).
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── 6. Quick Actions ─────────────────────────────────────────────────── */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-slate-400" />
-          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">
-            Quick Actions
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {[
-            { to: '/approvals',             icon: CheckCircle2,  label: 'Open Approvals',         sub: 'Review submitted timesheets' },
-            { to: '/reports/team',          icon: TrendingUp,    label: 'Team Utilization',        sub: 'Hours by member & project' },
-            { to: '/reports/employee',      icon: FileText,      label: 'Employee Time Summary',   sub: 'Per-employee breakdown' },
-          ].map(({ to, icon: Icon, label, sub }) => (
-            <Link
-              key={to}
-              to={to}
-              className="flex items-center gap-3.5 p-4 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl hover:shadow-xs hover:border-slate-300 transition-all group"
-            >
-              <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-slate-950 group-hover:text-white transition-colors shrink-0">
-                <Icon className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-900 group-hover:text-slate-950 font-mono uppercase tracking-wide truncate">{label}</p>
-                <p className="text-[11px] text-slate-400 mt-0.5 truncate">{sub}</p>
-              </div>
-              <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-slate-600 ml-auto shrink-0 transition-colors" />
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* ── 7. Bottom Section (Recent Activity + Workforce Standard) ───────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-7 items-start">
-        {/* Recent Activity (truthful empty state) */}
-        <div className="lg:col-span-2 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden h-full flex flex-col">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+      {/* ── 6. Bottom Section (Recent Activity + Workforce Standard) ───────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-7 items-stretch">
+        {/* Recent Activity */}
+        <div className="lg:col-span-3 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] overflow-hidden hover:shadow-md transition-shadow duration-200 flex flex-col justify-between">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
             <div className="flex items-center gap-2.5">
-              <span className="w-2 h-2 rounded-full bg-slate-950" />
-              <h2 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
+              <span className="w-2 h-2 rounded-full bg-slate-900" />
+              <h2 className="text-sm font-bold text-slate-900 tracking-tight">
                 Recent Activity
               </h2>
             </div>
-            <span className="text-[11px] font-mono text-slate-400 uppercase font-semibold">
-              Team Audit Stream
+            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+              Activity Log
             </span>
           </div>
-          <div className="py-10 px-6 text-center flex-1 flex flex-col justify-center">
-            <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3 border border-slate-200/80">
-              <Clock className="w-5 h-5" />
+          {auditLogs && auditLogs.length > 0 ? (
+            <div className="divide-y divide-slate-100 flex-1 overflow-y-auto">
+              {auditLogs.map((log) => {
+                const activity = formatAuditActivity(log);
+                return (
+                  <div key={log.id} className="p-4 sm:px-6 flex items-center justify-between hover:bg-slate-50/60 transition-colors gap-4">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+                        {activity.iconType === 'project' && <Briefcase className="w-4 h-4" />}
+                        {activity.iconType === 'time' && <Clock className="w-4 h-4" />}
+                        {activity.iconType === 'user' && <Users className="w-4 h-4" />}
+                        {activity.iconType === 'team' && <UsersRound className="w-4 h-4" />}
+                        {activity.iconType === 'org' && <Building className="w-4 h-4" />}
+                        {activity.iconType === 'default' && <Clock className="w-4 h-4" />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-900 truncate">{activity.title}</p>
+                        <p className="text-xs text-slate-500 mt-0.5 truncate">{activity.description}</p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-xs font-semibold text-slate-800">
+                        {log.actorName || log.actorEmail || 'System'}
+                      </p>
+                      <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                        {new Date(log.createdAt).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <p className="text-sm font-bold text-slate-900 ">No recent team activity</p>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-              A team-scoped activity stream is not yet available. Timesheet and task events will appear here when the audit stream is enabled.
-            </p>
-          </div>
+          ) : (
+            <div className="py-12 px-6 text-center flex-1 flex flex-col justify-center">
+              <div className="w-12 h-9 rounded-[14px] bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3 border border-slate-200/80">
+                <Clock className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-bold text-slate-900">No recent team activity</p>
+              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                Timesheet approvals and team task events will appear here once activity tracking is active.
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Workforce Standard (Small Card - Dark Theme) */}
-        <div className="bg-slate-950 border border-slate-800 rounded-2xl shadow-2xs overflow-hidden flex flex-col h-full">
-          <div className="p-5 flex flex-col h-full relative">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[11px] font-bold text-[#27F087] uppercase tracking-widest font-mono">
-                WORKFORCE STANDARD
-              </h2>
-              <span className="w-2 h-2 rounded-full bg-[#27F087] absolute top-5 right-5" />
-            </div>
-            
-            <h3 className="text-xl font-bold text-white mb-2 tracking-tight">
-              {wtWeeklyHours}h Weekly Baseline
-            </h3>
-            
-            <p className="text-sm text-slate-400 leading-relaxed mb-6">
-              Timesheets close every Sunday at 23:59. Ensure daily entries are attributed to accurate deliverables.
-            </p>
-            
-            <div className="mt-auto pt-4 border-t border-slate-800 flex items-center justify-between font-mono text-xs">
-              <span className="text-slate-500">
-                Current Status: Active
-              </span>
-              <Link to="/timesheets" className="text-[#27F087] font-semibold flex items-center gap-1 hover:text-[#27F087]/80 transition-colors">
-                Cycle Guide &rarr;
-              </Link>
-            </div>
-          </div>
-        </div>
+
       </div>
     </div>
   );
@@ -1145,18 +1120,22 @@ export const Dashboard = () => {
   const [currentTimesheetStatus, setCurrentTimesheetStatus] = useState<string | null>(null);
   const [recentTimesheets, setRecentTimesheets] = useState<any[]>([]);
   const [recentEntries, setRecentEntries] = useState<any[]>([]);
-  const [dailyHoursMap, setDailyHoursMap] = useState<Record<string, number>>({});
-  
+
   // Manager Dashboard State
   const [managerTeams, setManagerTeams] = useState<any[]>([]);
   const [managerProjects, setManagerProjects] = useState<any[]>([]);
-  const [workingTimeConfig, setWorkingTimeConfig] = useState<WorkingTimeConfig | null>(null);
   const [managerReport, setManagerReport] = useState<any>(null);
-  const [managerTimesheetStatus, setManagerTimesheetStatus] = useState<any>(null);
   const [managerOverdueTasks, setManagerOverdueTasks] = useState(0);
 
   // Admin Dashboard State
-  const [orgSummary, setOrgSummary] = useState<any>(null);
+  const [orgSummary, setOrgSummary] = useState<any>(() => {
+    try {
+      const cached = localStorage.getItem('cached_org_name');
+      return cached ? { name: cached } : null;
+    } catch {
+      return null;
+    }
+  });
   const [employeesData, setEmployeesData] = useState<any>(null);
   const [teamsData, setTeamsData] = useState<any>(null);
   const [projectsData, setProjectsData] = useState<any[]>([]);
@@ -1167,6 +1146,7 @@ export const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [adminDashboardData, setAdminDashboardData] = useState<any>(null);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   const roleAdmin = Boolean(employee?.roles?.includes('ADMIN') || employee?.role === 'ADMIN');
   const roleManager = Boolean(employee?.roles?.includes('MANAGER') || employee?.role === 'MANAGER');
@@ -1179,31 +1159,7 @@ export const Dashboard = () => {
     return 'Good evening';
   };
 
-  // Generate 7 days for current week (Mon-Sun)
-  const weekDays = useMemo(() => {
-    const mondayStr = getThisMonday();
-    const monday = new Date(mondayStr + 'T00:00:00');
-    const days = [];
-    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const todayStr = getTodayString();
-    
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const dayDate = String(d.getDate()).padStart(2, '0');
-      const dateStr = `${y}-${m}-${dayDate}`;
-      
-      days.push({
-        dateStr,
-        dayName: dayNames[i],
-        dayNum: d.getDate(),
-        isToday: dateStr === todayStr,
-      });
-    }
-    return days;
-  }, []);
+
 
   const fetchDashboardData = useCallback(async () => {
     if (!employee) return;
@@ -1254,22 +1210,25 @@ export const Dashboard = () => {
           apiClient(`/projects`),
           apiClient(`/employee-invitations`),
           apiClient(`/timesheets/approvals`),
-          apiClient(`/reports/admin-dashboard`)
+          apiClient(`/reports/admin-dashboard`),
+          apiClient(`/audit-logs?limit=5`)
         );
       } else {
         promises.push(
-          Promise.resolve(null), 
-          Promise.resolve(null), 
+          Promise.resolve(null),
+          Promise.resolve(null),
           Promise.resolve(null),
           Promise.resolve([]),
           Promise.resolve([]),
           Promise.resolve([]),
-          Promise.resolve(null)
+          Promise.resolve([]),
+          Promise.resolve(null),
+          roleManager ? apiClient(`/audit-logs?limit=5`) : Promise.resolve([])
         );
       }
 
       const results = await Promise.allSettled(promises);
-      
+
       let hasPartialError = false;
       const extract = (index: number, defaultValue: any) => {
         const res = results[index];
@@ -1288,9 +1247,7 @@ export const Dashboard = () => {
       const approvals = extract(4, []);
       const managerTeamsList = extract(5, []);
       const managerProjectsList = extract(6, []);
-      const managerWorkingTime = extract(7, null);
       const mgrDashboardReport = extract(8, null);
-      const mgrTeamUtilization = extract(9, null);
       const mgrOverdueTasksReq = extract(10, null);
       const org = extract(11, null);
       const employeesList = extract(12, null);
@@ -1299,6 +1256,7 @@ export const Dashboard = () => {
       const invitationsList = extract(15, []);
       const approvalsList = extract(16, []);
       const adminDashboardReq = extract(17, null);
+      const auditLogsReq = extract(18, []);
 
       if (hasPartialError) {
         setDashboardError("Some dashboard metrics could not be loaded. Please refresh.");
@@ -1310,7 +1268,7 @@ export const Dashboard = () => {
         const projectArr = Array.isArray(projects) ? projects : (projects?.data ?? []);
         const tsArr: any[] = Array.isArray(timesheets) ? timesheets : (timesheets?.data ?? []);
         const entryArr: any[] = Array.isArray(entries) ? entries : (entries?.data ?? []);
-        
+
         const thisWeekStart = getThisMonday();
         const todayStr = getTodayString();
         const monDate = new Date(thisWeekStart + 'T00:00:00');
@@ -1320,50 +1278,41 @@ export const Dashboard = () => {
         const mEnd = String(sunDate.getMonth() + 1).padStart(2, '0');
         const dEnd = String(sunDate.getDate()).padStart(2, '0');
         const thisWeekEnd = `${yEnd}-${mEnd}-${dEnd}`;
-        
+
         let wHours = 0;
         let tHours = 0;
-        const dMap: Record<string, number> = {};
 
         entryArr.forEach((e: any) => {
           const h = Number(e.hours) || 0;
           if (e.date >= thisWeekStart && e.date <= thisWeekEnd) {
             wHours += h;
-            dMap[e.date] = (dMap[e.date] || 0) + h;
           }
           if (e.date === todayStr) {
             tHours += h;
           }
         });
-        
+
         // Use the native backend report for correct weekly totals, overriding the paginated local sum
         if (employeeSummaryData) {
           setWeeklyHours(employeeSummaryData.totalHours || 0);
-          
+
           // Get today's hours from the backend's dailyTotals map
           const todayItem = employeeSummaryData.dailyTotals?.find((d: any) => d.date === todayStr);
           setTodayHours(todayItem ? todayItem.hours : 0);
-          
-          const newDMap: Record<string, number> = {};
-          employeeSummaryData.dailyTotals?.forEach((d: any) => {
-            newDMap[d.date] = d.hours;
-          });
-          setDailyHoursMap(newDMap);
         } else {
           setWeeklyHours(wHours);
           setTodayHours(tHours);
-          setDailyHoursMap(dMap);
         }
-        
+
         const currentTs = tsArr.find((ts: any) => {
           if (!ts?.startDate) return false;
           const tsDateStr = typeof ts.startDate === 'string' ? ts.startDate.slice(0, 10) : new Date(ts.startDate).toISOString().slice(0, 10);
           return tsDateStr === thisWeekStart;
         });
         setCurrentTimesheetStatus(currentTs ? currentTs.status : 'NOT CREATED');
-        
+
         setRecentTimesheets(tsArr.slice(0, 4));
-        
+
         const entriesWithProjects = entryArr.slice(0, 5).map((e: any) => {
           const p = projectArr.find((p: any) => p.id === e.projectId);
           return { ...e, projectName: p?.name || 'General Project' };
@@ -1378,31 +1327,23 @@ export const Dashboard = () => {
         setManagerTeams(mTeams);
         const mProjects = Array.isArray(managerProjectsList) ? managerProjectsList : (managerProjectsList?.data ?? []);
         setManagerProjects(mProjects);
-        if (managerWorkingTime && typeof managerWorkingTime === 'object' && 'monday' in managerWorkingTime) {
-          setWorkingTimeConfig(managerWorkingTime as WorkingTimeConfig);
-        } else {
-          setWorkingTimeConfig(null);
-        }
-        
+
+
         if (mgrDashboardReport) setManagerReport(mgrDashboardReport);
-        
-        if (mgrTeamUtilization && mgrTeamUtilization.data) {
-          const breakdown = { DRAFT: 0, SUBMITTED: 0, APPROVED: 0, REJECTED: 0 };
-          mgrTeamUtilization.data.forEach((emp: any) => {
-            if (emp.statusBreakdown) {
-               breakdown.DRAFT += emp.statusBreakdown.DRAFT || 0;
-               breakdown.SUBMITTED += emp.statusBreakdown.SUBMITTED || 0;
-               breakdown.APPROVED += emp.statusBreakdown.APPROVED || 0;
-               breakdown.REJECTED += emp.statusBreakdown.REJECTED || 0;
-            }
-          });
-          setManagerTimesheetStatus(breakdown);
-        }
+
+
         setManagerOverdueTasks(mgrOverdueTasksReq?.totalOverdue || 0);
       }
 
       if (roleAdmin) {
         setOrgSummary(org);
+        if (org?.name) {
+          try {
+            localStorage.setItem('cached_org_name', org.name);
+          } catch {
+            // ignore
+          }
+        }
         setEmployeesData(employeesList);
         setEmpCount(employeesList?.meta?.total || (Array.isArray(employeesList) ? employeesList.length : 0));
         setTeamsData(teamsList);
@@ -1422,6 +1363,9 @@ export const Dashboard = () => {
           setEmpCount(adminDashboardReq.totalEmployees || 0);
           setTeamCount(adminDashboardReq.totalTeams || 0);
           setAdminDashboardData(adminDashboardReq);
+        }
+        if (auditLogsReq) {
+          setAuditLogs(Array.isArray(auditLogsReq) ? auditLogsReq : (auditLogsReq.data || []));
         }
 
         // Derive real overdue active tasks across active projects
@@ -1470,22 +1414,12 @@ export const Dashboard = () => {
     return formatDateRange(start, end);
   };
 
-  // Sparkline coordinates for Weekly Card
-  const sparklinePoints = useMemo(() => {
-    const values = weekDays.map((d) => dailyHoursMap[d.dateStr] || 0);
-    const maxVal = Math.max(8, ...values);
-    return values.map((val, idx) => {
-      const x = (idx / 6) * 80;
-      const y = 24 - (val / maxVal) * 20;
-      return `${x},${y}`;
-    }).join(' ');
-  }, [weekDays, dailyHoursMap]);
 
   if (!employee && !empLoading) {
     if (empError) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[55vh] text-center p-6">
-          <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4 border border-rose-100">
+          <div className="w-14 h-9 rounded-[14px] bg-rose-50 text-rose-600 flex items-center justify-center mb-4 border border-rose-100">
             <AlertCircle className="w-7 h-7" />
           </div>
           <h2 className="text-lg font-bold text-slate-900 ">Connection Interrupted</h2>
@@ -1503,7 +1437,7 @@ export const Dashboard = () => {
     }
     return (
       <div className="flex flex-col items-center justify-center min-h-[55vh] text-center p-6">
-        <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center mb-4 border border-slate-200">
+        <div className="w-14 h-9 rounded-[14px] bg-slate-100 text-slate-600 flex items-center justify-center mb-4 border border-slate-200">
           <UsersRound className="w-7 h-7" />
         </div>
         <h2 className="text-lg font-bold text-slate-900 ">No User Profile Selected</h2>
@@ -1515,24 +1449,21 @@ export const Dashboard = () => {
   }
 
   const weeklyPacePct = Math.min(100, Math.round((weeklyHours / 40) * 100));
-  const dailyTargetPct = Math.min(100, Math.round((todayHours / 8) * 100));
-  const circleCircumference = 2 * Math.PI * 16; // radius 16 -> ~100.5
-  const circleOffset = circleCircumference - (circleCircumference * (dailyTargetPct / 100));
 
   const employeeList = Array.isArray(employeesData) ? employeesData : (employeesData?.data ?? []);
-  
+
   // Try to use true server counts from meta or the new admin API
   const totalEmployees = empCount > 0 ? empCount : (employeesData?.meta?.total ?? (employeeList.length > 0 ? employeeList.length : 0));
-  
+
   // Use active/inactive from employeeList if not provided by backend? Wait, if we use the backend, we should have it in state.
   // We can just compute it directly if available, else fallback
   const activeEmployees = adminDashboardData?.activeEmployees ?? (employeeList.length > 0 ? employeeList.filter((e: any) => e.isActive !== false).length : totalEmployees);
   const inactiveEmployees = adminDashboardData?.inactiveEmployees ?? Math.max(0, totalEmployees - activeEmployees);
-  
+
   const teamList = Array.isArray(teamsData) ? teamsData : (teamsData?.data ?? []);
   const totalTeams = teamCount > 0 ? teamCount : (teamsData?.meta?.total ?? (teamList.length > 0 ? teamList.length : 0));
   const teamsWithoutManager = adminDashboardData?.teamsWithoutManager ?? teamList.filter((t: any) => !t.managerId).length;
-  const activeProjectsCount = projectsData.filter((p: any) => p.isActive !== false).length;
+  const activeProjectsCount = projectsData.filter((p: any) => p.status === 'ACTIVE').length;
   const projectStatusCounts = {
     ACTIVE: projectsData.filter((p: any) => p.status === 'ACTIVE').length,
     IN_PROGRESS: projectsData.filter((p: any) => p.status === 'IN_PROGRESS').length,
@@ -1545,7 +1476,7 @@ export const Dashboard = () => {
   const pendingActionsCount = pendingInvitationsCount + teamsWithoutManager + pendingApprovalsCount + overdueTasksCount;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-7 pb-20 animate-fadeIn">
+    <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6">
       {roleAdmin ? (
         <AdminDashboardView
           employee={employee}
@@ -1556,6 +1487,7 @@ export const Dashboard = () => {
           activeEmployees={activeEmployees}
           inactiveEmployees={inactiveEmployees}
           totalEmployees={totalEmployees}
+          auditLogs={auditLogs}
           totalTeams={totalTeams}
           teamsWithoutManager={teamsWithoutManager}
           activeProjectsCount={activeProjectsCount}
@@ -1576,857 +1508,511 @@ export const Dashboard = () => {
           managerTeams={managerTeams}
           managerProjects={managerProjects}
           approvalsCount={approvalsCount}
-          workingTimeConfig={workingTimeConfig}
           dashboardError={dashboardError}
           managerReport={managerReport}
-          managerTimesheetStatus={managerTimesheetStatus}
           managerOverdueTasks={managerOverdueTasks}
+          auditLogs={auditLogs}
         />
       ) : (
         <>
-          {/* Executive Command Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight ">
-              {getGreeting()}, {employee?.name?.split(' ')[0]}
-            </h1>
-            
-            {/* Architectural Role Pills */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {employee?.roles?.map((role: string) => (
-                <span
-                  key={role}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold tracking-wider uppercase bg-slate-100 text-slate-800 border border-slate-200/90 font-mono"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-950" />
-                  {role}
-                </span>
-              ))}
-            </div>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500">
-            Workforce operations, logged hours velocity, and timesheet review workflow.
-          </p>
-        </div>
+          {/* ── 1. Page Header ──────────────────────────────────────────────── */}
+          <div className="animate-slideUpFade flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200/80">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  {getGreeting()}, {employee?.name?.split(' ')[0]}
+                </h1>
 
-        {/* Action Dock */}
-        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 shadow-2xs text-xs font-semibold text-slate-700 font-mono">
-            <CalendarDays className="w-4 h-4 text-slate-400" />
-            <span>
-              {new Date().toLocaleDateString('en-US', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })}
-            </span>
-          </div>
-
-          <button
-            onClick={() => fetchDashboardData()}
-            className="p-2.5 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 text-slate-600 hover:text-slate-950 transition-all shadow-2xs cursor-pointer"
-            title="Refresh dashboard metrics"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-slate-950' : ''}`} />
-          </button>
-
-          {roleEmployee && (
-            <Link
-              to="/time-entries"
-              className="inline-flex items-center gap-2 bg-slate-950 hover:bg-slate-800 text-white px-4 py-2 rounded-xl font-medium text-xs sm:text-sm shadow-xs transition-all active:scale-[0.98] cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              Log Time
-            </Link>
-          )}
-        </div>
-      </div>
-
-      {dashboardError && (
-        <div className="bg-amber-50/80 border border-amber-200 text-amber-900 px-4 py-3 rounded-xl flex items-center gap-3 text-xs sm:text-sm shadow-2xs animate-fadeIn">
-          <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-600" />
-          <p className="flex-1 font-medium">{dashboardError}</p>
-          <button 
-            onClick={() => fetchDashboardData()} 
-            className="underline font-bold hover:text-amber-950 cursor-pointer"
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* Primary KPI Grid: High-density Executive Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        {roleEmployee && (
-          <>
-            {/* Card 1: Weekly Hours with Vector SVG Sparkline */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs transition-all relative group flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
-                  Weekly Logged Hours
-                </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200/70">
-                  40h standard
-                </span>
-              </div>
-
-              <div className="my-3 flex items-end justify-between gap-3">
-                <div>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-bold text-slate-900 tracking-tight ">
-                      {loading ? <span className="text-slate-300 font-mono">—</span> : weeklyHours.toFixed(1)}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {employee?.roles?.map((role: string) => (
+                    <span
+                      key={role}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-950" />
+                      {role}
                     </span>
-                    <span className="text-xs text-slate-400 font-mono font-semibold">hrs</span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                    {weeklyPacePct}% of standard 40h target
-                  </p>
-                </div>
-
-                {/* SVG Micro Sparkline Trend */}
-                <div className="shrink-0 w-20 h-9 flex items-center justify-center">
-                  <svg className="w-full h-full overflow-visible" viewBox="0 0 80 24">
-                    <defs>
-                      <linearGradient id="sparklineGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#0F172A" stopOpacity="0.15" />
-                        <stop offset="100%" stopColor="#0F172A" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    <polyline
-                      fill="none"
-                      stroke="#0F172A"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      points={sparklinePoints}
-                    />
-                  </svg>
+                  ))}
                 </div>
               </div>
-
-              {/* Progress Track */}
-              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className="bg-slate-900 h-full rounded-full transition-all duration-700 ease-out"
-                  style={{ width: `${weeklyPacePct}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Card 2: Today's Hours with Vector SVG Ring Gauge */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs transition-all relative group flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
-                  Today's Activity
-                </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200/70">
-                  8h daily pace
-                </span>
-              </div>
-
-              <div className="my-3 flex items-center justify-between gap-3">
-                <div>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-bold text-slate-900 tracking-tight ">
-                      {loading ? <span className="text-slate-300 font-mono">—</span> : todayHours.toFixed(1)}
-                    </span>
-                    <span className="text-xs text-slate-400 font-mono font-semibold">hrs</span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                    {todayHours >= 8 
-                      ? 'Daily target reached' 
-                      : `${Math.max(0, 8 - todayHours).toFixed(1)}h remaining today`}
-                  </p>
-                </div>
-
-                {/* SVG Circular Ring Gauge */}
-                <div className="shrink-0 w-11 h-11 relative flex items-center justify-center">
-                  <svg className="w-full h-full -rotate-90" viewBox="0 0 40 40">
-                    <circle
-                      cx="20"
-                      cy="20"
-                      r="16"
-                      stroke="#E2E8F0"
-                      strokeWidth="3.5"
-                      fill="none"
-                    />
-                    <circle
-                      cx="20"
-                      cy="20"
-                      r="16"
-                      stroke="#0F172A"
-                      strokeWidth="3.5"
-                      fill="none"
-                      strokeDasharray={circleCircumference}
-                      strokeDashoffset={circleOffset}
-                      strokeLinecap="round"
-                      className="transition-all duration-700 ease-out"
-                    />
-                  </svg>
-                  <span className="absolute text-[10px] font-mono font-bold text-slate-800">
-                    {dailyTargetPct}%
-                  </span>
-                </div>
-              </div>
-
-              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className="bg-slate-900 h-full rounded-full transition-all duration-700 ease-out"
-                  style={{ width: `${dailyTargetPct}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Card 3: Current Timesheet Status */}
-            <Link
-              to="/timesheets"
-              className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all relative group flex flex-col justify-between cursor-pointer"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
-                  Weekly Timesheet
-                </span>
-                <span className="text-slate-400 group-hover:text-slate-900 transition-colors">
-                  <ArrowUpRight className="w-4 h-4" />
-                </span>
-              </div>
-
-              <div className="my-3">
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold font-mono border ${getStatusBadgeClass(currentTimesheetStatus || 'NOT CREATED')}`}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                    {loading ? '...' : (currentTimesheetStatus || 'NOT CREATED')}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 font-medium mt-2">
-                  Cycle: {formatDateRange(getThisMonday(), new Date(new Date(getThisMonday() + 'T00:00:00').getTime() + 6 * 24 * 60 * 60 * 1000))}
-                </p>
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 group-hover:text-slate-900 font-medium transition-colors">
-                <span>Manage cycle review</span>
-                <span className="font-semibold text-slate-800">Review & Submit →</span>
-              </div>
-            </Link>
-          </>
-        )}
-
-        {/* Manager Approvals Card */}
-        {roleManager && (
-          <Link
-            to="/approvals"
-            className={`p-5 rounded-2xl border shadow-2xs hover:shadow-xs transition-all relative group flex flex-col justify-between cursor-pointer ${
-              !loading && approvalsCount > 0
-                ? 'bg-rose-50/30 border-rose-200/90 hover:border-rose-300'
-                : 'bg-white border-slate-200/90 hover:border-slate-300'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
-                !loading && approvalsCount > 0 ? 'text-rose-700' : 'text-slate-500'
-              }`}>
-                Pending Approvals
-              </span>
-              <span className="text-slate-400 group-hover:text-slate-900 transition-colors">
-                <ArrowUpRight className="w-4 h-4" />
-              </span>
-            </div>
-
-            <div className="my-3">
-              <div className="flex items-baseline gap-2">
-                <span className={`text-2xl font-bold tracking-tight ${
-                  !loading && approvalsCount > 0 ? 'text-rose-900' : 'text-slate-950'
-                }`}>
-                  {loading ? <span className="text-slate-300 font-mono">—</span> : approvalsCount}
-                </span>
-                <span className="text-xs text-slate-400 font-mono font-medium">submissions</span>
-              </div>
-              <p className={`text-[11px] font-medium mt-1 flex items-center gap-1.5 ${
-                !loading && approvalsCount > 0 ? 'text-rose-700 font-semibold' : 'text-slate-500'
-              }`}>
-                {!loading && approvalsCount > 0 ? (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" />
-                    Awaiting your review
-                  </>
-                ) : (
-                  'All team timesheets processed'
-                )}
+              <p className="text-sm text-slate-500 font-medium">
+                Workforce operations, logged hours velocity, and timesheet review workflow.
               </p>
             </div>
 
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-              <span>Approval inbox</span>
-              <span className="font-semibold text-slate-800">Open Queue →</span>
-            </div>
-          </Link>
-        )}
-
-        {/* Admin Operational Cards */}
-        {roleAdmin && (
-          <>
-            <Link
-              to="/employees"
-              className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all relative group flex flex-col justify-between cursor-pointer"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
-                  Organization Roster
-                </span>
-                <span className="text-slate-400 group-hover:text-slate-900 transition-colors">
-                  <ArrowUpRight className="w-4 h-4" />
-                </span>
-              </div>
-
-              <div className="my-3">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-slate-900 tracking-tight ">
-                    {loading ? <span className="text-slate-300 font-mono">—</span> : empCount}
-                  </span>
-                  <span className="text-xs text-slate-400 font-mono font-medium">employees</span>
-                </div>
-                <p className="text-[11px] text-slate-500 font-medium mt-1">
-                  Active organizational members
-                </p>
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                <span>Manage directory</span>
-                <span className="font-semibold text-slate-800">Directory →</span>
-              </div>
-            </Link>
-
-            <Link
-              to="/teams"
-              className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all relative group flex flex-col justify-between cursor-pointer"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
-                  Operational Teams
-                </span>
-                <span className="text-slate-400 group-hover:text-slate-900 transition-colors">
-                  <ArrowUpRight className="w-4 h-4" />
-                </span>
-              </div>
-
-              <div className="my-3">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-slate-900 tracking-tight ">
-                    {loading ? <span className="text-slate-300 font-mono">—</span> : teamCount}
-                  </span>
-                  <span className="text-xs text-slate-400 font-mono font-medium">teams</span>
-                </div>
-                <p className="text-[11px] text-slate-500 font-medium mt-1">
-                  Functional team structures
-                </p>
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                <span>Manage rosters</span>
-                <span className="font-semibold text-slate-800">Team Structure →</span>
-              </div>
-            </Link>
-
-            <Link
-              to="/organization"
-              className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all relative group flex flex-col justify-between cursor-pointer"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
-                  Tenant Profile
-                </span>
-                <span className="text-slate-400 group-hover:text-slate-900 transition-colors">
-                  <ArrowUpRight className="w-4 h-4" />
-                </span>
-              </div>
-
-              <div className="my-3">
-                <h3 className="text-xl font-bold text-slate-950 truncate " title={orgSummary?.name}>
-                  {loading ? <span className="text-slate-300 font-mono">—</span> : (orgSummary?.name || 'Sify Organization')}
-                </h3>
-                <p className="text-[11px] text-slate-500 font-medium mt-1 font-mono">
-                  Type: {orgSummary?.organizationType || 'ENTERPRISE'}
-                </p>
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                <span>Tenant configuration</span>
-                <span className="font-semibold text-slate-800">Settings →</span>
-              </div>
-            </Link>
-          </>
-        )}
-      </div>
-
-      {/* Main Operational Workspace: 12-Column Balanced Architecture */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-7 items-start">
-        
-        {/* Primary Operational Feed: 8 Columns */}
-        <div className="lg:col-span-8 space-y-6 sm:space-y-7">
-          
-          {/* Weekly Work Distribution: Pure SVG Chart Component */}
-          {roleEmployee && (
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-slate-950" />
-                    <h2 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
-                      Weekly Velocity & Work Distribution
-                    </h2>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Daily logged hours distribution across the current Monday–Sunday cycle
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-md border border-slate-200/80">
-                    Total: {weeklyHours.toFixed(1)}h / 40.0h
-                  </span>
-                </div>
-              </div>
-
-              {/* Vector SVG Multi-Day Bar Histogram */}
-              <div className="pt-2 pb-1">
-                <svg className="w-full h-44 overflow-visible" viewBox="0 0 700 170" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="primaryBarGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#0F172A" />
-                      <stop offset="100%" stopColor="#334155" />
-                    </linearGradient>
-                    <linearGradient id="todayBarGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2563EB" />
-                      <stop offset="100%" stopColor="#1E40AF" />
-                    </linearGradient>
-                  </defs>
-
-                  {/* Horizontal Guideline Grids */}
-                  <line x1="40" y1="20" x2="680" y2="20" stroke="#F1F5F9" strokeWidth="1" strokeDasharray="4 4" />
-                  <text x="30" y="24" fill="#94A3B8" fontSize="10" fontFamily="JetBrains Mono" textAnchor="end">8h</text>
-                  
-                  <line x1="40" y1="55" x2="680" y2="55" stroke="#F1F5F9" strokeWidth="1" strokeDasharray="4 4" />
-                  <text x="30" y="59" fill="#94A3B8" fontSize="10" fontFamily="JetBrains Mono" textAnchor="end">6h</text>
-
-                  <line x1="40" y1="90" x2="680" y2="90" stroke="#F1F5F9" strokeWidth="1" strokeDasharray="4 4" />
-                  <text x="30" y="94" fill="#94A3B8" fontSize="10" fontFamily="JetBrains Mono" textAnchor="end">4h</text>
-
-                  <line x1="40" y1="125" x2="680" y2="125" stroke="#E2E8F0" strokeWidth="1" />
-                  <text x="30" y="129" fill="#94A3B8" fontSize="10" fontFamily="JetBrains Mono" textAnchor="end">0h</text>
-
-                  {/* Bars for 7 days */}
-                  {weekDays.map((day, idx) => {
-                    const hours = dailyHoursMap[day.dateStr] || 0;
-                    const maxScale = 8;
-                    const barHeight = Math.min(105, Math.max(hours > 0 ? 8 : 2, (hours / maxScale) * 105));
-                    const x = 70 + idx * 88;
-                    const y = 125 - barHeight;
-
-                    return (
-                      <g key={day.dateStr} className="group cursor-pointer">
-                        {/* Background track column */}
-                        <rect
-                          x={x}
-                          y="20"
-                          width="44"
-                          height="105"
-                          rx="6"
-                          fill={day.isToday ? "#F8FAFC" : "#FAFAFA"}
-                          stroke={day.isToday ? "#CBD5E1" : "transparent"}
-                          strokeWidth="1"
-                        />
-
-                        {/* Active filled bar */}
-                        <rect
-                          x={x + 4}
-                          y={y}
-                          width="36"
-                          height={barHeight}
-                          rx="5"
-                          fill={day.isToday ? "url(#todayBarGrad)" : hours > 0 ? "url(#primaryBarGrad)" : "#E2E8F0"}
-                          className="transition-all duration-500 ease-out"
-                        />
-
-                        {/* Top Hours Label */}
-                        <text
-                          x={x + 22}
-                          y={y - 6}
-                          fill={day.isToday ? "#2563EB" : "#334155"}
-                          fontSize="11"
-                          fontWeight="700"
-                          fontFamily="JetBrains Mono"
-                          textAnchor="middle"
-                        >
-                          {hours > 0 ? `${hours}h` : ''}
-                        </text>
-
-                        {/* Bottom Day Label */}
-                        <text
-                          x={x + 22}
-                          y="146"
-                          fill={day.isToday ? "#2563EB" : "#475569"}
-                          fontSize="12"
-                          fontWeight={day.isToday ? "800" : "600"}
-                          fontFamily="Inter"
-                          textAnchor="middle"
-                        >
-                          {day.dayName}
-                        </text>
-
-                        {/* Date Number */}
-                        <text
-                          x={x + 22}
-                          y="160"
-                          fill="#94A3B8"
-                          fontSize="10"
-                          fontFamily="JetBrains Mono"
-                          textAnchor="middle"
-                        >
-                          {day.dayNum}
-                        </text>
-                      </g>
-                    );
+            <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white border border-slate-200 shadow-xs text-[13.5px] font-semibold text-slate-700">
+                <CalendarDays className="w-4 h-4 text-slate-400" />
+                <span>
+                  {new Date().toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
                   })}
-                </svg>
-              </div>
-
-              {/* Sub-chart status ribbon */}
-              <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 font-medium">
-                <div className="flex items-center gap-4">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-sm bg-slate-900" />
-                    Standard Logged
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-sm bg-blue-600" />
-                    Today's Session
-                  </span>
-                </div>
-                <span className="font-mono text-slate-700">
-                  {weeklyHours >= 40 ? 'Weekly 40h standard completed' : `${(40 - weeklyHours).toFixed(1)}h remaining in cycle`}
                 </span>
               </div>
+
+              <button
+                onClick={() => fetchDashboardData()}
+                disabled={loading}
+                className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
+                title="Refresh dashboard metrics"
+              >
+                <RefreshCw className={`w-4 h-4 text-slate-500 transition-transform duration-500 group-hover:rotate-180 group-active:rotate-180 ${loading ? 'animate-spin text-slate-900' : ''}`} />
+                <span>Refresh Dashboard</span>
+              </button>
+
+              {roleEmployee && (
+                <Link
+                  to="/time-entries"
+                  className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:scale-[0.98]"
+                >
+                  <Plus className="w-4 h-4" strokeWidth={2.5} />
+                  <span>Log Time</span>
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {dashboardError && (
+            <div className="p-3.5 bg-amber-50 border border-amber-200/80 rounded-[14px] text-xs text-amber-800 flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="font-medium">{dashboardError}</span>
+              </div>
+              <button
+                onClick={() => fetchDashboardData()}
+                className="text-amber-900 font-bold hover:underline cursor-pointer ml-3 shrink-0"
+              >
+                Retry
+              </button>
             </div>
           )}
 
-          {/* Recent Time Entries Ledger Table */}
-          {roleEmployee && (
-            <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
-              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <div className="flex items-center gap-2.5">
+          {/* ── 2. Personal Snapshot ─────────────────────────────────────────── */}
+          <div className="space-y-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-slate-900" />
+                <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  Personal Snapshot
+                </h2>
+              </div>
+              <span className="text-xs font-medium text-slate-400">
+                Real-time operational telemetry
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+              {/* Active Projects */}
+              <Link
+                to="/projects"
+                className="bg-white/95 backdrop-blur-md p-5 rounded-[14px] border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Active Projects
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-[#12161F] group-hover:text-white transition-colors duration-200">
+                    <Briefcase className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="my-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-slate-900 tracking-tight">
+                      {loading ? '—' : projectsData.length}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">projects</span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Assigned deliverables</p>
+                </div>
+                <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-500 group-hover:text-slate-900">
+                  <span>Assigned</span>
+                  <span className="font-semibold text-slate-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                    View All <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  </span>
+                </div>
+              </Link>
+
+              {/* Weekly Logged */}
+              <div className="bg-white/95 backdrop-blur-md p-5 rounded-[14px] border border-slate-200/80 shadow-xs transition-all duration-200 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Weekly Logged
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="my-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-slate-900 tracking-tight">
+                      {loading ? '—' : weeklyHours.toFixed(1)}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">hrs</span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Current work week cycle</p>
+                </div>
+                <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-500">
+                  <span>Pace</span>
+                  <span className="font-semibold text-slate-800">{weeklyPacePct}% of 40h target</span>
+                </div>
+              </div>
+
+              {/* Today's Hours */}
+              <div className="bg-white/95 backdrop-blur-md p-5 rounded-[14px] border border-slate-200/80 shadow-xs transition-all duration-200 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Today's Hours
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="my-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-slate-900 tracking-tight">
+                      {loading ? '—' : todayHours.toFixed(1)}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">hrs</span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Daily logged progress</p>
+                </div>
+                <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-500">
+                  <span>Target (8h)</span>
+                  <span className={`font-semibold ${todayHours >= 8 ? 'text-emerald-700' : 'text-slate-800'}`}>
+                    {todayHours >= 8 ? 'Completed' : 'In Progress'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Current Timesheet */}
+              <Link
+                to="/timesheets"
+                className="bg-white/95 backdrop-blur-md p-5 rounded-[14px] border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Current Timesheet
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-[#12161F] group-hover:text-white transition-colors duration-200">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="my-3">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${getStatusBadgeClass(currentTimesheetStatus || 'NOT CREATED')}`}>
+                    {loading ? '...' : (currentTimesheetStatus || 'NOT CREATED')}
+                  </span>
+                  <p className="text-xs text-slate-500 font-medium mt-2">Active week status</p>
+                </div>
+                <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-500 group-hover:text-slate-900">
+                  <span>Timesheet Cycle</span>
+                  <span className="font-semibold text-slate-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                    Review <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  </span>
+                </div>
+              </Link>
+            </div>
+          </div>
+
+          {/* ── 3. Needs Attention ───────────────────────────────────────────── */}
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] overflow-hidden hover:shadow-md transition-shadow duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                  Needs Attention
+                </h2>
+              </div>
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/60">
+                Review Items
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+              <Link
+                to="/timesheets"
+                className="p-5 hover:bg-slate-50/60 transition-colors flex flex-col justify-between group cursor-pointer"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Rejected Timesheets
+                    </span>
+                    <AlertCircle className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
+                  </div>
+                  <div className="mt-3 flex items-baseline gap-2">
+                    <span className={`text-2xl font-bold ${recentTimesheets.some(t => t.status === 'REJECTED') ? 'text-rose-600' : 'text-slate-900'}`}>
+                      {loading ? '—' : recentTimesheets.filter(t => t.status === 'REJECTED').length}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">timesheets</span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    {recentTimesheets.some(t => t.status === 'REJECTED') ? 'Action required on rejected sheets' : 'No rejected timesheets'}
+                  </p>
+                </div>
+                <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600 group-hover:text-slate-900">
+                  <span>Fix & Resubmit</span>
+                  <span className="flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                    Open <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  </span>
+                </div>
+              </Link>
+
+              <Link
+                to="/time-entries"
+                className="p-5 hover:bg-slate-50/60 transition-colors flex flex-col justify-between group cursor-pointer"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Draft Timesheets
+                    </span>
+                    <Clock className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
+                  </div>
+                  <div className="mt-3 flex items-baseline gap-2">
+                    <span className={`text-2xl font-bold ${recentTimesheets.some(t => t.status === 'DRAFT') ? 'text-amber-600' : 'text-slate-900'}`}>
+                      {loading ? '—' : recentTimesheets.filter(t => t.status === 'DRAFT').length}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">timesheets</span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    {recentTimesheets.some(t => t.status === 'DRAFT') ? 'Pending submission' : 'All drafted timesheets submitted'}
+                  </p>
+                </div>
+                <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600 group-hover:text-slate-900">
+                  <span>Submit Work</span>
+                  <span className="flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                    Open <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  </span>
+                </div>
+              </Link>
+            </div>
+          </div>
+
+          {/* ── 4. Project & Timesheet Feed ─────────────────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-7 items-stretch">
+            {/* Project Status */}
+            <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-6 hover:shadow-md transition-shadow duration-200 flex flex-col justify-between space-y-4">
+              <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+                <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-blue-600" />
-                  <h2 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
+                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                    Project Status
+                  </h3>
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                  {projectsData.length} assigned
+                </span>
+              </div>
+
+              <div className="space-y-3 pt-1">
+                {projectsData.slice(0, 3).map(p => (
+                  <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 border border-slate-100 group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center border border-slate-200/60 shadow-xs">
+                        <Briefcase className="w-4 h-4 text-slate-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">{p.name}</p>
+                        <p className="text-xs text-slate-500 font-medium">{p.status}</p>
+                      </div>
+                    </div>
+                    <Link
+                      to={`/projects/${p.id}`}
+                      className="text-xs font-bold text-slate-700 hover:text-slate-950 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      View <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    </Link>
+                  </div>
+                ))}
+                {projectsData.length === 0 && (
+                  <p className="text-xs text-slate-400 text-center py-6">No projects assigned.</p>
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-slate-100">
+                <Link
+                  to="/projects"
+                  className="text-xs font-bold text-slate-700 hover:text-slate-950 flex items-center justify-between group"
+                >
+                  <span>View All Projects</span>
+                  <span className="group-hover:translate-x-0.5 transition-transform"><ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} /></span>
+                </Link>
+              </div>
+            </div>
+
+            {/* Recent Timesheets */}
+            <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-6 hover:shadow-md transition-shadow duration-200 flex flex-col justify-between space-y-4">
+              <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                    Recent Timesheets
+                  </h3>
+                </div>
+                <Link
+                  to="/timesheets"
+                  className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors"
+                >
+                  View All <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                </Link>
+              </div>
+
+              <div className="space-y-3 pt-1">
+                {recentTimesheets.slice(0, 3).map(ts => (
+                  <div key={ts.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 border border-slate-100 group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center border border-slate-200/60 shadow-xs">
+                        <CalendarDays className="w-4 h-4 text-slate-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">{formatWeekRange(ts.startDate)}</p>
+                        <p className="text-xs text-slate-500 font-medium">{Number(ts.totalHours || 0).toFixed(1)} hrs</p>
+                      </div>
+                    </div>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${getStatusBadgeClass(ts.status)}`}>
+                      {ts.status}
+                    </span>
+                  </div>
+                ))}
+                {recentTimesheets.length === 0 && (
+                  <p className="text-xs text-slate-400 text-center py-6">No recent timesheets.</p>
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-slate-100">
+                <Link
+                  to="/timesheets"
+                  className="text-xs font-bold text-slate-700 hover:text-slate-950 flex items-center justify-between group"
+                >
+                  <span>Manage Timesheet Cycles</span>
+                  <span className="group-hover:translate-x-0.5 transition-transform"><ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} /></span>
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* ── 5. Quick Actions ─────────────────────────────────────────────── */}
+          <div className="space-y-3.5">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-slate-900" />
+              <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                Quick Actions
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Link
+                to="/time-entries"
+                className="bg-white/95 backdrop-blur-md p-4 rounded-[14px] border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex items-center gap-3.5 group cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center group-hover:bg-[#12161F] group-hover:text-white transition-colors duration-200 shrink-0">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900 group-hover:text-slate-950">Log Time</p>
+                  <p className="text-xs text-slate-400">Record daily hours</p>
+                </div>
+              </Link>
+
+              <Link
+                to="/timesheets"
+                className="bg-white/95 backdrop-blur-md p-4 rounded-[14px] border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex items-center gap-3.5 group cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center group-hover:bg-[#12161F] group-hover:text-white transition-colors duration-200 shrink-0">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900 group-hover:text-slate-950">Timesheets</p>
+                  <p className="text-xs text-slate-400">Review & Submit</p>
+                </div>
+              </Link>
+
+              <Link
+                to="/projects"
+                className="bg-white/95 backdrop-blur-md p-4 rounded-[14px] border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex items-center gap-3.5 group cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center group-hover:bg-[#12161F] group-hover:text-white transition-colors duration-200 shrink-0">
+                  <Briefcase className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900 group-hover:text-slate-950">Projects</p>
+                  <p className="text-xs text-slate-400">View tasks & details</p>
+                </div>
+              </Link>
+            </div>
+          </div>
+
+          {/* ── 6. Bottom Section ───────────────────────────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-7 items-stretch">
+            <div className="lg:col-span-2 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] overflow-hidden hover:shadow-md transition-shadow duration-200 flex flex-col justify-between">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2 h-2 rounded-full bg-slate-900" />
+                  <h2 className="text-sm font-bold text-slate-900 tracking-tight">
                     Recent Time Entries
                   </h2>
                 </div>
-                <Link 
-                  to="/time-entries" 
-                  className="text-xs text-slate-600 hover:text-slate-950 font-semibold flex items-center gap-1 group transition-colors font-mono"
-                >
-                  <span>View all</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-              </div>
-
-              {loading ? (
-                <div className="py-14 text-center">
-                  <LoadingSpinner size="md" />
-                  <p className="text-xs text-slate-400 mt-2 font-mono">Loading ledger...</p>
-                </div>
-              ) : recentEntries.length === 0 ? (
-                <div className="py-14 text-center text-slate-500 px-4">
-                  {/* Clean Vector SVG Empty State */}
-                  <svg className="w-16 h-16 mx-auto mb-3 text-slate-300" viewBox="0 0 64 64" fill="none">
-                    <rect x="14" y="10" width="36" height="46" rx="4" stroke="currentColor" strokeWidth="2" fill="#F8FAFC" />
-                    <line x1="22" y1="22" x2="42" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    <line x1="22" y1="30" x2="38" y2="30" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    <line x1="22" y1="38" x2="32" y2="38" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    <circle cx="44" cy="44" r="10" fill="#0F172A" />
-                    <path d="M44 39v6l3 2" stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <p className="text-sm font-bold text-slate-900 ">No time entries recorded yet</p>
-                  <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                    Record your project task hours to establish your daily ledger and weekly timesheets.
-                  </p>
-                  <Link
-                    to="/time-entries"
-                    className="mt-4 inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white font-medium px-4 py-2 rounded-xl text-xs transition-all shadow-xs cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Log First Entry
-                  </Link>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs sm:text-sm text-left">
-                    <thead className="bg-slate-50/80 border-b border-slate-100 text-slate-500 text-[11px] uppercase tracking-wider font-semibold font-mono">
-                      <tr>
-                        <th className="px-5 py-3">Date</th>
-                        <th className="px-5 py-3">Project Assignment</th>
-                        <th className="px-5 py-3 font-center">Hours</th>
-                        <th className="px-5 py-3 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {recentEntries.map((entry) => (
-                        <tr key={entry.id} className="hover:bg-slate-50/70 transition-colors group">
-                          <td className="px-5 py-3.5 whitespace-nowrap">
-                            <span className="font-semibold text-slate-900 font-mono text-xs">
-                              {new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { 
-                                weekday: 'short', 
-                                month: 'short', 
-                                day: 'numeric' 
-                              })}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <div className="flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
-                              <span className="font-semibold text-slate-900 truncate max-w-[240px] block" title={entry.projectName}>
-                                {entry.projectName}
-                              </span>
-                            </div>
-                            {entry.note && (
-                              <span className="text-[11px] text-slate-400 truncate max-w-[240px] block mt-0.5 ml-3.5">
-                                {entry.note}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-5 py-3.5 font-mono">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-900 border border-slate-200/80">
-                              {Number(entry.hours).toFixed(1)} hrs
-                            </span>
-                          </td>
-                          <td className="px-5 py-3.5 text-right">
-                            <Link
-                              to={`/time-entries?reuse=${entry.id}`}
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-950 bg-slate-100 hover:bg-slate-200/80 px-2.5 py-1.5 rounded-lg transition-all font-mono shadow-2xs"
-                              title="Duplicate entry"
-                            >
-                              <Copy className="w-3.5 h-3.5 text-slate-500" />
-                              <span>Reuse</span>
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Recent Timesheet Cycles */}
-          {roleEmployee && (
-            <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
-              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600" />
-                  <h2 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
-                    Recent Timesheets
-                  </h2>
-                </div>
-                <Link 
-                  to="/timesheets" 
-                  className="text-xs text-slate-600 hover:text-slate-950 font-semibold flex items-center gap-1 group transition-colors font-mono"
-                >
-                  <span>View all</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-              </div>
-
-              {loading ? (
-                <div className="py-12 text-center">
-                  <LoadingSpinner size="md" />
-                </div>
-              ) : recentTimesheets.length === 0 ? (
-                <div className="py-10 text-center text-slate-500 px-4">
-                  <p className="text-xs font-mono text-slate-400">No timesheet records found for this period.</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {recentTimesheets.map((ts) => (
-                    <Link
-                      key={ts.id}
-                      to={`/timesheets/${ts.id}`}
-                      className="flex items-center justify-between p-4 sm:px-5 hover:bg-slate-50/80 transition-colors group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 group-hover:bg-slate-200 transition-colors shrink-0">
-                          <CalendarDays className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-xs sm:text-sm font-semibold text-slate-950 group-hover:text-blue-700 transition-colors font-mono">
-                            {formatWeekRange(ts.startDate)}
-                          </p>
-                          <p className="text-[11px] text-slate-400 font-mono">
-                            {ts.totalHours ? `${Number(ts.totalHours).toFixed(1)} hrs total` : 'Mon–Sun cycle'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-bold font-mono border ${getStatusBadgeClass(ts.status)}`}>
-                          {ts.status}
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-900 group-hover:translate-x-0.5 transition-all" />
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Secondary Column: Command Center & Quick Workflows (4 Columns) */}
-        <div className="lg:col-span-4 space-y-6 sm:space-y-7">
-          
-          {/* Quick Actions Command Hub */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-slate-950" />
-                <h3 className="text-sm font-bold text-slate-950 uppercase tracking-wider font-mono">
-                  Quick Actions
-                </h3>
-              </div>
-              <span className="text-[11px] font-mono text-slate-400 uppercase font-semibold">Shortcuts</span>
-            </div>
-
-            <div className="space-y-2">
-              {roleEmployee && (
-                <>
-                  <Link
-                    to="/time-entries"
-                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50/70 transition-all group cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white transition-colors shrink-0">
-                      <Clock className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-slate-950">Log Time Entry</p>
-                      <p className="text-[11px] text-slate-400 truncate">Book daily hours against active tasks</p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-900 group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </Link>
-
-                  <Link
-                    to="/timesheets"
-                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50/70 transition-all group cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white transition-colors shrink-0">
-                      <FileText className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-slate-950">View Timesheets</p>
-                      <p className="text-[11px] text-slate-400 truncate">Submit weekly cycle for review</p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-900 group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </Link>
-                </>
-              )}
-
-              {roleManager && (
                 <Link
-                  to="/approvals"
-                  className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50/70 transition-all group cursor-pointer"
+                  to="/time-entries"
+                  className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white transition-colors shrink-0">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-slate-950">Pending Approvals</p>
-                      {approvalsCount > 0 && (
-                        <span className="px-1.5 py-0.2 text-[10px] font-mono font-bold bg-rose-600 text-white rounded-md">
-                          {approvalsCount}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-slate-400 truncate">Validate team submissions</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-900 group-hover:translate-x-0.5 transition-all shrink-0" />
+                  View full ledger <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
                 </Link>
-              )}
+              </div>
 
-              {roleAdmin && (
-                <>
-                  <Link
-                    to="/employees"
-                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50/70 transition-all group cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white transition-colors shrink-0">
-                      <Users className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-slate-950">Employees</p>
-                      <p className="text-[11px] text-slate-400 truncate">Manage roles and invitations</p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-900 group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </Link>
+              <div className="p-6">
+                {loading ? (
+                  <div className="py-8 text-center text-slate-400 text-xs font-medium">Loading...</div>
+                ) : recentEntries.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400 text-xs font-medium">No recent time entries.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {recentEntries.map((entry) => (
+                      <div key={entry.id} className="flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-slate-50/60">
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">{entry.projectName}</p>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5">
+                            {new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                          </p>
+                        </div>
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-white text-slate-900 border border-slate-200 shadow-2xs">
+                          {Number(entry.hours).toFixed(1)} hrs
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
 
-                  <Link
-                    to="/organization"
-                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50/70 transition-all group cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white transition-colors shrink-0">
-                      <Building className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-slate-950">Organization Settings</p>
-                      <p className="text-[11px] text-slate-400 truncate">Configure tenant & departments</p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-900 group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </Link>
-                </>
-              )}
-
-              <Link
-                to="/reports/employee-summary"
-                className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50/70 transition-all group cursor-pointer"
-              >
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white transition-colors shrink-0">
-                  <TrendingUp className="w-4 h-4" />
+            <div className="lg:col-span-1 bg-[#12161F] text-white rounded-[14px] p-6 shadow-xs relative overflow-hidden flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs font-bold text-[#27F087] uppercase tracking-wider">
+                    Workforce Standard
+                  </span>
+                  <span className="w-2 h-2 rounded-full bg-[#27F087] animate-pulse" />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-slate-950">Operational Analytics</p>
-                  <p className="text-[11px] text-slate-400 truncate">Hours utilization & capacity metrics</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-900 group-hover:translate-x-0.5 transition-all shrink-0" />
-              </Link>
+                <h4 className="text-xl font-bold text-white mb-2 tracking-tight">40h Weekly Baseline</h4>
+                <p className="text-xs text-slate-400 leading-relaxed mb-6">
+                  Timesheets close every Sunday at 23:59. Ensure daily entries are attributed to accurate deliverables.
+                </p>
+              </div>
+              <div className="pt-4 border-t border-slate-800 flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-medium">Current Status: Active</span>
+                <Link to="/timesheets" className="text-[#27F087] font-bold hover:underline flex items-center gap-1">
+                  Cycle Guide <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                </Link>
+              </div>
             </div>
           </div>
-
-          {/* Operational Policy Card */}
-          <div className="bg-slate-950 text-white rounded-2xl p-5 sm:p-6 shadow-xs relative overflow-hidden space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-[#27F087] uppercase tracking-wider font-mono">
-                Workforce Standard
-              </span>
-              <span className="w-2 h-2 rounded-full bg-[#27F087] animate-pulse" />
-            </div>
-            <div>
-              <h4 className="text-base font-bold text-white">40h Weekly Baseline</h4>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Timesheets close every Sunday at 23:59. Ensure daily entries are attributed to accurate deliverables.
-              </p>
-            </div>
-            <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-              <span className="font-mono">Current Status: Active</span>
-              <Link to="/timesheets" className="text-[#27F087] font-semibold hover:underline flex items-center gap-1 font-mono">
-                Cycle Guide →
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
         </>
       )}
     </div>
   );
 };
-
+export default Dashboard;
 
 

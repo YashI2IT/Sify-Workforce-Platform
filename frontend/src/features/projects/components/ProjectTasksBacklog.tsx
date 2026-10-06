@@ -1,3 +1,4 @@
+import ReactDOM from 'react-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 import { Clock, AlertCircle, GripVertical, User, ChevronDown, ChevronRight, CheckCircle2 } from 'lucide-react';
@@ -55,12 +56,14 @@ export const ProjectTasksBacklog = ({
 
     let newStatus = 'TODO';
     if (destination.droppableId === 'ACTIVE_WORK') newStatus = 'IN_PROGRESS';
+    else if (destination.droppableId === 'REVIEW') newStatus = 'REVIEW';
     else if (destination.droppableId === 'COMPLETED') newStatus = 'DONE';
 
     onStatusChange(draggableId, newStatus);
   };
 
-  const activeTasks = tasks.filter(t => t.status === 'IN_PROGRESS' || t.status === 'REVIEW');
+  const activeTasks = tasks.filter(t => t.status === 'IN_PROGRESS');
+  const reviewTasks = tasks.filter(t => t.status === 'REVIEW');
   const backlogTasks = tasks.filter(t => t.status === 'TODO').sort((a, b) => {
     const pa = PRIORITY_WEIGHT[a.priority ?? 'MEDIUM'] ?? 0;
     const pb = PRIORITY_WEIGHT[b.priority ?? 'MEDIUM'] ?? 0;
@@ -71,27 +74,28 @@ export const ProjectTasksBacklog = ({
   const completedTasks = tasks.filter(t => t.status === 'DONE');
 
   const SECTIONS = [
-    { id: 'ACTIVE_WORK', title: 'Active Work', tasks: activeTasks, color: 'bg-blue-50 text-blue-700' },
-    { id: 'BACKLOG', title: 'Backlog', tasks: backlogTasks, color: 'bg-slate-100 text-slate-700' },
-    { id: 'COMPLETED', title: 'Completed', tasks: completedTasks, color: 'bg-emerald-50 text-emerald-700' }
+    { id: 'ACTIVE_WORK', title: 'Active Work', tasks: activeTasks, color: 'bg-blue-50 text-blue-700 border-blue-200/60' },
+    { id: 'REVIEW', title: 'In Review', tasks: reviewTasks, color: 'bg-amber-50 text-amber-700 border-amber-200/60' },
+    { id: 'BACKLOG', title: 'Backlog', tasks: backlogTasks, color: 'bg-slate-100 text-slate-700 border-slate-200/60' },
+    { id: 'COMPLETED', title: 'Completed', tasks: completedTasks, color: 'bg-emerald-50 text-emerald-700 border-emerald-200/60' }
   ];
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="space-y-6 pb-8">
+      <div className="space-y-4 pb-6">
         {SECTIONS.map(section => {
           const isCollapsed = collapsed[section.id];
           
           return (
-            <div key={section.id} className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+            <div key={section.id} className="bg-white border border-slate-200/80 rounded-[14px] shadow-xs transition-shadow hover:shadow-md">
               <div 
-                className={`px-4 py-3 border-b border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors ${isCollapsed ? 'border-b-0' : ''}`}
+                className={`px-5 py-3.5 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between cursor-pointer hover:bg-slate-100/70 transition-colors rounded-t-2xl ${isCollapsed ? 'border-b-0 rounded-b-2xl' : ''}`}
                 onClick={() => toggleCollapse(section.id)}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   {isCollapsed ? <ChevronRight className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                  <h4 className="font-bold font-display text-sm text-slate-900 tracking-tight">{section.title}</h4>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${section.color}`}>
+                  <h4 className="font-bold text-sm text-slate-900 tracking-tight font-sans">{section.title}</h4>
+                  <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${section.color}`}>
                     {section.tasks.length}
                   </span>
                 </div>
@@ -103,8 +107,8 @@ export const ProjectTasksBacklog = ({
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`p-2 min-h-[100px] transition-colors ${
-                        snapshot.isDraggingOver ? 'bg-slate-50' : 'bg-slate-50/30'
+                      className={`p-2.5 min-h-[50px] rounded-b-2xl transition-all duration-200 ease-out flex flex-col gap-2 ${
+                        snapshot.isDraggingOver ? 'bg-indigo-50/70 ring-2 ring-indigo-400/50 ring-inset shadow-inner' : 'bg-slate-50/20'
                       }`}
                     >
                       {section.tasks.map((t, index) => {
@@ -117,89 +121,115 @@ export const ProjectTasksBacklog = ({
 
                         return (
                           <Draggable key={t.id} draggableId={t.id} index={index} isDragDisabled={isDragDisabled}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                className={`group flex items-center gap-3 p-3 mb-1.5 bg-white border rounded-xl shadow-xs transition-all ${
-                                  snapshot.isDragging ? 'border-slate-400 shadow-lg scale-[1.02]' : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
-                                } ${!t.isActive ? 'opacity-60' : ''}`}
-                                onClick={() => onViewDetail(t)}
-                              >
+                            {(provided, snapshot) => {
+                              const itemContent = (
                                 <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
                                   {...provided.dragHandleProps}
-                                  className={`shrink-0 text-slate-300 hover:text-slate-500 cursor-grab ${isDragDisabled ? 'hidden' : ''}`}
-                                  onClick={e => e.stopPropagation()}
+                                  className={`outline-none select-none ${snapshot.isDragging ? 'z-[9999]' : ''}`}
+                                  style={provided.draggableProps.style}
                                 >
-                                  <GripVertical className="w-4 h-4" />
-                                </div>
+                                  <div
+                                    role="button"
+                                    tabIndex={0}
+                                    className={`group flex items-center gap-3 p-3 bg-white border rounded-xl select-none transition-shadow duration-150 ${
+                                      isDragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                                    } ${
+                                      snapshot.isDragging
+                                        ? 'shadow-2xl shadow-slate-900/15 border-indigo-500 ring-2 ring-indigo-500/20 bg-white'
+                                        : 'border-slate-200/80 hover:border-slate-300 hover:shadow-md shadow-xs'
+                                    } ${!t.isActive ? 'opacity-60' : ''}`}
+                                    onClick={() => onViewDetail(t)}
+                                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onViewDetail(t); }}
+                                  >
+                                    <div
+                                      className={`shrink-0 p-0.5 rounded transition-colors ${
+                                        isDragDisabled ? 'hidden' : ''
+                                      } ${
+                                        snapshot.isDragging ? 'text-indigo-600' : 'text-slate-300 group-hover:text-slate-500'
+                                      }`}
+                                    >
+                                      <GripVertical className="w-4 h-4" />
+                                    </div>
 
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                    <h5 className={`font-semibold text-sm leading-snug truncate ${section.id === 'COMPLETED' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
-                                      <span className="text-slate-400 font-mono mr-1.5 font-normal text-xs">{t.ticketId}</span>
-                                      {t.name}
-                                    </h5>
-                                    {section.id === 'COMPLETED' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
-                                  </div>
-                                  
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold font-mono ${statusCls}`}>
-                                      {t.status.replace('_', ' ')}
-                                    </span>
-                                    <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold font-mono ${priorityCls}`}>
-                                      {t.priority ?? 'MEDIUM'}
-                                    </span>
-                                    {!t.isActive && (
-                                      <span className="px-1.5 py-0.5 text-[9px] font-mono font-bold bg-slate-100 text-slate-400 border border-slate-200 rounded">
-                                        INACTIVE
-                                      </span>
-                                    )}
-                                    {subtasks > 0 && (
-                                      <span className="px-1.5 py-0.5 text-[9px] font-mono font-bold bg-slate-100 text-slate-500 rounded">
-                                        {subtasks} subtask{subtasks > 1 ? 's' : ''}
-                                      </span>
-                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                        {t.ticketId && (
+                                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200/80 shrink-0 shadow-2xs">
+                                            {t.ticketId}
+                                          </span>
+                                        )}
+                                        <h5 className={`font-semibold text-sm leading-snug truncate font-sans ${section.id === 'COMPLETED' ? 'text-slate-400 line-through' : 'text-slate-900 group-hover:text-indigo-600 transition-colors'}`}>
+                                          {t.name}
+                                        </h5>
+                                        {section.id === 'COMPLETED' && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />}
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold font-sans border ${statusCls}`}>
+                                          {t.status.replace('_', ' ')}
+                                        </span>
+                                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold font-sans ${priorityCls}`}>
+                                          {t.priority ?? 'MEDIUM'}
+                                        </span>
+                                        {!t.isActive && (
+                                          <span className="px-2 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 rounded-full font-sans">
+                                            INACTIVE
+                                          </span>
+                                        )}
+                                        {subtasks > 0 && (
+                                          <span className="px-2 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-600 rounded-full font-sans">
+                                            {subtasks} subtask{subtasks > 1 ? 's' : ''}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-4 shrink-0">
+                                      <div className="flex flex-col gap-1 items-end hidden sm:flex">
+                                        {t.dueDate && (
+                                          <div className={`flex items-center gap-1 text-[11px] font-mono ${overdue ? 'text-rose-600 font-bold' : 'text-slate-500 font-medium'}`}>
+                                            <Clock className="w-3 h-3 shrink-0" />
+                                            <span>{fmt(t.dueDate)}</span>
+                                            {overdue && <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />}
+                                          </div>
+                                        )}
+                                        {t.estimatedHours != null && (
+                                          <div className="text-[11px] text-slate-400 font-medium font-mono">
+                                            Est: <span className="font-semibold text-slate-600">{t.estimatedHours}h</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      
+                                      <div className="flex items-center shrink-0 w-8 justify-end">
+                                        {assignee ? (
+                                          <div className="w-7 h-7 rounded-full bg-slate-800 text-white text-[10px] font-bold flex items-center justify-center border border-white shadow-2xs" title={assignee.name}>
+                                            {assignee.name.slice(0, 1).toUpperCase()}
+                                          </div>
+                                        ) : (
+                                          <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center border border-slate-200/80 shadow-2xs" title="Unassigned">
+                                            <User className="w-3.5 h-3.5" />
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
-                                
-                                <div className="flex items-center gap-4 shrink-0">
-                                  <div className="flex flex-col gap-1 items-end hidden sm:flex">
-                                    {t.dueDate && (
-                                      <div className={`flex items-center gap-1 text-[10px] font-mono ${overdue ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
-                                        <Clock className="w-3 h-3" />
-                                        {fmt(t.dueDate)}
-                                        {overdue && <AlertCircle className="w-3 h-3" />}
-                                      </div>
-                                    )}
-                                    {t.estimatedHours != null && (
-                                      <div className="text-[10px] text-slate-400 font-mono">
-                                        Est: {t.estimatedHours}h
-                                      </div>
-                                    )}
-                                  </div>
-                                  
-                                  <div className="flex items-center shrink-0 w-8 justify-end">
-                                    {assignee ? (
-                                      <div className="w-7 h-7 rounded-full bg-slate-700 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white shadow-xs" title={assignee.name}>
-                                        {assignee.name.slice(0, 1).toUpperCase()}
-                                      </div>
-                                    ) : (
-                                      <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center border-2 border-white shadow-xs" title="Unassigned">
-                                        <User className="w-4 h-4" />
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
+                              );
+
+                              if (snapshot.isDragging && typeof document !== 'undefined') {
+                                return ReactDOM.createPortal(itemContent, document.body);
+                              }
+                              return itemContent;
+                            }}
                           </Draggable>
                         );
                       })}
                       {provided.placeholder}
-                      {section.tasks.length === 0 && (
-                        <div className="h-16 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 my-1">
-                          <span className="text-xs text-slate-400 font-medium font-mono uppercase tracking-wider">Empty</span>
+                      {section.tasks.length === 0 && !snapshot.isDraggingOver && (
+                        <div className="py-2.5 flex items-center justify-center border border-dashed border-slate-200/80 rounded-xl bg-slate-50/40">
+                          <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Empty</span>
                         </div>
                       )}
                     </div>

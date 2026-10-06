@@ -89,7 +89,7 @@ describe('AssignmentsService', () => {
       vi.mocked(db.orm.public.OrganizationSettings.first).mockResolvedValueOnce(null);
       // Target employee exists but no team
       vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'targetE1', isActive: true, organizationId: 'org1', teamId: null } as any);
-      
+
       const managerAuth: AuthenticatedContext = { userId: 'u2', employeeId: 'manager1', organizationId: 'org1', roles: ['MANAGER'] };
       await expect(service.assignEmployeeToProject('p1', 'targetE1', managerAuth)).rejects.toThrow('You can only assign or remove employees from teams you manage');
     });
@@ -99,7 +99,7 @@ describe('AssignmentsService', () => {
       vi.mocked(db.orm.public.OrganizationSettings.first).mockResolvedValueOnce(null);
       vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'targetE1', isActive: true, organizationId: 'org1', teamId: 't1' } as any);
       vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', managerId: 'otherManager', organizationId: 'org1' } as any);
-      
+
       const managerAuth: AuthenticatedContext = { userId: 'u2', employeeId: 'manager1', organizationId: 'org1', roles: ['MANAGER'] };
       await expect(service.assignEmployeeToProject('p1', 'targetE1', managerAuth)).rejects.toThrow('You can only assign or remove employees from teams you manage');
     });
@@ -112,9 +112,9 @@ describe('AssignmentsService', () => {
       vi.mocked(db.orm.public.Employee.first).mockResolvedValueOnce({ id: 'targetE1', isActive: true, organizationId: 'org1', teamId: 't1' } as any);
       vi.mocked(db.orm.public.Team.first).mockResolvedValueOnce({ id: 't1', managerId: 'manager1', organizationId: 'org1' } as any);
       vi.mocked(db.orm.public.EmployeeProject.first).mockResolvedValueOnce(null); // No existing assignment
-      
+
       const managerAuth: AuthenticatedContext = { userId: 'u2', employeeId: 'manager1', organizationId: 'org1', roles: ['MANAGER'] };
-      
+
       await service.assignEmployeeToProject('p1', 'targetE1', managerAuth);
       expect(db.orm.public.EmployeeProject.create).toHaveBeenCalledWith({ projectId: 'p1', employeeId: 'targetE1' });
     });

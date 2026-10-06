@@ -6,6 +6,7 @@ import { authStorage } from './authUtils';
 vi.mock('./authUtils', () => ({
   authStorage: {
     getAccessToken: vi.fn(),
+    getRefreshToken: vi.fn(),
     getOrgId: vi.fn(),
     clear: vi.fn(),
   },

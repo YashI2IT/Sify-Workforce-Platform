@@ -20,7 +20,6 @@ export class EmployeesService {
     const offset = (page - 1) * limit;
     const organizationId = auth.organizationId;
     const isManagerOnly = !auth.roles.includes('ADMIN') && auth.roles.includes('MANAGER');
-
     let rawEmployees: any[] = [];
     let total = 0;
 
@@ -28,16 +27,17 @@ export class EmployeesService {
       const managedTeams = await db.orm.public.Team.where({ organizationId, managerId: auth.employeeId }).all();
       const managedTeamIds = managedTeams.map(t => t.id);
 
-      if (managedTeamIds.length === 0) {
-        return {
-          data: [],
-          meta: { total: 0, page, limit, totalPages: 0 }
-        };
+      let allMatching: any[] = [];
+      if (managedTeamIds.length > 0) {
+        allMatching = await db.orm.public.Employee.where({ organizationId })
+          .where(e => (e as any).teamId.in(managedTeamIds))
+          .all();
       }
-
-      const allMatching = await db.orm.public.Employee.where({ organizationId })
-        .where(e => (e as any).teamId.in(managedTeamIds))
-        .all();
+      
+      const managerSelf = await db.orm.public.Employee.where({ id: auth.employeeId, organizationId }).first();
+      if (managerSelf && !allMatching.find(e => e.id === managerSelf.id)) {
+        allMatching.push(managerSelf);
+      }
       
       total = allMatching.length;
       allMatching.sort((a, b) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime());
@@ -92,6 +92,8 @@ export class EmployeesService {
         throw new ForbiddenException('You do not have access to this employee');
       }
     }
+
+
 
     return employee;
   }

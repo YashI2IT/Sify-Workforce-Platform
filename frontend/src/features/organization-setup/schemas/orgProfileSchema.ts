@@ -18,9 +18,7 @@ export const orgProfileSchema = z.object({
     .trim()
     .min(1, 'Organization Name is required')
     .max(100, 'Organization Name must not exceed 100 characters'),
-  organizationType: z.enum(VALID_ORGANIZATION_TYPES, {
-    error: 'Please select a valid Industry Type',
-  }),
+  organizationType: z.string().min(1, 'Please select a valid Industry Type'),
   description: z
     .string()
     .trim()

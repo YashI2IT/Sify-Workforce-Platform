@@ -43,8 +43,12 @@ export class OrganizationsController {
       throw new BadRequestException('Invalid or missing organization name');
     }
     
-    if (!body.organizationType || typeof body.organizationType !== 'string' || !(VALID_ORGANIZATION_TYPES as readonly string[]).includes(body.organizationType)) {
+    if (!body.organizationType || typeof body.organizationType !== 'string' || body.organizationType.trim() === '') {
       throw new BadRequestException('Invalid or missing organization type');
+    }
+
+    if (!VALID_ORGANIZATION_TYPES.includes(body.organizationType as any)) {
+      throw new BadRequestException('Invalid organization type');
     }
 
     let description: string | undefined = undefined;
@@ -108,7 +112,10 @@ export class OrganizationsController {
     }
     
     if (body.organizationType !== undefined) {
-      if (typeof body.organizationType !== 'string' || !(VALID_ORGANIZATION_TYPES as readonly string[]).includes(body.organizationType)) {
+      if (typeof body.organizationType !== 'string' || body.organizationType.trim() === '') {
+        throw new BadRequestException('Invalid organization type');
+      }
+      if (!VALID_ORGANIZATION_TYPES.includes(body.organizationType as any)) {
         throw new BadRequestException('Invalid organization type');
       }
     }
