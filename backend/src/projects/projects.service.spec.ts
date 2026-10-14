@@ -397,6 +397,31 @@ describe('ProjectsService', () => {
       // Attempt to update endDate to before startDate
       await expect(service.update('p1', { endDate: '2024-01-01' }, 'org1')).rejects.toThrow(BadRequestException);
     });
+
+    it('should persist task configuration and custom fields in project settings', async () => {
+      const mockUpdate = vi.fn().mockImplementation((data) => Promise.resolve({
+        ...existing,
+        ...data,
+      }));
+
+      vi.mocked(db.orm.public.Project.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue(existing),
+        update: mockUpdate,
+      } as any);
+
+      const settingsPayload = {
+        customFields: [{ name: 'Sprint', required: true }],
+        taskDefaults: { priority: 'HIGH', estimatedHours: 8, recurrence: 'WEEKLY' },
+      };
+
+      const result = await service.update('p1', { settings: settingsPayload }, 'org1');
+
+      expect(mockUpdate).toHaveBeenCalled();
+      const updateArg = mockUpdate.mock.calls[0][0];
+      expect(updateArg.description).toContain('<!--SIFY_SETTINGS:');
+      expect(updateArg.description).toContain('"priority":"HIGH"');
+      expect(result!.settings).toEqual(settingsPayload);
+    });
   });
 
   describe('Project Requirements', () => {
@@ -438,6 +463,95 @@ describe('ProjectsService', () => {
 
       const reqs = await service.findRequirements('p1', authCtx);
       expect(reqs).toEqual([{ id: 'r1', title: 'Req 1' }]);
+    });
+  });
+
+  describe('Custom Fields Validation (Server-Side)', () => {
+    it('rejects field definition with missing label', async () => {
+      vi.mocked(db.orm.public.Project.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 'p1', name: 'Proj 1', code: 'PRJ1', organizationId: 'org1' })
+      } as any);
+
+      await expect(
+        service.update('p1', {
+          settings: {
+            customFields: [{ id: 'f1', name: '   ', type: 'SHORT_TEXT' }]
+          }
+        }, 'org1')
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects duplicate field labels', async () => {
+      vi.mocked(db.orm.public.Project.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 'p1', name: 'Proj 1', code: 'PRJ1', organizationId: 'org1' })
+      } as any);
+
+      await expect(
+        service.update('p1', {
+          settings: {
+            customFields: [
+              { id: 'f1', name: 'Environment', type: 'SHORT_TEXT' },
+              { id: 'f2', name: 'environment', type: 'DROPDOWN', options: ['Prod'] }
+            ]
+          }
+        }, 'org1')
+      ).rejects.toThrow('Duplicate field label');
+    });
+
+    it('rejects dropdown field with no options or duplicate options', async () => {
+      vi.mocked(db.orm.public.Project.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 'p1', name: 'Proj 1', code: 'PRJ1', organizationId: 'org1' })
+      } as any);
+
+      await expect(
+        service.update('p1', {
+          settings: {
+            customFields: [{ id: 'f1', name: 'Tier', type: 'DROPDOWN', options: [] }]
+          }
+        }, 'org1')
+      ).rejects.toThrow('must have at least one valid option');
+
+      await expect(
+        service.update('p1', {
+          settings: {
+            customFields: [{ id: 'f1', name: 'Tier', type: 'DROPDOWN', options: ['Gold', 'gold'] }]
+          }
+        }, 'org1')
+      ).rejects.toThrow('contains duplicate option');
+    });
+
+    it('accepts SHORT_TEXT, LONG_TEXT, and DROPDOWN field types', async () => {
+      const mockProject = { id: 'p1', name: 'Proj 1', code: 'PRJ1', organizationId: 'org1' };
+      vi.mocked(db.orm.public.Project.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue(mockProject),
+        update: vi.fn().mockImplementation((data) => Promise.resolve({ ...mockProject, ...data })),
+      } as any);
+
+      const result = await service.update('p1', {
+        settings: {
+          customFields: [
+            { id: 'f1', name: 'Ticket ID', type: 'SHORT_TEXT', required: true },
+            { id: 'f2', name: 'Notes', type: 'LONG_TEXT', placeholder: 'Enter notes...' },
+            { id: 'f3', name: 'Priority Level', type: 'DROPDOWN', options: ['P1', 'P2'] },
+          ]
+        }
+      }, 'org1');
+
+      expect(result).toBeDefined();
+    });
+
+    it('rejects unsupported field types like RADIO or INVALID_TYPE', async () => {
+      vi.mocked(db.orm.public.Project.where).mockReturnValue({
+        first: vi.fn().mockResolvedValue({ id: 'p1', name: 'Proj 1', code: 'PRJ1', organizationId: 'org1' })
+      } as any);
+
+      await expect(
+        service.update('p1', {
+          settings: {
+            customFields: [{ id: 'f1', name: 'Mode', type: 'RADIO' }]
+          }
+        }, 'org1')
+      ).rejects.toThrow('has invalid type "RADIO"');
     });
   });
 });

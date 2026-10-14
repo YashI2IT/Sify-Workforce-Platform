@@ -4,6 +4,46 @@ import { CreateTaskDto, UpdateTaskDto } from './dto/create-task.dto.js';
 import { AuthenticatedContext } from '../auth/authenticated-context.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 
+const TASK_METADATA_PREFIX = '<!--SIFY_TASK_METADATA:';
+const TASK_METADATA_SUFFIX = '-->';
+
+export function encodeTaskDescriptionWithMetadata(description?: string | null, metadata?: any): string | null {
+  if (!metadata || typeof metadata !== 'object' || Object.keys(metadata).length === 0) {
+    return description ?? null;
+  }
+  const cleanDesc = description ? description.replace(/<!--SIFY_TASK_METADATA:[\s\S]*?-->/g, '').trim() : '';
+  const metaStr = `${TASK_METADATA_PREFIX}${JSON.stringify(metadata)}${TASK_METADATA_SUFFIX}`;
+  return cleanDesc ? `${cleanDesc}\n${metaStr}` : metaStr;
+}
+
+export function decodeTaskDescriptionWithMetadata(rawDescription?: string | null): { description: string | null; metadata?: any } {
+  if (!rawDescription || typeof rawDescription !== 'string' || !rawDescription.includes(TASK_METADATA_PREFIX)) {
+    return { description: rawDescription ?? null };
+  }
+  const match = rawDescription.match(/<!--SIFY_TASK_METADATA:([\s\S]*?)-->/);
+  if (!match) return { description: rawDescription ?? null };
+  try {
+    const metadata = JSON.parse(match[1]);
+    const cleanDesc = rawDescription.replace(match[0], '').trim();
+    return { description: cleanDesc || null, metadata };
+  } catch {
+    return { description: rawDescription ?? null };
+  }
+}
+
+export function formatTaskWithMetadata(task: any) {
+  if (!task) return task;
+  if (task.description && typeof task.description === 'string' && task.description.includes(TASK_METADATA_PREFIX)) {
+    const decoded = decodeTaskDescriptionWithMetadata(task.description);
+    return {
+      ...task,
+      description: decoded.description,
+      metadata: decoded.metadata,
+    };
+  }
+  return task;
+}
+
 @Injectable()
 export class TasksService {
   constructor(private readonly notificationsService: NotificationsService) {}
@@ -69,7 +109,8 @@ export class TasksService {
       }
     }
 
-    return db.orm.public.Task.where({ projectId, isActive: true }).all();
+    const tasks = await db.orm.public.Task.where({ projectId, isActive: true }).all();
+    return tasks.map(formatTaskWithMetadata);
   }
 
   async findOne(id: string, auth: AuthenticatedContext) {
@@ -110,7 +151,7 @@ export class TasksService {
       }
     }
 
-    return task;
+    return formatTaskWithMetadata(task);
   }
 
   async create(projectId: string, createTaskDto: CreateTaskDto, auth: AuthenticatedContext) {
@@ -166,7 +207,7 @@ export class TasksService {
     const taskData: any = {
       projectId,
       name,
-      description: description ?? null,
+      description: encodeTaskDescriptionWithMetadata(description, (createTaskDto as any).metadata),
       status,
       isActive: isActive ?? true,
       priority: priority ?? 'MEDIUM',
@@ -219,7 +260,7 @@ export class TasksService {
       throw new Error('Concurrency failure: Could not generate a unique Ticket ID for the task after multiple attempts.');
     }
 
-    return task;
+    return formatTaskWithMetadata(task);
   }
 
   async update(id: string, updateTaskDto: UpdateTaskDto, auth: AuthenticatedContext) {
@@ -296,7 +337,12 @@ export class TasksService {
     const updateData: any = {};
 
     if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
+    if (description !== undefined || (updateTaskDto as any).metadata !== undefined) {
+      const existingDecoded = decodeTaskDescriptionWithMetadata(task.description);
+      const targetMetadata = (updateTaskDto as any).metadata !== undefined ? (updateTaskDto as any).metadata : existingDecoded.metadata;
+      const targetDescription = description !== undefined ? description : existingDecoded.description;
+      updateData.description = encodeTaskDescriptionWithMetadata(targetDescription, targetMetadata);
+    }
     if (status !== undefined) updateData.status = status;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (priority !== undefined) updateData.priority = priority;
@@ -402,7 +448,7 @@ export class TasksService {
       }
     }
 
-    return updated;
+    return formatTaskWithMetadata(updated);
   }
 
   async addDependency(predecessorId: string, successorId: string, type: string, auth: AuthenticatedContext) {

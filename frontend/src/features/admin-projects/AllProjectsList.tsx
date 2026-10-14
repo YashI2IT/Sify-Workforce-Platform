@@ -1,17 +1,18 @@
-import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
-import { Modal } from '../../components/ui/Modal';
-import { Select } from '../../components/ui/Select';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { ProjectOnboarding } from '../projects/onboarding/ProjectOnboarding';
 import {
   useGetProjectsQuery,
-  useCreateProjectMutation,
-  useUpdateProjectMutation
+  useDeleteProjectMutation,
 } from '../../store/apiSlice';
+import { EditProjectModal } from '../projects/components/EditProjectModal';
+import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
 import { 
   Plus, 
   Pencil,
+  Trash2,
   ExternalLink, 
   Search, 
   AlertCircle, 
@@ -51,20 +52,42 @@ const stateOptions = [
   { value: 'inactive', label: 'Archived Only' },
 ];
 
-const projectStatusFormOptions = [
-  { value: 'PLANNING', label: 'Planning' },
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'IN_PROGRESS', label: 'In Progress' },
-  { value: 'ON_HOLD', label: 'On Hold' },
-  { value: 'COMPLETED', label: 'Completed' },
-];
+
 
 export const AllProjectsList = () => {
+  const navigate = useNavigate();
   const { showToast } = useToast();
   
   const { data: projData, isLoading: loading, error: fetchError, refetch: loadProjects } = useGetProjectsQuery();
-  const [createProject] = useCreateProjectMutation();
-  const [updateProjectM] = useUpdateProjectMutation();
+  const [deleteProjectM, { isLoading: isDeleting }] = useDeleteProjectMutation();
+  const { employee } = useCurrentEmployee();
+
+  const canDelete = Boolean(
+    employee?.roles?.includes('ADMIN') ||
+    employee?.role === 'ADMIN' ||
+    employee?.roles?.includes('MANAGER') ||
+    employee?.role === 'MANAGER'
+  );
+
+  const handleDeleteProject = async (projectId: string, projectName?: string) => {
+    if (!canDelete) return;
+    const confirmMsg = projectName
+      ? `Are you sure you want to delete project "${projectName}"? This action cannot be undone.`
+      : 'Are you sure you want to delete this project? This action cannot be undone.';
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await deleteProjectM(projectId).unwrap();
+      showToast('Project deleted successfully', 'success');
+      if (editingProject?.id === projectId) {
+        setEditingProject(null);
+      }
+      loadProjects();
+    } catch (err: any) {
+      showToast(err?.data?.message || err?.message || 'Failed to delete project', 'error');
+    }
+  };
   
   const error = fetchError ? 'Failed to load projects' : '';
   const projects: Project[] = Array.isArray(projData) ? projData : (projData?.data ?? []);
@@ -82,101 +105,13 @@ export const AllProjectsList = () => {
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [formSubmitting, setFormSubmitting] = useState(false);
-  const [formError, setFormError] = useState('');
-
-  // Form fields
-  const [formData, setFormData] = useState({
-    name: '',
-    code: '',
-    status: 'ACTIVE',
-    isActive: true,
-  });
-
-  // Handle outside clicks for custom dropdowns
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
-        setStatusDropdownOpen(false);
-      }
-      if (stateDropdownRef.current && !stateDropdownRef.current.contains(event.target as Node)) {
-        setStateDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const openCreateModal = () => {
-    setFormData({
-      name: '',
-      code: '',
-      status: 'ACTIVE',
-      isActive: true,
-    });
-    setFormError('');
     setIsCreateOpen(true);
   };
 
   const openEditModal = (proj: Project) => {
     setEditingProject(proj);
-    setFormData({
-      name: proj.name,
-      code: proj.code,
-      status: proj.status || 'ACTIVE',
-      isActive: proj.isActive,
-    });
-    setFormError('');
-  };
-
-  const handleCreateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormSubmitting(true);
-    setFormError('');
-
-    try {
-      await createProject({
-        name: formData.name.trim(),
-        code: formData.code.trim().toUpperCase(),
-        status: formData.status,
-        isActive: formData.isActive,
-      }).unwrap();
-
-      setIsCreateOpen(false);
-      showToast('Project created successfully', 'success');
-      loadProjects();
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to create project');
-    } finally {
-      setFormSubmitting(false);
-    }
-  };
-
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingProject) return;
-    setFormSubmitting(true);
-    setFormError('');
-
-    try {
-      await updateProjectM({
-        id: editingProject.id,
-        data: {
-          name: formData.name.trim(),
-          code: formData.code.trim().toUpperCase(),
-          status: formData.status,
-          isActive: formData.isActive,
-        }
-      }).unwrap();
-
-      setEditingProject(null);
-      showToast('Project updated successfully', 'success');
-      loadProjects();
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to update project');
-    } finally {
-      setFormSubmitting(false);
-    }
   };
 
   const filteredProjects = projects.filter(p => {
@@ -728,6 +663,17 @@ export const AllProjectsList = () => {
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDeleteProject(proj.id, proj.name)}
+                              disabled={isDeleting}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                              title="Delete project"
+                              aria-label={`Delete ${proj.name}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                           <Link
                             to={`/projects/${proj.id}`}
                             className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-[#12161F] hover:text-slate-600 transition-colors font-sans group rounded-md"
@@ -746,227 +692,37 @@ export const AllProjectsList = () => {
         </div>
       </div>
 
-      {/* Create Project Modal */}
-      <Modal 
-        isOpen={isCreateOpen} 
-        onClose={() => setIsCreateOpen(false)} 
-        title="Create New Project"
-        maxWidth="md"
-      >
-        {formError && (
-          <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{formError}</span>
-          </div>
-        )}
+      {/* Create Project Modal / Onboarding Workflow */}
+      {isCreateOpen && (
+        <ProjectOnboarding
+          isModal={true}
+          isOpen={isCreateOpen}
+          onClose={() => {
+            setIsCreateOpen(false);
+            loadProjects();
+          }}
+          onComplete={(projectId) => {
+            setIsCreateOpen(false);
+            loadProjects();
+            navigate(`/projects/${projectId}`);
+          }}
+        />
+      )}
 
-        <form onSubmit={handleCreateSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-800 font-sans mb-1.5">
-              Project Name *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Workforce Analytics Engine"
-              value={formData.name}
-              onChange={e => setFormData({ ...formData, name: e.target.value })}
-              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50/50 hover:bg-white focus:bg-white text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs font-sans"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-800 font-sans mb-1.5">
-              Project Code *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. PRJ-ANALYTICS"
-              value={formData.code}
-              onChange={e => setFormData({ ...formData, code: e.target.value })}
-              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm uppercase bg-slate-50/50 hover:bg-white focus:bg-white text-slate-900 focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs font-sans font-bold tracking-wider"
-            />
-            <p className="text-[11px] text-slate-400 mt-1 font-medium font-sans">
-              Unique tracking identifier used across timesheets and audit logs.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-800 font-sans mb-1.5">
-              Initial Status *
-            </label>
-            <Select
-              value={formData.status}
-              onChange={val => setFormData({ ...formData, status: val })}
-              options={projectStatusFormOptions}
-              size="md"
-              className="w-full font-sans"
-              triggerClassName="!bg-slate-50/50 hover:!bg-white !rounded-xl !border-slate-200 !text-slate-900 !font-sans"
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:bg-slate-50 transition-colors">
-            <div>
-              <label htmlFor="create-project-active" className="text-sm font-bold text-slate-800 font-sans block cursor-pointer">
-                Active Project
-              </label>
-              <p className="text-xs text-slate-400 mt-0.5 font-medium font-sans">
-                {formData.isActive
-                  ? 'Initiative is active and selectable on weekly employee timesheets.'
-                  : 'Initiative is archived and hidden from new timesheet entries.'}
-              </p>
-            </div>
-            <label htmlFor="create-project-active" className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                id="create-project-active"
-                checked={formData.isActive}
-                onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
-                className="sr-only"
-              />
-              <div
-                className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out p-0.5 ${
-                  formData.isActive ? 'bg-slate-900' : 'bg-slate-200'
-                }`}
-              >
-                <div
-                  className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
-                    formData.isActive ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </div>
-            </label>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setIsCreateOpen(false)}
-              className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={formSubmitting}
-              className="px-6 py-2.5 bg-[#12161F] hover:bg-slate-800 text-white font-bold rounded-full text-xs sm:text-sm transition-all shadow-xs cursor-pointer active:scale-[0.98] disabled:opacity-50 font-sans"
-            >
-              {formSubmitting ? 'Creating...' : 'Create Project'}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Edit Project Modal */}
-      <Modal 
-        isOpen={!!editingProject} 
-        onClose={() => setEditingProject(null)} 
-        title="Edit Project"
-        maxWidth="md"
-      >
-        {formError && (
-          <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{formError}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleEditSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-800 font-sans mb-1.5">
-              Project Name *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={e => setFormData({ ...formData, name: e.target.value })}
-              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50/50 hover:bg-white focus:bg-white text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs font-sans"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-800 font-sans mb-1.5">
-              Project Code *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.code}
-              onChange={e => setFormData({ ...formData, code: e.target.value })}
-              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm uppercase bg-slate-50/50 hover:bg-white focus:bg-white text-slate-900 focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 focus:outline-none transition-all shadow-2xs font-sans font-bold tracking-wider"
-            />
-            <p className="text-[11px] text-slate-400 mt-1 font-medium font-sans">
-              Unique tracking identifier used across timesheets and audit logs.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-800 font-sans mb-1.5">
-              Project Status *
-            </label>
-            <Select
-              value={formData.status}
-              onChange={val => setFormData({ ...formData, status: val })}
-              options={projectStatusFormOptions}
-              size="md"
-              className="w-full font-sans"
-              triggerClassName="!bg-slate-50/50 hover:!bg-white !rounded-xl !border-slate-200 !text-slate-900 !font-sans"
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:bg-slate-50 transition-colors">
-            <div>
-              <label htmlFor="edit-project-active" className="text-sm font-bold text-slate-800 font-sans block cursor-pointer">
-                Active Project
-              </label>
-              <p className="text-xs text-slate-400 mt-0.5 font-medium font-sans">
-                {formData.isActive
-                  ? 'Initiative is active and selectable on weekly employee timesheets.'
-                  : 'Initiative is archived and hidden from new timesheet entries.'}
-              </p>
-            </div>
-            <label htmlFor="edit-project-active" className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                id="edit-project-active"
-                checked={formData.isActive}
-                onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
-                className="sr-only"
-              />
-              <div
-                className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out p-0.5 ${
-                  formData.isActive ? 'bg-slate-900' : 'bg-slate-200'
-                }`}
-              >
-                <div
-                  className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
-                    formData.isActive ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </div>
-            </label>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setEditingProject(null)}
-              className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={formSubmitting}
-              className="px-6 py-2.5 bg-[#12161F] hover:bg-slate-800 text-white font-bold rounded-full text-xs sm:text-sm transition-all shadow-xs cursor-pointer active:scale-[0.98] disabled:opacity-50 font-sans"
-            >
-              {formSubmitting ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
-        </form>
-      </Modal>
+      {/* Complete Edit Project Modal */}
+      {editingProject && (
+        <EditProjectModal
+          projectId={editingProject.id}
+          isOpen={!!editingProject}
+          onClose={() => setEditingProject(null)}
+          onSuccess={() => {
+            setEditingProject(null);
+            loadProjects();
+          }}
+          canDelete={canDelete}
+          onDelete={handleDeleteProject}
+        />
+      )}
     </div>
   );
 };

@@ -12,6 +12,7 @@ export const createTaskSchema = z.object({
   status: z.string().min(1, 'Status is required'),
   recurrence: z.enum(['DAILY', 'WEEKLY', 'MONTHLY']).nullable().optional(),
   isActive: z.boolean().default(true),
+  metadata: z.any().optional(),
 }).refine(
   (data) => {
     if (data.startDate && data.dueDate) {
@@ -39,6 +40,7 @@ export const updateTaskSchema = z.object({
   status: z.string().min(1, 'Status is required').optional(),
   recurrence: z.enum(['DAILY', 'WEEKLY', 'MONTHLY']).nullable().optional(),
   isActive: z.boolean().optional(),
+  metadata: z.any().optional(),
 }).refine(
   (data) => {
     if (data.startDate && data.dueDate) {

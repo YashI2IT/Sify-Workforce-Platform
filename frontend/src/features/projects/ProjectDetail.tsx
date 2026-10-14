@@ -28,6 +28,7 @@ import { TaskFormModal } from './components/TaskFormModal';
 import { ActivityFormModal } from './components/ActivityFormModal';
 import { AssignEmployeeModal } from './components/AssignEmployeeModal';
 import { TaskDetailPanel } from './components/TaskDetailPanel';
+import { EditProjectModal } from './components/EditProjectModal';
 
 export const ProjectDetail = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -108,6 +109,7 @@ export const ProjectDetail = () => {
   const [editingAct, setEditingAct] = useState<any>(null);
 
   const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
 
   const [detailTask, setDetailTask] = useState<any>(null);
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
@@ -284,6 +286,16 @@ export const ProjectDetail = () => {
               </div>
             </div>
           </div>
+          {isManagerOrAdmin && (
+            <button
+              type="button"
+              onClick={() => setIsEditProjectOpen(true)}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer active:scale-[0.98]"
+            >
+              <Edit2 className="w-3.5 h-3.5 text-slate-500" />
+              <span>Edit Project</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -433,6 +445,18 @@ export const ProjectDetail = () => {
             projectId={projectId}
             onEdit={(t) => { setEditingTask(t); setTaskModalOpen(true); }}
           />
+          {projectId && (
+            <EditProjectModal
+              projectId={projectId}
+              isOpen={isEditProjectOpen}
+              onClose={() => setIsEditProjectOpen(false)}
+              onSuccess={() => {
+                setIsEditProjectOpen(false);
+                fetchProjectData();
+              }}
+              canDelete={isAdmin}
+            />
+          )}
         </>
       )}
     </div>

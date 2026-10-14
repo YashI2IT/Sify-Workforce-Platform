@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useToast } from '../../../context/ToastContext';
 import { Modal } from '../../../components/ui/Modal';
-import { useCreateProjectTaskMutation, useUpdateProjectTaskMutation, useCreateTaskTemplateMutation, useGetProjectDetailsQuery } from '../../../store/apiSlice';
+import { useCreateProjectTaskMutation, useUpdateProjectTaskMutation, useCreateTaskTemplateMutation, useGetProjectDetailsQuery, useUpdateProjectMutation } from '../../../store/apiSlice';
 import { Select } from '../../../components/ui/Select';
-import { Plus, X as XIcon } from 'lucide-react';
 import { DatePicker } from '../../../components/ui/DatePicker';
 
 interface Task {
@@ -61,6 +60,9 @@ interface TaskFormModalProps {
   employees?: Employee[];
   tasks?: Task[];
   isTemplateMode?: boolean;
+  isConfigMode?: boolean;
+  onSuccess?: (task?: any) => void;
+  onSaveConfig?: (config?: any) => void;
 }
 
 const FIELD_CLS = 'w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 text-xs sm:text-sm font-sans text-slate-900 placeholder:text-slate-400 font-medium bg-white shadow-2xs transition-all outline-none';
@@ -75,16 +77,19 @@ export const TaskFormModal = ({
   employees = [],
   tasks = [],
   isTemplateMode = false,
+  isConfigMode = false,
+  onSuccess,
+  onSaveConfig,
 }: TaskFormModalProps) => {
   const { showToast } = useToast();
   const [createTaskM] = useCreateProjectTaskMutation();
   const [updateTaskM] = useUpdateProjectTaskMutation();
   const [createTemplateM] = useCreateTaskTemplateMutation();
+  const [updateProjectM] = useUpdateProjectMutation();
 
   const { data: project } = useGetProjectDetailsQuery(projectId, { skip: !isOpen || !projectId });
 
-  const [customFields, setCustomFields] = useState<Record<string, string>>({});
-  const [dynamicFields, setDynamicFields] = useState<{key: string, value: string}[]>([]);
+  const [customFields, setCustomFields] = useState<Record<string, any>>({});
 
   const [form, setForm] = useState({
     name: '',
@@ -120,6 +125,7 @@ export const TaskFormModal = ({
         recurrence: editingTask.recurrence || '',
         templateName: '',
       });
+      setCustomFields((editingTask as any)?.metadata || {});
     } else if (initialData) {
       setForm({
         name: initialData.name || '',
@@ -135,26 +141,27 @@ export const TaskFormModal = ({
         recurrence: initialData.recurrence || '',
         templateName: '',
       });
+      setCustomFields((initialData as any)?.metadata || {});
     } else {
+      const defaults = project?.settings?.taskDefaults || {};
       setForm({
-        name: '',
-        description: '',
-        status: 'TODO',
-        isActive: true,
-        priority: 'MEDIUM',
-        assigneeId: '',
-        startDate: '',
-        dueDate: '',
-        estimatedHours: '',
-        parentTaskId: '',
-        recurrence: '',
-        templateName: '',
+        name: defaults.name || '',
+        description: defaults.description || '',
+        status: defaults.status || 'TODO',
+        isActive: defaults.isActive ?? true,
+        priority: defaults.priority || 'MEDIUM',
+        assigneeId: defaults.assigneeId || '',
+        startDate: defaults.startDate || '',
+        dueDate: defaults.dueDate || '',
+        estimatedHours: defaults.estimatedHours ?? '',
+        parentTaskId: defaults.parentTaskId || '',
+        recurrence: defaults.recurrence || '',
+        templateName: defaults.templateName || '',
       });
+      setCustomFields({});
     }
     setErrors({});
-    setCustomFields({});
-    setDynamicFields([]);
-  }, [editingTask, isOpen]);
+  }, [editingTask, isOpen, initialData, project?.settings]);
 
   const set = (field: string, value: any) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -163,6 +170,42 @@ export const TaskFormModal = ({
     try {
       setSubmitting(true);
       setErrors({});
+
+      if (isConfigMode) {
+        const taskDefaults = {
+          name: form.name || '',
+          description: form.description || '',
+          status: form.status || 'TODO',
+          isActive: form.isActive ?? true,
+          priority: form.priority || 'MEDIUM',
+          assigneeId: form.assigneeId || null,
+          estimatedHours: form.estimatedHours !== '' ? Number(form.estimatedHours) : null,
+          recurrence: form.recurrence || null,
+        };
+
+        const configPayload = {
+          settings: {
+            customFields: project?.settings?.customFields || [],
+            taskDefaults,
+          }
+        };
+
+        await updateProjectM({ id: projectId, data: configPayload }).unwrap();
+        showToast('Task configuration saved successfully', 'success');
+        onSaveConfig?.(configPayload.settings);
+        onSuccess?.(configPayload.settings);
+        onClose();
+        return;
+      }
+
+      const enrichedMetadata: Record<string, any> = { ...customFields };
+      (project?.settings?.customFields || []).forEach((f: any) => {
+        const v = enrichedMetadata[f.name] ?? (f.id ? enrichedMetadata[f.id] : undefined);
+        if (v !== undefined) {
+          enrichedMetadata[f.name] = v;
+          if (f.id) enrichedMetadata[f.id] = v;
+        }
+      });
 
       const payload = {
         name: form.name,
@@ -176,10 +219,7 @@ export const TaskFormModal = ({
         estimatedHours: form.estimatedHours !== '' ? Number(form.estimatedHours) : null,
         parentTaskId: form.parentTaskId || null,
         recurrence: form.recurrence || null,
-        metadata: {
-          ...customFields,
-          ...Object.fromEntries(dynamicFields.filter(f => f.key.trim()).map(f => [f.key.trim(), f.value.trim()]))
-        }
+        metadata: enrichedMetadata,
       };
 
       taskSchema.parse(payload);
@@ -200,11 +240,13 @@ export const TaskFormModal = ({
         }).unwrap();
         showToast('Template created successfully', 'success');
       } else if (editingTask) {
-        await updateTaskM({ projectId, taskId: editingTask.id, data: payload }).unwrap();
+        const updated = await updateTaskM({ projectId, taskId: editingTask.id, data: payload }).unwrap();
         showToast('Task updated successfully', 'success');
+        onSuccess?.(updated);
       } else {
-        await createTaskM({ projectId, data: payload }).unwrap();
+        const created = await createTaskM({ projectId, data: payload }).unwrap();
         showToast('Task created successfully', 'success');
+        onSuccess?.(created);
       }
       onClose();
     } catch (err: any) {
@@ -230,7 +272,7 @@ export const TaskFormModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isTemplateMode ? 'Create Task Template' : (editingTask ? `Edit Task (${editingTask.ticketId})` : 'Create Task')}
+      title={isConfigMode ? 'Configure Task Form & Defaults' : isTemplateMode ? 'Create Task Template' : (editingTask ? `Edit Task (${editingTask.ticketId})` : 'Create Task')}
       maxWidth="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -261,128 +303,129 @@ export const TaskFormModal = ({
             )}
             <div className="space-y-1.5">
               <label className={LABEL_CLS}>
-                {isTemplateMode ? 'Task Name *' : <>Name <span className="text-rose-500">*</span></>}
+                {isConfigMode ? 'Default Task Name (Optional)' : isTemplateMode ? 'Task Name *' : <>Name <span className="text-rose-500">*</span></>}
               </label>
               <input
                 id="task-name-input"
                 type="text"
-                required
+                required={!isConfigMode}
                 value={form.name}
                 onChange={e => set('name', e.target.value)}
-                placeholder="e.g. Implement login flow"
+                placeholder={isConfigMode ? "Default task name (optional)..." : "e.g. Implement login flow"}
                 className={FIELD_CLS + (errors.name ? ' border-rose-400 ring-rose-100' : '')}
               />
               {errors.name && <p className="mt-1 text-xs text-rose-600 font-medium font-sans">{errors.name}</p>}
             </div>
             <div className="space-y-1.5">
               <label className={LABEL_CLS}>
-                Description <span className="text-rose-500">*</span>
+                {isConfigMode ? 'Default Description (Optional)' : <>Description <span className="text-rose-500">*</span></>}
               </label>
               <textarea
                 rows={3}
-                required
+                required={!isConfigMode}
                 value={form.description}
                 onChange={e => set('description', e.target.value)}
-                placeholder="Description of the task..."
+                placeholder={isConfigMode ? "Default task description (optional)..." : "Description of the task..."}
                 className={FIELD_CLS + ' resize-none' + (errors.description ? ' border-rose-400 ring-rose-100' : '')}
               />
               {errors.description && <p className="mt-1 text-xs text-rose-600 font-medium font-sans">{errors.description}</p>}
             </div>
-          </div>
-        </div>
 
-        {/* ── PROJECT CUSTOM FIELDS ── */}
-        <div>
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-3">
-            <h3 className="text-xs font-bold text-slate-900 tracking-tight font-sans">Project Custom Fields</h3>
-            {dynamicFields.length > 0 && (
-              <button 
-                type="button" 
-                onClick={() => setDynamicFields(prev => [...prev, {key: '', value: ''}])}
-                className="text-xs font-bold text-slate-700 hover:text-slate-900 font-sans inline-flex items-center gap-1 cursor-pointer transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Field
-              </button>
+            {/* ── CONFIGURED PROJECT TASK FIELDS ── */}
+            {project?.settings?.customFields && project.settings.customFields.length > 0 && (
+              project.settings.customFields.map((field: any) => {
+                const fieldType = field.type || 'SHORT_TEXT';
+                const isRequired = !!field.required;
+                const val = (customFields as Record<string, any>)[field.name]
+                  ?? (field.id && (customFields as Record<string, any>)[field.id] !== undefined ? (customFields as Record<string, any>)[field.id] : undefined)
+                  ?? (field.previousNames?.map((pn: string) => (customFields as Record<string, any>)[pn]).find((v: any) => v !== undefined))
+                  ?? '';
+
+                const handleChange = (newVal: any) => {
+                  setCustomFields(prev => {
+                    const next: Record<string, any> = { ...prev, [field.name]: newVal };
+                    if (field.id) next[field.id] = newVal;
+                    return next;
+                  });
+                };
+
+                return (
+                  <div key={field.id || field.name} className="space-y-1.5">
+                    <label className={LABEL_CLS}>
+                      {field.name} {isRequired && <span className="text-rose-500">*</span>}
+                    </label>
+
+                    {fieldType === 'LONG_TEXT' || fieldType === 'TEXT_AREA' ? (
+                      <textarea
+                        rows={3}
+                        required={isRequired}
+                        value={val}
+                        onChange={e => handleChange(e.target.value)}
+                        placeholder={field.placeholder || `Enter ${field.name.toLowerCase()}...`}
+                        className={FIELD_CLS + ' resize-none'}
+                      />
+                    ) : fieldType === 'DROPDOWN' ? (
+                      <select
+                        required={isRequired}
+                        value={val}
+                        onChange={e => handleChange(e.target.value)}
+                        className={FIELD_CLS}
+                        aria-label={field.name}
+                      >
+                        <option value="">{field.placeholder || `Select ${field.name.toLowerCase()}...`}</option>
+                        {(field.options || []).map((opt: string) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    ) : fieldType === 'NUMBER' ? (
+                      <input
+                        type="number"
+                        required={isRequired}
+                        value={val}
+                        onChange={e => handleChange(e.target.value)}
+                        placeholder={field.placeholder || '0'}
+                        className={FIELD_CLS}
+                        aria-label={field.name}
+                      />
+                    ) : fieldType === 'DATE' ? (
+                      <input
+                        type="date"
+                        required={isRequired}
+                        value={val}
+                        onChange={e => handleChange(e.target.value)}
+                        placeholder={field.placeholder}
+                        className={FIELD_CLS}
+                        aria-label={field.name}
+                      />
+                    ) : fieldType === 'CHECKBOX' ? (
+                      <label className="flex items-center gap-2 cursor-pointer pt-1">
+                        <input
+                          type="checkbox"
+                          checked={val === 'true' || (val as any) === true}
+                          onChange={e => handleChange(e.target.checked ? 'true' : 'false')}
+                          className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                        />
+                        <span className="text-xs text-slate-700 font-medium">{field.placeholder || `Enable ${field.name}`}</span>
+                      </label>
+                    ) : (
+                      // SHORT_TEXT (Default)
+                      <input
+                        type="text"
+                        required={isRequired}
+                        value={val}
+                        onChange={e => handleChange(e.target.value)}
+                        placeholder={field.placeholder || `Enter ${field.name.toLowerCase()}...`}
+                        className={FIELD_CLS}
+                        aria-label={field.name}
+                      />
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
-          {(!project?.settings?.customFields?.length && dynamicFields.length === 0) ? (
-            <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl flex items-center justify-between">
-              <span className="text-xs text-slate-500 font-medium font-sans">No additional project fields configured.</span>
-              <button 
-                type="button" 
-                onClick={() => setDynamicFields([{key: '', value: ''}])}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 shadow-2xs transition-all cursor-pointer font-sans"
-              >
-                <Plus className="w-3.5 h-3.5 text-slate-500" />
-                Add Field
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {project?.settings?.customFields?.map((field: any) => (
-                <div key={field.name} className="space-y-1.5">
-                  <label className={LABEL_CLS}>
-                    {field.name} {field.required && <span className="text-rose-500">*</span>}
-                  </label>
-                  <input
-                    type="text"
-                    required={field.required}
-                    value={customFields[field.name] || ''}
-                    onChange={e => setCustomFields(prev => ({ ...prev, [field.name]: e.target.value }))}
-                    className={FIELD_CLS}
-                    placeholder={`Enter ${field.name.toLowerCase()}...`}
-                  />
-                </div>
-              ))}
-              
-              {dynamicFields.map((df, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <input 
-                      type="text" 
-                      placeholder="Field Name" 
-                      value={df.key} 
-                      onChange={e => {
-                        const newFields = [...dynamicFields];
-                        newFields[idx].key = e.target.value;
-                        setDynamicFields(newFields);
-                      }}
-                      className={FIELD_CLS} 
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <input 
-                      type="text" 
-                      placeholder="Value" 
-                      value={df.value} 
-                      onChange={e => {
-                        const newFields = [...dynamicFields];
-                        newFields[idx].value = e.target.value;
-                        setDynamicFields(newFields);
-                      }}
-                      className={FIELD_CLS} 
-                    />
-                  </div>
-                  <button 
-                    type="button" 
-                    onClick={() => setDynamicFields(prev => prev.filter((_, i) => i !== idx))} 
-                    className="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
-                    title="Remove field"
-                  >
-                    <XIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-
-              <button 
-                type="button"
-                onClick={() => setDynamicFields(prev => [...prev, {key: '', value: ''}])}
-                className="text-xs font-bold text-slate-700 hover:text-slate-900 mt-1 inline-flex items-center gap-1.5 font-sans cursor-pointer transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add another field
-              </button>
-            </div>
-          )}
         </div>
 
         {/* ── STATUS, PRIORITY & RECURRENCE ── */}
@@ -565,7 +608,7 @@ export const TaskFormModal = ({
             disabled={submitting}
             className="px-5 py-2.5 text-xs font-bold text-white bg-[#12161F] hover:bg-slate-800 rounded-full disabled:opacity-50 cursor-pointer shadow-xs transition-all active:scale-[0.97] font-sans"
           >
-            {submitting ? 'Saving...' : editingTask ? 'Update Task' : 'Create Task'}
+            {submitting ? 'Saving...' : isConfigMode ? 'Save Task Configuration' : isTemplateMode ? 'Save Template' : editingTask ? 'Update Task' : 'Create Task'}
           </button>
         </div>
       </form>

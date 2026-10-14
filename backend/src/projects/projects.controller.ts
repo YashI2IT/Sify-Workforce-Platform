@@ -107,6 +107,17 @@ export class ProjectsController {
     }
   }
 
+  @Delete(':id')
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({ summary: 'Delete a project' })
+  @ApiParam({ name: 'id', description: 'Project UUID' })
+  @ApiResponse({ status: 200, description: 'Project deleted' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
+  async delete(@Param('id') id: string, @GetAuthContext() auth: AuthenticatedContext) {
+    return this.projectsService.delete(id, auth);
+  }
+
   // --- Project Requirements ---
 
   @Get(':id/requirements')

@@ -12,6 +12,13 @@ vi.mock('../../context/ToastContext', () => ({
   useToast: () => ({ showToast: vi.fn() }),
 }));
 
+vi.mock('../../hooks/useCurrentEmployee', () => ({
+  useCurrentEmployee: () => ({
+    employee: { id: 'emp1', role: 'ADMIN', roles: ['ADMIN'] },
+    isLoading: false,
+  }),
+}));
+
 const mockProjects = [
   {
     id: 'p1',
@@ -97,5 +104,88 @@ describe('AllProjectsList Component', () => {
 
     expect(screen.queryByText('Workforce Cloud Platform')).toBeNull();
     expect(screen.getByText('Legacy Migration')).toBeDefined();
+  });
+
+  it('allows authorized users to delete a project with confirmation', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    let deletedId = '';
+    mockApiClient.mockImplementation(async (endpoint: string, options?: any) => {
+      if (options?.method === 'DELETE' && endpoint.startsWith('/projects/')) {
+        deletedId = endpoint;
+        return { success: true };
+      }
+      return mockProjects;
+    });
+
+    render(
+      <MemoryRouter>
+        <AllProjectsList />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Workforce Cloud Platform')).toBeDefined();
+    });
+
+    const deleteButtons = screen.getAllByTitle('Delete project');
+    expect(deleteButtons.length).toBeGreaterThan(0);
+    fireEvent.click(deleteButtons[0]);
+
+    expect(confirmSpy).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(deletedId).toBe('/projects/p1');
+    });
+
+    confirmSpy.mockRestore();
+  });
+
+  it('opens EditProjectModal with complete sections when clicking edit', async () => {
+    mockApiClient.mockImplementation(async (endpoint: string) => {
+      if (endpoint === '/projects/p1') {
+        return {
+          id: 'p1',
+          name: 'Workforce Cloud Platform',
+          code: 'PRJ-WCP',
+          status: 'ACTIVE',
+          isActive: true,
+          description: 'Production platform for enterprise teams',
+          settings: {
+            taskDefaults: { priority: 'HIGH', estimatedHours: 8 },
+            customFields: [{ id: 'fld-1', name: 'Epic ID', type: 'SHORT_TEXT', required: true }],
+          },
+        };
+      }
+      if (endpoint === '/projects/p1/tasks') {
+        return [];
+      }
+      return mockProjects;
+    });
+
+    render(
+      <MemoryRouter>
+        <AllProjectsList />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Workforce Cloud Platform')).toBeDefined();
+    });
+
+    const editButtons = screen.getAllByTitle('Edit project');
+    expect(editButtons.length).toBeGreaterThan(0);
+    fireEvent.click(editButtons[0]);
+
+    // Complete sections in EditProjectModal
+    await waitFor(() => {
+      expect(screen.getByText('1. Project Information')).toBeDefined();
+      expect(screen.getByText('2. Project Details')).toBeDefined();
+      expect(screen.getByText('3. Task Defaults')).toBeDefined();
+      expect(screen.getByText('4. Custom Task Fields')).toBeDefined();
+    });
+
+    // Verify loaded values
+    expect(screen.getByDisplayValue('Workforce Cloud Platform')).toBeDefined();
+    expect(screen.getByDisplayValue('Production platform for enterprise teams')).toBeDefined();
+    expect(screen.getByDisplayValue('Epic ID')).toBeDefined();
   });
 });

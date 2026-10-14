@@ -11,6 +11,7 @@ const mockProjectsService = {
   findOne: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
+  delete: vi.fn(),
   getProjectHealth: vi.fn(),
 };
 

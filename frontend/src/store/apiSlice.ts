@@ -191,6 +191,10 @@ export const apiSlice = createApi({
       query: ({ id, data }) => ({ url: `/projects/${id}`, method: 'PATCH', body: data }),
       invalidatesTags: (_result, _error, { id }) => ['Project', { type: 'Project', id }],
     }),
+    deleteProject: builder.mutation<any, string>({
+      query: (id) => ({ url: `/projects/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['Project'],
+    }),
 
     // ==========================================
     // PROJECT TASKS
@@ -666,6 +670,7 @@ export const {
   useGetProjectHealthQuery,
   useCreateProjectMutation,
   useUpdateProjectMutation,
+  useDeleteProjectMutation,
 
   useGetProjectRequirementsQuery,
   useCreateProjectRequirementMutation,

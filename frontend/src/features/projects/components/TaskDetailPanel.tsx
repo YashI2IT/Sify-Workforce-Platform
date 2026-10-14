@@ -22,6 +22,7 @@ interface Task {
   parentTaskId?: string | null;
   requirementId?: string | null;
   milestoneId?: string | null;
+  metadata?: Record<string, any> | null;
 }
 
 interface Employee { id: string; name: string; }
@@ -348,6 +349,21 @@ export const TaskDetailPanel = ({
               </MetaRow>
             </div>
           </section>
+
+          {/* ── CUSTOM FIELDS ── */}
+          {task.metadata && Object.keys(task.metadata).length > 0 && (
+            <section>
+              <h3 className="text-xs font-bold text-slate-900 tracking-tight font-sans mb-2">Custom Fields</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {Object.entries(task.metadata).map(([key, val]) => (
+                  <div key={key} className="p-3 bg-slate-50/70 border border-slate-200/80 rounded-xl">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase font-sans mb-0.5">{key}</p>
+                    <p className="text-xs font-semibold text-slate-800 break-words">{String(val || '—')}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* ── HIERARCHY ── */}
           {(parentTask || subtasks.length > 0) && (

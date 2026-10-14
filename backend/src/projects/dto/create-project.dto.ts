@@ -8,6 +8,7 @@ export const createProjectSchema = z.object({
   endDate: z.string().datetime().nullable().optional(),
   status: z.string().min(1, 'Status is required'),
   isActive: z.boolean().default(true),
+  settings: z.any().optional(),
 }).refine(
   (data) => {
     if (data.startDate && data.endDate) {
@@ -31,6 +32,7 @@ export const updateProjectSchema = z.object({
   endDate: z.string().datetime().nullable().optional(),
   status: z.string().min(1, 'Status is required').optional(),
   isActive: z.boolean().optional(),
+  settings: z.any().optional(),
 }).refine(
   (data) => {
     if (data.startDate && data.endDate) {

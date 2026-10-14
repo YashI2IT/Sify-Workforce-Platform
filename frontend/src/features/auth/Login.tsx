@@ -223,6 +223,8 @@ export const Login = () => {
                 <input
                   id="email"
                   type="email"
+                  name="email"
+                  autoComplete="email"
                   placeholder="Enter your email address"
                   disabled={loading}
                   className={`w-full h-9 rounded-xl border bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all shadow-2xs ${fieldErrors.email
@@ -250,6 +252,8 @@ export const Login = () => {
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    autoComplete="current-password"
                     placeholder="Enter your password"
                     disabled={loading}
                     className={`w-full h-9 rounded-xl border bg-white px-3.5 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all shadow-2xs ${fieldErrors.password

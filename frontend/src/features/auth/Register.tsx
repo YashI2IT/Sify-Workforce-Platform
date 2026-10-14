@@ -167,6 +167,8 @@ export const Register = () => {
                   <input
                     id="username"
                     type="text"
+                    name="username"
+                    autoComplete="username"
                     required
                     minLength={3}
                     placeholder="Enter your username"
@@ -183,6 +185,8 @@ export const Register = () => {
                   <input
                     id="email"
                     type="email"
+                    name="email"
+                    autoComplete="email"
                     required
                     placeholder="Enter your company email"
                     className="w-full h-9 rounded-xl border border-slate-200/90 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 transition-all shadow-2xs"
@@ -199,6 +203,8 @@ export const Register = () => {
                     <input
                       id="password"
                       type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      autoComplete="new-password"
                       required
                       placeholder="Enter your password"
                       className="w-full h-9 rounded-xl border border-slate-200/90 bg-white px-3.5 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950/15 focus:border-slate-900 transition-all shadow-2xs"

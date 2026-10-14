@@ -5,9 +5,102 @@ import { PaginatedResponse } from '../common/pagination.dto.js';
 import { AuthenticatedContext } from '../auth/authenticated-context.js';
 import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 
+const SETTINGS_PREFIX = '<!--SIFY_SETTINGS:';
+const SETTINGS_SUFFIX = '-->';
+
+export function encodeDescriptionWithSettings(rawDescription: string | null | undefined, settings: any): string | null {
+  const cleanDesc = rawDescription ? rawDescription.replace(/<!--SIFY_SETTINGS:[\s\S]*?-->/g, '').trim() : '';
+  if (!settings || (typeof settings === 'object' && Object.keys(settings).length === 0)) {
+    return cleanDesc || null;
+  }
+  const serialized = JSON.stringify(settings);
+  return `${SETTINGS_PREFIX}${serialized}${SETTINGS_SUFFIX}${cleanDesc ? '\n' + cleanDesc : ''}`;
+}
+
+export function decodeDescriptionWithSettings(dbDescription: string | null | undefined): { description: string | null; settings: any | null } {
+  if (!dbDescription) {
+    return { description: null, settings: null };
+  }
+  const match = dbDescription.match(/<!--SIFY_SETTINGS:([\s\S]*?)-->/);
+  if (!match) {
+    return { description: dbDescription, settings: null };
+  }
+  let settings: any = null;
+  try {
+    settings = JSON.parse(match[1]);
+  } catch {
+    settings = null;
+  }
+  const cleanDescription = dbDescription.replace(/<!--SIFY_SETTINGS:[\s\S]*?-->\n?/, '').trim() || null;
+  return { description: cleanDescription, settings };
+}
+
+export function validateCustomFieldsPayload(customFields: any[]): void {
+  if (!Array.isArray(customFields)) {
+    throw new BadRequestException('customFields must be an array');
+  }
+  const seenNames = new Set<string>();
+  const seenIds = new Set<string>();
+  const validTypes = ['SHORT_TEXT', 'LONG_TEXT', 'TEXT_AREA', 'DROPDOWN'];
+  const legacyTypes = ['NUMBER', 'DATE', 'CHECKBOX'];
+
+  for (let i = 0; i < customFields.length; i++) {
+    const f = customFields[i];
+    if (!f || typeof f !== 'object') {
+      throw new BadRequestException(`Field #${i + 1} definition is invalid`);
+    }
+    const name = (f.name || '').trim();
+    if (!name) {
+      throw new BadRequestException(`Field #${i + 1}: Label is required`);
+    }
+    const lowerName = name.toLowerCase();
+    if (seenNames.has(lowerName)) {
+      throw new BadRequestException(`Duplicate field label "${name}"`);
+    }
+    seenNames.add(lowerName);
+
+    if (f.id) {
+      const id = String(f.id).trim();
+      if (seenIds.has(id)) {
+        throw new BadRequestException(`Duplicate field ID "${id}"`);
+      }
+      seenIds.add(id);
+    }
+
+    if (f.type && !validTypes.includes(f.type) && !legacyTypes.includes(f.type)) {
+      throw new BadRequestException(`Field "${name}" has invalid type "${f.type}"`);
+    }
+
+    if (f.type === 'DROPDOWN') {
+      if (!Array.isArray(f.options)) {
+        throw new BadRequestException(`Dropdown field "${name}" options must be an array`);
+      }
+      const validOptions = f.options.map((o: any) => String(o).trim()).filter(Boolean);
+      if (validOptions.length === 0) {
+        throw new BadRequestException(`Dropdown field "${name}" must have at least one valid option`);
+      }
+      const seenOpts = new Set<string>();
+      for (const opt of validOptions) {
+        const lowerOpt = opt.toLowerCase();
+        if (seenOpts.has(lowerOpt)) {
+          throw new BadRequestException(`Dropdown field "${name}" contains duplicate option "${opt}"`);
+        }
+        seenOpts.add(lowerOpt);
+      }
+    }
+  }
+}
+
 @Injectable()
 export class ProjectsService {
   constructor(private auditLogsService: AuditLogsService) {}
+
+  private formatProject(p: any) {
+    if (!p || !p.description || typeof p.description !== 'string') return p;
+    if (!p.description.includes(SETTINGS_PREFIX)) return p;
+    const { description, settings } = decodeDescriptionWithSettings(p.description);
+    return { ...p, description, settings };
+  }
 
   async findAll(auth: AuthenticatedContext, page: number = 1, limit: number = 50): Promise<PaginatedResponse<any>> {
     const offset = (page - 1) * limit;
@@ -27,7 +120,7 @@ export class ProjectsService {
       const total = Number((countResult as any)?.count ?? 0);
 
       return {
-        data: projects,
+        data: projects.map(p => this.formatProject(p)),
         meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
       };
     }
@@ -74,7 +167,7 @@ export class ProjectsService {
     const total = Number((countResult as any)?.count ?? 0);
 
     return {
-      data: paginated,
+      data: paginated.map(p => this.formatProject(p)),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
     };
   }
@@ -113,7 +206,7 @@ export class ProjectsService {
       }
     }
 
-    return project;
+    return this.formatProject(project);
   }
 
   async getProjectHealth(id: string, auth: AuthenticatedContext) {
@@ -332,7 +425,7 @@ export class ProjectsService {
   }
 
   async create(createProjectDto: CreateProjectDto, auth: AuthenticatedContext) {
-    const { name, code, status, isActive, description, startDate, endDate } = createProjectDto;
+    const { name, code, status, isActive, description, startDate, endDate, settings: projectSettings } = createProjectDto;
     const scopedOrgId = auth.organizationId;
     
     const settings = await db.orm.public.OrganizationSettings.where({ organizationId: scopedOrgId }).first();
@@ -359,13 +452,18 @@ export class ProjectsService {
       throw new ConflictException('Project with this code already exists in the organization');
     }
 
+    if (projectSettings?.customFields) {
+      validateCustomFieldsPayload(projectSettings.customFields);
+    }
+
+    const finalDescription = encodeDescriptionWithSettings(description, projectSettings);
     const projectData: any = {
       organizationId: scopedOrgId,
       name,
       code,
       status,
       isActive: isActive ?? true,
-      description: description ?? null,
+      description: finalDescription,
     };
 
     if (startDate !== undefined) projectData.startDate = startDate ? (globalThis as any).Temporal.Instant.from(new Date(startDate).toISOString()) : null;
@@ -377,7 +475,7 @@ export class ProjectsService {
       await this.auditLogsService.logEvent(scopedOrgId, auth.employeeId, 'PROJECT_CREATED', 'Project', project.id);
     }
     
-    return project;
+    return this.formatProject(project);
   }
 
   async update(id: string, updateProjectDto: UpdateProjectDto, reqOrganizationId: string, actorId?: string) {
@@ -386,7 +484,11 @@ export class ProjectsService {
       throw new NotFoundException('Project not found');
     }
 
-    const { name, code, status, isActive, description, startDate, endDate } = updateProjectDto;
+    const { name, code, status, isActive, description, startDate, endDate, settings: projectSettings } = updateProjectDto;
+
+    if (projectSettings?.customFields) {
+      validateCustomFieldsPayload(projectSettings.customFields);
+    }
 
     if (name && name !== project.name) {
       const existingName = await db.orm.public.Project.where({
@@ -414,7 +516,13 @@ export class ProjectsService {
     if (code !== undefined) updateData.code = code;
     if (status !== undefined) updateData.status = status;
     if (isActive !== undefined) updateData.isActive = isActive;
-    if (description !== undefined) updateData.description = description;
+
+    if (description !== undefined || projectSettings !== undefined) {
+      const existingDecoded = decodeDescriptionWithSettings(project.description);
+      const targetSettings = projectSettings !== undefined ? projectSettings : existingDecoded.settings;
+      const targetDescription = description !== undefined ? description : existingDecoded.description;
+      updateData.description = encodeDescriptionWithSettings(targetDescription, targetSettings);
+    }
 
     const finalStartDate = startDate !== undefined ? startDate : (project.startDate ? project.startDate.toString() : null);
     const finalEndDate = endDate !== undefined ? endDate : (project.endDate ? project.endDate.toString() : null);
@@ -442,7 +550,46 @@ export class ProjectsService {
       }
     }
 
-    return updated;
+    return this.formatProject(updated);
+  }
+
+  async delete(id: string, auth: AuthenticatedContext) {
+    const isAuthorized = auth.roles && (auth.roles.includes('ADMIN') || auth.roles.includes('MANAGER'));
+    if (!isAuthorized) {
+      throw new ForbiddenException('Only administrators and managers can delete projects');
+    }
+
+    const project = await db.orm.public.Project.where({ id, organizationId: auth.organizationId }).first();
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    // Cascade delete linked entities to prevent foreign key errors
+    const tasks = await db.orm.public.Task.where({ projectId: id }).all();
+    const taskIds = tasks.map((t: any) => t.id);
+    if (taskIds.length > 0) {
+      await db.orm.public.TaskDependency.where((d: any) => (d as any).successorId.in(taskIds)).delete().catch(() => {});
+      await db.orm.public.TaskDependency.where((d: any) => (d as any).predecessorId.in(taskIds)).delete().catch(() => {});
+    }
+
+    await db.orm.public.Task.where({ projectId: id }).delete().catch(() => {});
+    await db.orm.public.Milestone.where({ projectId: id }).delete().catch(() => {});
+    await db.orm.public.ProjectRequirement.where({ projectId: id }).delete().catch(() => {});
+    await db.orm.public.EmployeeProject.where({ projectId: id }).delete().catch(() => {});
+    await db.orm.public.Activity.where({ projectId: id }).delete().catch(() => {});
+    await db.orm.public.TaskTemplate.where({ projectId: id }).delete().catch(() => {});
+    await db.orm.public.TimeEntry.where({ projectId: id }).delete().catch(() => {});
+
+    await db.orm.public.Project.where({ id }).delete();
+
+    if (auth.employeeId) {
+      await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'PROJECT_DELETED', 'Project', id, {
+        code: project.code,
+        name: project.name,
+      }).catch(() => {});
+    }
+
+    return { success: true, message: 'Project deleted successfully' };
   }
 
   // --- Project Requirements ---

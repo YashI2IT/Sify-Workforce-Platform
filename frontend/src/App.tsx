@@ -17,6 +17,7 @@ import { SubmissionApprovals } from './features/timesheets/SubmissionApprovals';
 import { EmployeesList } from './features/employees/EmployeesList';
 import { TeamsList } from './features/teams/TeamsList';
 import { AllProjectsList } from './features/admin-projects/AllProjectsList';
+import { ProjectOnboarding } from './features/projects/onboarding/ProjectOnboarding';
 import { OrganizationOverview } from './features/organization/OrganizationOverview';
 import { OrganizationSettings } from './features/organization/OrganizationSettings';
 import { OrganizationDetail } from './features/organization/OrganizationDetail';
@@ -66,6 +67,8 @@ function App() {
             <Route path="/organization/profile" element={<OrganizationDetail />} />
             <Route path="/organization/settings" element={<OrganizationSettings />} />
             <Route path="/admin/projects" element={<AllProjectsList />} />
+            <Route path="/admin/projects/onboarding" element={<ProjectOnboarding />} />
+            <Route path="/projects/onboarding" element={<ProjectOnboarding />} />
             <Route path="/admin/working-times" element={<WorkingTimesConfig />} />
             <Route path="/settings/timesheets" element={<ManagerWorkingTimesView />} />
             <Route path="/admin/public-holidays" element={<PublicHolidaysConfig />} />
