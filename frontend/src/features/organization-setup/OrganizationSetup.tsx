@@ -179,7 +179,7 @@ export const OrganizationSetup: React.FC = () => {
       await completeSetupM().unwrap();
       showToast('Setup Complete! Redirecting...', 'success');
       await authService.bootstrap();
-      window.location.href = '/dashboard';
+      navigate('/dashboard');
     } catch (err: any) {
       const msg = typeof err?.data === 'string' ? err.data : err?.data?.message || err?.message || 'Failed to complete setup';
       showToast(msg, 'error');

@@ -193,7 +193,7 @@ export const Onboarding = () => {
       if (orgId) {
         await refreshAuthState(orgId);
       }
-      window.location.href = '/dashboard';
+      navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Failed to accept invitation. Please try again.');
       showToast(err.message || 'Failed to accept invitation.', 'error');
