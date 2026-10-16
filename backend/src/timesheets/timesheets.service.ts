@@ -135,22 +135,61 @@ export class TimesheetsService {
     let employeeIds: string[] = [];
 
     if (auth.roles.includes('ADMIN')) {
-      const allEmps = await db.orm.public.Employee.where({ organizationId: auth.organizationId, isActive: true })
-        .select('id')
+      // Admin is the designated approver for:
+      // 1. Managers in the organization (strictly excluding self)
+      // 2. Other Admins in the organization (strictly excluding self)
+      // 3. Members of any team where this Admin is the designated Team Manager (strictly excluding self)
+      const allEmps = await db.orm.public.Employee
+        .where({ organizationId: auth.organizationId, isActive: true })
         .all();
-      employeeIds = allEmps.map((e: any) => e.id);
-    } else {
-      const managedTeams = await db.orm.public.Team.where({ managerId: auth.employeeId, organizationId: auth.organizationId }).all();
-      const teamIds = managedTeams.map(t => t.id);
-      if (teamIds.length === 0) return { data: [], meta: { total: 0, page, limit, totalPages: 0, totalTeamMembers: 0 } };
-
-      // Single batch query instead of N per-team loops
-      const members = await db.orm.public.Employee
+      const allTeams = await db.orm.public.Team
         .where({ organizationId: auth.organizationId })
-        .where((e: any) => e.teamId.in(teamIds))
-        .select('id')
         .all();
-      employeeIds = members.map((e: any) => e.id);
+
+      const teamManagerIds = new Set((allTeams || []).map((t: any) => t.managerId).filter(Boolean));
+      const adminManagedTeamIds = new Set(
+        (allTeams || []).filter((t: any) => t.managerId === auth.employeeId).map((t: any) => t.id)
+      );
+
+      const reviewableEmps = (allEmps || []).filter((e: any) => {
+        if (e.id === auth.employeeId) return false; // Strictly no self-approval
+
+        const isManager = e.role === 'MANAGER' || teamManagerIds.has(e.id);
+        const isAdmin = e.role === 'ADMIN';
+        const isInAdminTeam = e.teamId && adminManagedTeamIds.has(e.teamId);
+
+        return isManager || isAdmin || isInAdminTeam;
+      });
+
+      employeeIds = reviewableEmps.map((e: any) => e.id);
+    } else {
+      // Manager reviews members of teams they manage, strictly excluding self and other managers/admins
+      const managedTeams = await db.orm.public.Team
+        .where({ managerId: auth.employeeId, organizationId: auth.organizationId })
+        .all();
+      const teamIds = (managedTeams || []).map((t: any) => t.id);
+      if (teamIds.length === 0) {
+        return { data: [], meta: { total: 0, page, limit, totalPages: 0, totalTeamMembers: 0 } };
+      }
+
+      const members = await db.orm.public.Employee
+        .where({ organizationId: auth.organizationId, isActive: true })
+        .where((e: any) => e.teamId.in(teamIds))
+        .all();
+
+      const allTeams = await db.orm.public.Team
+        .where({ organizationId: auth.organizationId })
+        .all();
+      const allManagerIds = new Set((allTeams || []).map((t: any) => t.managerId).filter(Boolean));
+
+      const reviewableMembers = (members || []).filter((e: any) => {
+        if (e.id === auth.employeeId) return false; // Strictly no self-approval
+        if (e.role === 'ADMIN') return false; // Admins route to Admins
+        if (e.role === 'MANAGER' || allManagerIds.has(e.id)) return false; // Managers route to Admins
+        return true;
+      });
+
+      employeeIds = reviewableMembers.map((e: any) => e.id);
     }
 
     if (employeeIds.length === 0) return { data: [], meta: { total: 0, page, limit, totalPages: 0, totalTeamMembers: 0 } };
@@ -201,6 +240,205 @@ export class TimesheetsService {
     };
   }
 
+  async findTeamTimesheets(
+    auth: AuthenticatedContext,
+    params: {
+      page?: number;
+      limit?: number;
+      status?: string;
+      employeeId?: string;
+      startDate?: string;
+      endDate?: string;
+      search?: string;
+    } = {}
+  ): Promise<PaginatedResponse<any>> {
+    const page = Number(params.page) || 1;
+    const limit = Number(params.limit) || 50;
+    const offset = (page - 1) * limit;
+
+    let employees: any[] = [];
+
+    if (auth.roles.includes('ADMIN')) {
+      employees = await db.orm.public.Employee
+        .where({ organizationId: auth.organizationId, isActive: true })
+        .all();
+    } else {
+      const managedTeams = await db.orm.public.Team
+        .where({ managerId: auth.employeeId, organizationId: auth.organizationId })
+        .all();
+      const teamIds = managedTeams.map((t: any) => t.id);
+      if (teamIds.length === 0) {
+        return { data: [], meta: { total: 0, page, limit, totalPages: 0, totalTeamMembers: 0 } };
+      }
+
+      employees = await db.orm.public.Employee
+        .where({ organizationId: auth.organizationId })
+        .where((e: any) => e.teamId.in(teamIds))
+        .all();
+    }
+
+    if (employees.length === 0) {
+      return { data: [], meta: { total: 0, page, limit, totalPages: 0, totalTeamMembers: 0 } };
+    }
+
+    let targetEmployees = employees;
+
+    // Filter by specific employeeId if provided (enforcing manager scope)
+    if (params.employeeId) {
+      targetEmployees = targetEmployees.filter((e: any) => e.id === params.employeeId);
+      if (targetEmployees.length === 0) {
+        return { data: [], meta: { total: 0, page, limit, totalPages: 0, totalTeamMembers: employees.length } };
+      }
+    }
+
+    // Filter by search query if provided
+    if (params.search?.trim()) {
+      const term = params.search.trim().toLowerCase();
+      targetEmployees = targetEmployees.filter((e: any) =>
+        (e.name && e.name.toLowerCase().includes(term)) ||
+        (e.employeeCode && e.employeeCode.toLowerCase().includes(term)) ||
+        (e.email && e.email.toLowerCase().includes(term))
+      );
+    }
+
+    const employeeIds = targetEmployees.map((e: any) => e.id);
+    if (employeeIds.length === 0) {
+      return { data: [], meta: { total: 0, page, limit, totalPages: 0, totalTeamMembers: employees.length } };
+    }
+
+    let query = db.orm.public.Timesheet.where((t: any) => t.employeeId.in(employeeIds));
+    let countQuery = db.orm.public.Timesheet.where((t: any) => t.employeeId.in(employeeIds));
+
+    if (params.status && params.status !== 'ALL') {
+      query = query.where({ status: params.status });
+      countQuery = countQuery.where({ status: params.status });
+    }
+
+    if (params.startDate) {
+      const startInstant = (globalThis as any).Temporal?.Instant
+        ? (globalThis as any).Temporal.Instant.from(`${params.startDate.split('T')[0]}T00:00:00Z`)
+        : new Date(params.startDate);
+      query = query.where((t: any) => t.startDate.gte(startInstant));
+      countQuery = countQuery.where((t: any) => t.startDate.gte(startInstant));
+    }
+
+    if (params.endDate) {
+      const endInstant = (globalThis as any).Temporal?.Instant
+        ? (globalThis as any).Temporal.Instant.from(`${params.endDate.split('T')[0]}T23:59:59Z`)
+        : new Date(params.endDate);
+      query = query.where((t: any) => t.endDate.lte(endInstant));
+      countQuery = countQuery.where((t: any) => t.endDate.lte(endInstant));
+    }
+
+    const [page_data, countResult] = await Promise.all([
+      query
+        .orderBy((m: any) => m.startDate.desc())
+        .limit(limit)
+        .offset(offset)
+        .all(),
+      countQuery.aggregate((a: any) => ({ count: a.count() })),
+    ]);
+
+    const total = (countResult as any)?.count ?? 0;
+
+    const timesheetIds = page_data.map((ts: any) => ts.id);
+    const allEntries = timesheetIds.length > 0
+      ? await db.orm.public.TimeEntry.where((e: any) => e.timesheetId.in(timesheetIds)).all()
+      : [];
+    const entriesByTimesheetId = new Map<string, any[]>();
+    for (const e of allEntries) {
+      const bucket = entriesByTimesheetId.get(e.timesheetId) ?? [];
+      bucket.push(e);
+      entriesByTimesheetId.set(e.timesheetId, bucket);
+    }
+
+    const enriched = await Promise.all(
+      page_data.map((ts: any) => this.enrichWithHoursAndEntries(ts, auth.organizationId, entriesByTimesheetId.get(ts.id) ?? []))
+    );
+
+    const empMap = new Map(employees.map((e: any) => [e.id, { id: e.id, name: e.name, employeeCode: e.employeeCode, email: e.email }]));
+    const dataWithEmployee = enriched.map((ts: any) => ({
+      ...ts,
+      employee: empMap.get(ts.employeeId) || null,
+    }));
+
+    return {
+      data: dataWithEmployee,
+      meta: {
+        total: Number(total),
+        page,
+        limit,
+        totalPages: Math.ceil(Number(total) / limit),
+        totalTeamMembers: employees.length,
+      },
+    };
+  }
+
+  /**
+   * Resolves the list of authorized approvers for a timesheet according to organization policies.
+   * - Regular employee: Team Manager (cannot be self, must be active in same org).
+   * - Manager: Active Admins in the organization (excluding self).
+   * - Admin: Other active Admins in the organization (excluding self).
+   *
+   * Returns an array of eligible approvers, or empty array if none exists.
+   */
+  async resolveEligibleApprovers(
+    emp: any,
+    authCtx?: AuthenticatedContext,
+    txOrDb: any = db,
+  ): Promise<any[]> {
+    const orgId = emp.organizationId;
+    const isSubmitterAdmin = emp.role === 'ADMIN' || (authCtx?.employeeId === emp.id && authCtx?.roles?.includes('ADMIN'));
+
+    if (isSubmitterAdmin) {
+      // Admin submits: routes to other active Admins in the same organization
+      const otherAdmins = await txOrDb.orm.public.Employee
+        .where({ organizationId: orgId, role: 'ADMIN', isActive: true })
+        .all();
+      return (otherAdmins || []).filter((a: any) => a.id !== emp.id);
+    }
+
+    const teamQuery = txOrDb.orm.public.Team.where({ organizationId: orgId });
+    const allTeams = typeof teamQuery?.all === 'function' ? await teamQuery.all() : [];
+    const allManagerIds = new Set((allTeams || []).map((t: any) => t.managerId).filter(Boolean));
+
+    const isSubmitterManager =
+      emp.role === 'MANAGER' ||
+      (authCtx?.employeeId === emp.id && authCtx?.roles?.includes('MANAGER')) ||
+      allManagerIds.has(emp.id);
+
+    if (isSubmitterManager) {
+      // Manager submits: routes to active Admins in the organization (excluding self)
+      const admins = await txOrDb.orm.public.Employee
+        .where({ organizationId: orgId, role: 'ADMIN', isActive: true })
+        .all();
+      return (admins || []).filter((a: any) => a.id !== emp.id);
+    }
+
+    // Regular Employee: routes to the assigned Team's Manager
+    if (!emp.teamId) {
+      return [];
+    }
+
+    const team = await txOrDb.orm.public.Team
+      .where({ id: emp.teamId, organizationId: orgId })
+      .first();
+
+    if (!team || !team.managerId || team.managerId === emp.id) {
+      return [];
+    }
+
+    const teamManager = await txOrDb.orm.public.Employee
+      .where({ id: team.managerId, organizationId: orgId, isActive: true })
+      .first();
+
+    if (!teamManager) {
+      return [];
+    }
+
+    return [{ ...teamManager, id: team.managerId }];
+  }
+
   async submit(id: string, auth: AuthenticatedContext) {
     const employeeId = auth.employeeId;
 
@@ -214,6 +452,30 @@ export class TimesheetsService {
 
       if (timesheet.status !== 'DRAFT' && timesheet.status !== 'REJECTED') {
         throw new BadRequestException(`Cannot submit timesheet from status ${timesheet.status}`);
+      }
+
+      // Resolve eligible approvers according to organization policy
+      const approvers = await this.resolveEligibleApprovers(emp, auth, tx);
+      if (!approvers || approvers.length === 0) {
+        const isSubmitterAdmin = emp.role === 'ADMIN' || auth.roles.includes('ADMIN');
+        if (isSubmitterAdmin) {
+          throw new BadRequestException('No other active administrator exists in your organization to approve your timesheet. An additional administrator must be configured before this timesheet can be submitted.');
+        }
+
+        const teamQuery = tx.orm.public.Team.where({ organizationId: auth.organizationId });
+        const allTeams = typeof teamQuery?.all === 'function' ? await teamQuery.all() : [];
+        const allManagerIds = new Set((allTeams || []).map((t: any) => t.managerId).filter(Boolean));
+        const isSubmitterManager = emp.role === 'MANAGER' || auth.roles.includes('MANAGER') || allManagerIds.has(emp.id);
+
+        if (isSubmitterManager) {
+          throw new BadRequestException('No active administrator found in your organization to approve your timesheet. Please contact your organization owner to designate an administrator.');
+        }
+
+        if (!emp.teamId) {
+          throw new BadRequestException('You are not assigned to a team. Please contact your administrator to assign you to a team with an active manager.');
+        }
+
+        throw new BadRequestException('Your team does not have an active manager assigned to review timesheets. Please contact your administrator.');
       }
 
       const action = timesheet.status === 'REJECTED' ? 'RESUBMITTED' : 'SUBMITTED';
@@ -230,24 +492,19 @@ export class TimesheetsService {
         await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'TIMESHEET_SUBMITTED', 'Timesheet', id, undefined, tx);
       }
 
-      if (emp.teamId) {
-        const team = await tx.orm.public.Team.where({ id: emp.teamId }).first();
-        if (team && team.managerId) {
-          const manager = await tx.orm.public.Employee.where({ id: team.managerId }).first();
-          const notifType = action === 'RESUBMITTED' ? 'TIMESHEET_RESUBMITTED' : 'TIMESHEET_SUBMITTED';
-          const notifTitle = action === 'RESUBMITTED' ? 'Timesheet Resubmitted' : 'Timesheet Submitted';
-          const actionVerb = action === 'RESUBMITTED' ? 'resubmitted' : 'submitted';
-          
-          await this.notificationsService.createNotification({
-            recipientId: team.managerId,
-            type: notifType,
-            title: notifTitle,
-            message: `${emp.name} has ${actionVerb} their timesheet for ${timesheet.startDate} to ${timesheet.endDate}.`,
-            relatedEntityType: 'TIMESHEET',
-            relatedEntityId: timesheet.id,
-          }, tx);
+      const notifType = action === 'RESUBMITTED' ? 'TIMESHEET_RESUBMITTED' : 'TIMESHEET_SUBMITTED';
+      const notifTitle = action === 'RESUBMITTED' ? 'Timesheet Resubmitted' : 'Timesheet Submitted';
+      const actionVerb = action === 'RESUBMITTED' ? 'resubmitted' : 'submitted';
 
-        }
+      for (const approver of approvers) {
+        await this.notificationsService.createNotification({
+          recipientId: approver.id,
+          type: notifType,
+          title: notifTitle,
+          message: `${emp.name} has ${actionVerb} their timesheet for ${timesheet.startDate} to ${timesheet.endDate}.`,
+          relatedEntityType: 'TIMESHEET',
+          relatedEntityId: timesheet.id,
+        }, tx);
       }
 
       return updatedTs;
@@ -266,8 +523,27 @@ export class TimesheetsService {
       const emp = await tx.orm.public.Employee.where({ id: timesheet.employeeId, organizationId: auth.organizationId }).first();
       if (!emp) throw new ForbiddenException('Timesheet does not belong to your organization');
 
+      // Strictly prevent self-approval
+      if (timesheet.employeeId === managerId) {
+        throw new ForbiddenException('You cannot approve your own timesheet');
+      }
+
       const isAdmin = auth.roles.includes('ADMIN');
       if (!isAdmin) {
+        // Non-admin managers cannot approve administrators
+        if (emp.role === 'ADMIN') {
+          throw new ForbiddenException('Managers cannot approve an administrator\'s timesheet');
+        }
+
+        // Non-admin managers cannot approve other managers
+        const teamQuery = tx.orm.public.Team.where({ organizationId: auth.organizationId });
+        const allTeams = typeof teamQuery?.all === 'function' ? await teamQuery.all() : [];
+        const allManagerIds = new Set((allTeams || []).map((t: any) => t.managerId).filter(Boolean));
+        if (emp.role === 'MANAGER' || allManagerIds.has(emp.id)) {
+          throw new ForbiddenException('Managers cannot approve another manager\'s timesheet');
+        }
+
+        // Managers can only approve timesheets of their own team members
         const team = emp.teamId ? await tx.orm.public.Team.where({ id: emp.teamId, organizationId: auth.organizationId }).first() : null;
         if (!team || team.managerId !== managerId) {
           throw new ForbiddenException('You are not authorized to approve this timesheet');
@@ -301,7 +577,6 @@ export class TimesheetsService {
           relatedEntityType: 'TIMESHEET',
           relatedEntityId: timesheet.id,
         }, tx);
-
       }
 
       return updatedTs;
@@ -323,8 +598,27 @@ export class TimesheetsService {
       const emp = await tx.orm.public.Employee.where({ id: timesheet.employeeId, organizationId: auth.organizationId }).first();
       if (!emp) throw new ForbiddenException('Timesheet does not belong to your organization');
 
+      // Strictly prevent self-rejection
+      if (timesheet.employeeId === managerId) {
+        throw new ForbiddenException('You cannot reject your own timesheet');
+      }
+
       const isAdmin = auth.roles.includes('ADMIN');
       if (!isAdmin) {
+        // Non-admin managers cannot reject administrators
+        if (emp.role === 'ADMIN') {
+          throw new ForbiddenException('Managers cannot reject an administrator\'s timesheet');
+        }
+
+        // Non-admin managers cannot reject other managers
+        const teamQuery = tx.orm.public.Team.where({ organizationId: auth.organizationId });
+        const allTeams = typeof teamQuery?.all === 'function' ? await teamQuery.all() : [];
+        const allManagerIds = new Set((allTeams || []).map((t: any) => t.managerId).filter(Boolean));
+        if (emp.role === 'MANAGER' || allManagerIds.has(emp.id)) {
+          throw new ForbiddenException('Managers cannot reject another manager\'s timesheet');
+        }
+
+        // Managers can only reject timesheets of their own team members
         const team = emp.teamId ? await tx.orm.public.Team.where({ id: emp.teamId, organizationId: auth.organizationId }).first() : null;
         if (!team || team.managerId !== managerId) {
           throw new ForbiddenException('You are not authorized to reject this timesheet');
@@ -360,7 +654,6 @@ export class TimesheetsService {
           relatedEntityType: 'TIMESHEET',
           relatedEntityId: timesheet.id,
         }, tx);
-
       }
 
       return updatedTs;

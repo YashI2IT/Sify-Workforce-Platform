@@ -36,10 +36,14 @@ interface Employee {
 }
 
 export const ManagerApprovals = () => {
-  const { isLoading: empLoading } = useCurrentEmployee();
+  const { employee, isLoading: empLoading } = useCurrentEmployee();
   const { showToast } = useToast();
+
+  const isAdmin = Boolean(employee?.roles?.includes('ADMIN') || employee?.role === 'ADMIN');
+  const isManager = Boolean(employee?.roles?.includes('MANAGER') || employee?.role === 'MANAGER');
+  const isAuthorized = isAdmin || isManager;
   
-  const { data: timesheetsData, isLoading: approvalsLoading, error: approvalsError, refetch: fetchApprovals } = useGetPendingApprovalsQuery();
+  const { data: timesheetsData, isLoading: approvalsLoading, error: approvalsError, refetch: fetchApprovals } = useGetPendingApprovalsQuery(undefined, { skip: Boolean(employee && !isAuthorized) });
   const [approveTimesheetM] = useApproveTimesheetMutation();
   const [rejectTimesheetM] = useRejectTimesheetMutation();
 
@@ -126,6 +130,20 @@ export const ManagerApprovals = () => {
 
   const uniqueMemberCount = timesheetsData?.meta?.totalTeamMembers ?? new Set(timesheets.map(t => t.employeeId)).size;
 
+  if (!empLoading && employee && !isAuthorized) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+        <div className="bg-white border border-slate-200/90 rounded-[14px] p-8 text-center text-slate-500 space-y-3 shadow-2xs">
+          <AlertCircle className="w-8 h-8 mx-auto text-amber-500" />
+          <h2 className="text-base font-bold text-slate-900">Access Restricted</h2>
+          <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+            You do not have permission to review or approve timesheets. Approval actions are restricted to Managers and Administrators.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* Executive Command Header */}
@@ -142,7 +160,9 @@ export const ManagerApprovals = () => {
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                Review and approve submitted timesheets from your team members.
+                {isAdmin
+                  ? 'Review and approve submitted timesheets across your organization.'
+                  : 'Review and approve submitted timesheets from your team members.'}
               </p>
             </div>
           </div>
@@ -296,9 +316,11 @@ export const ManagerApprovals = () => {
             </svg>
             <p className="text-base font-bold text-slate-900 ">No pending approvals</p>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-sm mx-auto">
-              {uniqueMemberCount === 0
-                ? 'No team members have submitted timesheets for review yet.'
-                : 'All submitted timesheets from your team have been reviewed.'}
+              {isAdmin
+                ? 'All submitted timesheets requiring your approval have been reviewed.'
+                : uniqueMemberCount === 0
+                  ? 'No team members have submitted timesheets for review yet.'
+                  : 'All submitted timesheets from your team have been reviewed.'}
             </p>
           </div>
         ) : (

@@ -1,8 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Edit2, Clock, Calendar, AlertCircle, Send, Trash2, Edit3, MessageSquare, Link, Plus } from 'lucide-react';
 import { useCurrentEmployee } from '../../../hooks/useCurrentEmployee';
-import { useGetTaskCommentsQuery, useCreateTaskCommentMutation, useUpdateTaskCommentMutation, useDeleteTaskCommentMutation, useGetTaskDependenciesQuery, useCreateTaskDependencyMutation, useDeleteTaskDependencyMutation, useGetEmployeesDirectoryQuery, useUpdateProjectTaskMutation } from '../../../store/apiSlice';
+import {
+  useGetTaskCommentsQuery,
+  useCreateTaskCommentMutation,
+  useUpdateTaskCommentMutation,
+  useDeleteTaskCommentMutation,
+  useGetTaskDependenciesQuery,
+  useCreateTaskDependencyMutation,
+  useDeleteTaskDependencyMutation,
+  useGetEmployeesDirectoryQuery,
+  useUpdateProjectTaskMutation,
+  useGetProjectDetailsQuery,
+} from '../../../store/apiSlice';
 import { useToast } from '../../../context/ToastContext';
 import { Select } from '../../../components/ui/Select';
 
@@ -101,6 +112,60 @@ export const TaskDetailPanel = ({
   const [createComment, { isLoading: isCreating }] = useCreateTaskCommentMutation();
   const [updateComment] = useUpdateTaskCommentMutation();
   const [deleteComment] = useDeleteTaskCommentMutation();
+
+  const { data: project } = useGetProjectDetailsQuery(projectId, { skip: !isOpen || !projectId });
+
+  const customFieldsToDisplay = useMemo(() => {
+    if (!task?.metadata || typeof task.metadata !== 'object') return [];
+
+    const meta = task.metadata;
+    const projectCustomFields: Array<{ id?: string; name: string; previousNames?: string[] }> =
+      (project as any)?.settings?.customFields || [];
+
+    if (projectCustomFields.length > 0) {
+      const renderedNames = new Set<string>();
+      const result: Array<{ key: string; label: string; value: string }> = [];
+
+      for (const field of projectCustomFields) {
+        if (!field || !field.name) continue;
+        const val =
+          meta[field.name] ??
+          (field.id ? meta[field.id] : undefined) ??
+          (field.previousNames?.map((pn: string) => meta[pn]).find((v: any) => v !== undefined));
+
+        if (val !== undefined && val !== null && String(val).trim() !== '') {
+          result.push({
+            key: field.id || field.name,
+            label: field.name,
+            value: String(val),
+          });
+          renderedNames.add(field.name.toLowerCase());
+          if (field.id) renderedNames.add(field.id.toLowerCase());
+          field.previousNames?.forEach(pn => renderedNames.add(pn.toLowerCase()));
+        }
+      }
+
+      for (const [k, v] of Object.entries(meta)) {
+        if (!k.startsWith('fld-') && !renderedNames.has(k.toLowerCase()) && v !== undefined && v !== null && String(v).trim() !== '') {
+          result.push({
+            key: k,
+            label: k,
+            value: String(v),
+          });
+        }
+      }
+
+      return result;
+    }
+
+    return Object.entries(meta)
+      .filter(([key, val]) => !key.startsWith('fld-') && val !== undefined && val !== null && String(val).trim() !== '')
+      .map(([key, val]) => ({
+        key,
+        label: key,
+        value: String(val),
+      }));
+  }, [task?.metadata, project?.settings?.customFields]);
 
   const [newComment, setNewComment] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
@@ -351,14 +416,14 @@ export const TaskDetailPanel = ({
           </section>
 
           {/* ── CUSTOM FIELDS ── */}
-          {task.metadata && Object.keys(task.metadata).length > 0 && (
+          {customFieldsToDisplay.length > 0 && (
             <section>
               <h3 className="text-xs font-bold text-slate-900 tracking-tight font-sans mb-2">Custom Fields</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {Object.entries(task.metadata).map(([key, val]) => (
+                {customFieldsToDisplay.map(({ key, label, value }) => (
                   <div key={key} className="p-3 bg-slate-50/70 border border-slate-200/80 rounded-xl">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase font-sans mb-0.5">{key}</p>
-                    <p className="text-xs font-semibold text-slate-800 break-words">{String(val || '—')}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase font-sans mb-0.5">{label}</p>
+                    <p className="text-xs font-semibold text-slate-800 break-words">{value}</p>
                   </div>
                 ))}
               </div>

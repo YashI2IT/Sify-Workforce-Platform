@@ -60,8 +60,20 @@ export const NotificationsMenu = () => {
       } else {
         navigate(`/projects`);
       }
-    } else if (notification.relatedEntityType === 'TIMESHEET' || notification.type.includes('TIMESHEET')) {
-      navigate(`/timesheets`);
+    } else if (notification.relatedEntityType === 'TIMESHEET' || notification.relatedEntityType === 'TIMESHEET_SUBMISSION' || notification.type.includes('TIMESHEET')) {
+      if (notification.type === 'TIMESHEET_SUBMITTED' || notification.type === 'TIMESHEET_RESUBMITTED') {
+        if (notification.relatedEntityType === 'TIMESHEET_SUBMISSION') {
+          navigate('/submission-approvals');
+        } else if (notification.relatedEntityId) {
+          navigate(`/approvals/timesheets/${notification.relatedEntityId}`);
+        } else {
+          navigate('/approvals');
+        }
+      } else if (notification.relatedEntityId && notification.relatedEntityType === 'TIMESHEET') {
+        navigate(`/timesheets/${notification.relatedEntityId}`);
+      } else {
+        navigate(`/timesheets`);
+      }
     }
   };
 

@@ -16,10 +16,20 @@ export default defineConfig({
     globals: true,
   },
   server: {
+    host: '127.0.0.1',
+    port: 5173,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
+        configure: (proxy: any) => {
+          proxy.on('error', (err: any, _req: any, res: any) => {
+            if (err?.code === 'ECONNREFUSED' && res && !res.headersSent && typeof res.writeHead === 'function') {
+              res.writeHead(503, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ statusCode: 503, message: 'Backend server is starting up or temporarily offline.' }));
+            }
+          });
+        },
       },
       '/ums-api': {
         target: 'https://apidev.sifymodernization.digital/user-mgt/api',

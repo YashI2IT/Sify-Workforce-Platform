@@ -427,6 +427,18 @@ export const apiSlice = createApi({
       query: () => ({ url: '/timesheets/approvals' }),
       providesTags: ['Timesheet'],
     }),
+    getTeamTimesheets: builder.query<any, {
+      page?: number;
+      limit?: number;
+      status?: string;
+      employeeId?: string;
+      startDate?: string;
+      endDate?: string;
+      search?: string;
+    } | void>({
+      query: (params) => ({ url: '/timesheets/team', params: params || {} }),
+      providesTags: ['Timesheet'],
+    }),
     getTimesheetDetails: builder.query<any, string>({
       query: (id) => `/timesheets/${id}`,
       providesTags: (_result, _error, id) => [{ type: 'Timesheet', id }, 'TimeEntry'],
@@ -722,6 +734,7 @@ export const {
   useGetTimesheetHistoryQuery,
   useSubmitTimesheetMutation,
   useGetPendingApprovalsQuery,
+  useGetTeamTimesheetsQuery,
   useApproveTimesheetMutation,
   useRejectTimesheetMutation,
 

@@ -7,11 +7,11 @@ import {
   useGetProjectTasksQuery,
   useUpdateProjectMutation,
 } from '../../../store/apiSlice';
+import { VersatileFieldBuilder } from './VersatileFieldBuilder';
 import {
-  VersatileFieldBuilder,
   validateCustomFields,
   type VersatileCustomField,
-} from './VersatileFieldBuilder';
+} from './versatileFieldUtils';
 import {
   AlertCircle,
   Trash2,
@@ -22,7 +22,7 @@ import {
   FolderKanban,
 } from 'lucide-react';
 
-export const projectStatusFormOptions = [
+const projectStatusFormOptions = [
   { value: 'PLANNING', label: 'Planning' },
   { value: 'ACTIVE', label: 'Active' },
   { value: 'IN_PROGRESS', label: 'In Progress' },
@@ -30,14 +30,14 @@ export const projectStatusFormOptions = [
   { value: 'COMPLETED', label: 'Completed' },
 ];
 
-export const priorityOptions = [
+const priorityOptions = [
   { value: 'LOW', label: 'Low' },
   { value: 'MEDIUM', label: 'Medium' },
   { value: 'HIGH', label: 'High' },
   { value: 'URGENT', label: 'Urgent' },
 ];
 
-export const recurrenceOptions = [
+const recurrenceOptions = [
   { value: '', label: 'None' },
   { value: 'DAILY', label: 'Daily' },
   { value: 'WEEKLY', label: 'Weekly' },

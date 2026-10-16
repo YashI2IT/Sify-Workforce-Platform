@@ -118,12 +118,22 @@ export const TimesheetDetail = () => {
     refetchHistory();
   };
 
+  const isManagerOrAdmin = Boolean(
+    employee?.role === 'MANAGER' ||
+    employee?.role === 'ADMIN' ||
+    employee?.roles?.includes('MANAGER') ||
+    employee?.roles?.includes('ADMIN')
+  );
+
   const handleSubmit = async () => {
     if (!timesheet || !id) return;
     try {
       setSubmitting(true);
       await submitTimesheetM(id).unwrap();
-      setActionFeedback('Timesheet submitted for manager review');
+      const feedback = isManagerOrAdmin
+        ? 'Timesheet submitted for administrator review'
+        : 'Timesheet submitted for manager review';
+      setActionFeedback(feedback);
       setTimeout(() => setActionFeedback(''), 4000);
       fetchTimesheet();
     } catch (err: any) {
@@ -441,7 +451,9 @@ export const TimesheetDetail = () => {
             <div>
               <h3 className="text-sm font-bold text-blue-900">Under Review</h3>
               <p className="text-xs text-blue-700 mt-0.5">
-                This timesheet has been submitted and is currently pending review by your team manager. Entries are locked.
+                {isManagerOrAdmin
+                  ? 'This timesheet has been submitted and is currently pending review by an administrator. Entries are locked.'
+                  : 'This timesheet has been submitted and is currently pending review by your team manager. Entries are locked.'}
               </p>
             </div>
           </div>

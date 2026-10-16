@@ -30,16 +30,105 @@ export class TimesheetSubmissionsService {
     return { weekStart: this.fmtDate(monday), weekEnd: this.fmtDate(sunday) };
   }
 
-  /** Ensure the caller is the manager/admin of the employee's team */
+  /** Ensure the caller is authorized to review the employee's submission */
   private async assertManagerAccess(employeeId: string, auth: AuthenticatedContext) {
-    if (auth.roles.includes('ADMIN')) return;
+    if (employeeId === auth.employeeId) {
+      throw new ForbiddenException('You cannot review your own timesheet submission');
+    }
     const emp = await db.orm.public.Employee.where({ id: employeeId, organizationId: auth.organizationId }).first();
     if (!emp) throw new NotFoundException('Employee not found');
+
+    if (auth.roles.includes('ADMIN')) return;
+
+    if (emp.role === 'ADMIN') {
+      throw new ForbiddenException('Managers cannot review an administrator\'s timesheet submission');
+    }
+
+    const allTeams = await db.orm.public.Team.where({ organizationId: auth.organizationId }).all();
+    const allManagerIds = new Set((allTeams || []).map((t: any) => t.managerId).filter(Boolean));
+    if (emp.role === 'MANAGER' || allManagerIds.has(emp.id)) {
+      throw new ForbiddenException('Managers cannot review another manager\'s timesheet submission');
+    }
+
     if (!emp.teamId) throw new ForbiddenException('You are not authorised to review this submission');
     const team = await db.orm.public.Team.where({ id: emp.teamId, organizationId: auth.organizationId }).first();
     if (!team || team.managerId !== auth.employeeId) {
       throw new ForbiddenException('You are not authorised to review this submission');
     }
+  }
+
+  async resolveSubmissionApprovers(emp: any, auth: AuthenticatedContext, txOrDb: any = db): Promise<any[]> {
+    const orgId = emp.organizationId;
+    const isSubmitterAdmin = emp.role === 'ADMIN' || (auth?.employeeId === emp.id && auth?.roles?.includes('ADMIN'));
+
+    if (isSubmitterAdmin) {
+      const otherAdmins = await txOrDb.orm.public.Employee
+        .where({ organizationId: orgId, role: 'ADMIN', isActive: true })
+        .all();
+      return (otherAdmins || []).filter((a: any) => a.id !== emp.id);
+    }
+
+    const teamQuery = txOrDb.orm.public.Team.where({ organizationId: orgId });
+    const allTeams = typeof teamQuery?.all === 'function' ? await teamQuery.all() : [];
+    const allManagerIds = new Set((allTeams || []).map((t: any) => t.managerId).filter(Boolean));
+    const isSubmitterManager =
+      emp.role === 'MANAGER' ||
+      (auth?.employeeId === emp.id && auth?.roles?.includes('MANAGER')) ||
+      allManagerIds.has(emp.id);
+
+    if (isSubmitterManager) {
+      const admins = await txOrDb.orm.public.Employee
+        .where({ organizationId: orgId, role: 'ADMIN', isActive: true })
+        .all();
+      return (admins || []).filter((a: any) => a.id !== emp.id);
+    }
+
+    if (!emp.teamId) {
+      return [];
+    }
+
+    const team = await txOrDb.orm.public.Team
+      .where({ id: emp.teamId, organizationId: orgId })
+      .first();
+
+    if (!team || !team.managerId || team.managerId === emp.id) {
+      return [];
+    }
+
+    const teamManager = await txOrDb.orm.public.Employee
+      .where({ id: team.managerId, organizationId: orgId, isActive: true })
+      .first();
+
+    if (!teamManager) {
+      return [];
+    }
+
+    return [{ ...teamManager, id: team.managerId }];
+  }
+
+  private validateApproversOrThrow(approvers: any[], emp: any, auth: AuthenticatedContext, allTeams: any[] = []) {
+    if (approvers && approvers.length > 0) return;
+
+    const isSubmitterAdmin = emp.role === 'ADMIN' || (auth?.employeeId === emp.id && auth?.roles?.includes('ADMIN'));
+    if (isSubmitterAdmin) {
+      throw new BadRequestException('No other active administrator exists in your organization to approve your timesheet. An additional administrator must be configured before this timesheet can be submitted.');
+    }
+
+    const allManagerIds = new Set((allTeams || []).map((t: any) => t.managerId).filter(Boolean));
+    const isSubmitterManager =
+      emp.role === 'MANAGER' ||
+      (auth?.employeeId === emp.id && auth?.roles?.includes('MANAGER')) ||
+      allManagerIds.has(emp.id);
+
+    if (isSubmitterManager) {
+      throw new BadRequestException('No active administrator found in your organization to approve your timesheet. Please contact your organization owner to designate an administrator.');
+    }
+
+    if (!emp.teamId) {
+      throw new BadRequestException('You are not assigned to a team. Please contact your administrator to assign you to a team with an active manager.');
+    }
+
+    throw new BadRequestException('Your team does not have an active manager assigned to review timesheets. Please contact your administrator.');
   }
 
   // ─── Employee: Get or Create weekly Timesheet container ──────────────────
@@ -69,6 +158,13 @@ export class TimesheetSubmissionsService {
 
   async submitToday(date: string, auth: AuthenticatedContext) {
     const employeeId = auth.employeeId;
+
+    const emp = await db.orm.public.Employee.where({ id: employeeId, organizationId: auth.organizationId }).first();
+    if (!emp) throw new NotFoundException('Employee not found');
+
+    const allTeams = await db.orm.public.Team.where({ organizationId: auth.organizationId }).all();
+    const approvers = await this.resolveSubmissionApprovers(emp, auth, db);
+    this.validateApproversOrThrow(approvers, emp, auth, allTeams || []);
 
     // Find all DRAFT entries for the given date
     const timesheetId = await this.getOrCreateTimesheetId(employeeId, date, auth.organizationId);
@@ -121,22 +217,16 @@ export class TimesheetSubmissionsService {
 
       await this.auditLogsService.logEvent(auth.organizationId, employeeId, 'SUBMISSION_CREATED', 'TimesheetSubmission', sub.id, { type: 'DAILY', date }, tx);
 
-      // In-app notification to manager
-      const emp = await tx.orm.public.Employee.where({ id: employeeId }).first();
-      if (emp?.teamId) {
-        const team = await tx.orm.public.Team.where({ id: emp.teamId }).first();
-        if (team?.managerId) {
-          const manager = await tx.orm.public.Employee.where({ id: team.managerId }).first();
-          await this.notificationsService.createNotification({
-            recipientId: team.managerId,
-            type: 'TIMESHEET_SUBMITTED',
-            title: 'Time Entry Submitted',
-            message: `${emp.name} submitted time entries for ${date} (${entries.length} entries, ${entries.reduce((s: number, e: any) => s + Number(e.hours), 0)}h).`,
-            relatedEntityType: 'TIMESHEET_SUBMISSION',
-            relatedEntityId: sub.id,
-          }, tx);
-
-        }
+      // In-app notification to resolved approvers
+      for (const approver of approvers) {
+        await this.notificationsService.createNotification({
+          recipientId: approver.id,
+          type: 'TIMESHEET_SUBMITTED',
+          title: 'Time Entry Submitted',
+          message: `${emp.name} submitted time entries for ${date} (${entries.length} entries, ${entries.reduce((s: number, e: any) => s + Number(e.hours), 0)}h).`,
+          relatedEntityType: 'TIMESHEET_SUBMISSION',
+          relatedEntityId: sub.id,
+        }, tx);
       }
 
       return sub;
@@ -150,6 +240,13 @@ export class TimesheetSubmissionsService {
   async submitWeek(weekDate: string, auth: AuthenticatedContext) {
     const employeeId = auth.employeeId;
     const { weekStart, weekEnd } = this.getWeekBounds(weekDate);
+
+    const emp = await db.orm.public.Employee.where({ id: employeeId, organizationId: auth.organizationId }).first();
+    if (!emp) throw new NotFoundException('Employee not found');
+
+    const allTeams = await db.orm.public.Team.where({ organizationId: auth.organizationId }).all();
+    const approvers = await this.resolveSubmissionApprovers(emp, auth, db);
+    this.validateApproversOrThrow(approvers, emp, auth, allTeams || []);
 
     const timesheetId = await this.getOrCreateTimesheetId(employeeId, weekDate, auth.organizationId);
 
@@ -201,21 +298,15 @@ export class TimesheetSubmissionsService {
 
       await this.auditLogsService.logEvent(auth.organizationId, employeeId, 'SUBMISSION_CREATED', 'TimesheetSubmission', sub.id, { type: 'WEEKLY', weekStart, weekEnd, totalHours }, tx);
 
-      const emp = await tx.orm.public.Employee.where({ id: employeeId }).first();
-      if (emp?.teamId) {
-        const team = await tx.orm.public.Team.where({ id: emp.teamId }).first();
-        if (team?.managerId) {
-          const manager = await tx.orm.public.Employee.where({ id: team.managerId }).first();
-          await this.notificationsService.createNotification({
-            recipientId: team.managerId,
-            type: 'TIMESHEET_SUBMITTED',
-            title: 'Weekly Time Sheet Submitted',
-            message: `${emp.name} submitted their weekly time entries for ${weekStart} – ${weekEnd} (${entries.length} entries, ${totalHours}h).`,
-            relatedEntityType: 'TIMESHEET_SUBMISSION',
-            relatedEntityId: sub.id,
-          }, tx);
-
-        }
+      for (const approver of approvers) {
+        await this.notificationsService.createNotification({
+          recipientId: approver.id,
+          type: 'TIMESHEET_SUBMITTED',
+          title: 'Weekly Time Sheet Submitted',
+          message: `${emp.name} submitted their weekly time entries for ${weekStart} – ${weekEnd} (${entries.length} entries, ${totalHours}h).`,
+          relatedEntityType: 'TIMESHEET_SUBMISSION',
+          relatedEntityId: sub.id,
+        }, tx);
       }
 
       return sub;
@@ -230,14 +321,50 @@ export class TimesheetSubmissionsService {
     let employeeIds: string[] = [];
 
     if (auth.roles.includes('ADMIN')) {
-      const emps = await db.orm.public.Employee.where({ organizationId: auth.organizationId, isActive: true }).select('id').all();
-      employeeIds = emps.map((e: any) => e.id);
+      const allTeams = await db.orm.public.Team
+        .where({ organizationId: auth.organizationId })
+        .all();
+      const managedTeamIds = (allTeams || [])
+        .filter((t: any) => t.managerId === auth.employeeId)
+        .map((t: any) => t.id);
+      const allManagerIds = new Set((allTeams || []).map((t: any) => t.managerId).filter(Boolean));
+
+      const emps = await db.orm.public.Employee
+        .where({ organizationId: auth.organizationId, isActive: true })
+        .all();
+
+      const reviewable = (emps || []).filter((e: any) => {
+        if (e.id === auth.employeeId) return false;
+        if (e.role === 'ADMIN') return true;
+        if (e.role === 'MANAGER' || allManagerIds.has(e.id)) return true;
+        if (e.teamId && managedTeamIds.includes(e.teamId)) return true;
+        return false;
+      });
+      employeeIds = reviewable.map((e: any) => e.id);
     } else {
-      const teams = await db.orm.public.Team.where({ managerId: auth.employeeId, organizationId: auth.organizationId }).all();
-      const teamIds = teams.map((t: any) => t.id);
+      const managedTeams = await db.orm.public.Team
+        .where({ managerId: auth.employeeId, organizationId: auth.organizationId })
+        .all();
+      const teamIds = (managedTeams || []).map((t: any) => t.id);
       if (teamIds.length === 0) return [];
-      const members = await db.orm.public.Employee.where({ organizationId: auth.organizationId }).where((e: any) => e.teamId.in(teamIds)).select('id').all();
-      employeeIds = members.map((e: any) => e.id);
+
+      const members = await db.orm.public.Employee
+        .where({ organizationId: auth.organizationId, isActive: true })
+        .where((e: any) => e.teamId.in(teamIds))
+        .all();
+
+      const allTeams = await db.orm.public.Team
+        .where({ organizationId: auth.organizationId })
+        .all();
+      const allManagerIds = new Set((allTeams || []).map((t: any) => t.managerId).filter(Boolean));
+
+      const reviewable = (members || []).filter((e: any) => {
+        if (e.id === auth.employeeId) return false;
+        if (e.role === 'ADMIN') return false;
+        if (e.role === 'MANAGER' || allManagerIds.has(e.id)) return false;
+        return true;
+      });
+      employeeIds = reviewable.map((e: any) => e.id);
     }
 
     if (employeeIds.length === 0) return [];
@@ -277,7 +404,9 @@ export class TimesheetSubmissionsService {
     const sub = await db.orm.public.TimesheetSubmission.where({ id: submissionId }).first();
     if (!sub) throw new NotFoundException('Submission not found');
 
-    await this.assertManagerAccess(sub.employeeId, auth);
+    if (sub.employeeId !== auth.employeeId) {
+      await this.assertManagerAccess(sub.employeeId, auth);
+    }
 
     const entryLinks = await db.orm.public.TimesheetSubmissionEntry.where({ submissionId }).all();
     const entryIds = entryLinks.map((l: any) => l.timeEntryId);

@@ -10,6 +10,7 @@ import { MyProjects } from './features/projects/MyProjects';
 import { ProjectDetail } from './features/projects/ProjectDetail';
 import { MyTimeEntries } from './features/time-entries/MyTimeEntries';
 import { MyTimesheets } from './features/timesheets/MyTimesheets';
+import { TeamTimesheets } from './features/timesheets/TeamTimesheets';
 import { TimesheetDetail } from './features/timesheets/TimesheetDetail';
 import { ManagerApprovals } from './features/approvals/ManagerApprovals';
 import { ManagerTimesheetReview } from './features/approvals/ManagerTimesheetReview';
@@ -57,6 +58,7 @@ function App() {
             <Route path="/time-entries" element={<MyTimeEntries />} />
             <Route path="/timesheets" element={<MyTimesheets />} />
             <Route path="/timesheets/:id" element={<TimesheetDetail />} />
+            <Route path="/team-timesheets" element={<TeamTimesheets />} />
             <Route path="/approvals" element={<ManagerApprovals />} />
             <Route path="/approvals/timesheets/:id" element={<ManagerTimesheetReview />} />
             <Route path="/submission-approvals" element={<SubmissionApprovals />} />

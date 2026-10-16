@@ -1,49 +1,63 @@
-# Logs
-logs
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production and build outputs
+dist/
+dist-ssr/
+build/
+*.tsbuildinfo
+
+# Environment variables and secrets
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Logs and runtime metadata
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+pids
+*.pid
+*.seed
+*.pid.lock
 
-# Dependencies
-node_modules/
-
-# Build output
-dist/
-build/
-
-# Environment variables
-.env
-.env.*
-!.env.example
-
-# Test coverage
+# Test coverage and reports
 coverage/
 .nyc_output/
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-# OS files
+# Operating System files
 .DS_Store
 Thumbs.db
+ehthumbs.db
+desktop.ini
 
-# IDE / Editor
+# IDEs, editors, and tooling
 .idea/
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
+.vscode/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.swo
+*.swn
+*.swp
 
-# TypeScript build info
-*.tsbuildinfo
-
-# Temporary files
+# Temporary directories
 .temp/
 .tmp/
 
-# Documentation containing sensitive internal architecture & credentials
-
+# Binaries and local utilities
+mailpit.exe
+*.exe

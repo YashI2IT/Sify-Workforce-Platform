@@ -4,17 +4,31 @@ import * as nodemailer from 'nodemailer';
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter;
+  private readonly mailHost: string;
+  private readonly mailPort: number;
 
   constructor() {
+    this.mailHost = process.env.MAIL_HOST || '127.0.0.1';
+    this.mailPort = parseInt(process.env.MAIL_PORT || '1025', 10);
+
     this.transporter = nodemailer.createTransport({
-      host: process.env.MAIL_HOST || 'localhost',
-      port: parseInt(process.env.MAIL_PORT || '1025', 10),
+      host: this.mailHost,
+      port: this.mailPort,
       secure: false, // true for 465, false for other ports
       auth: process.env.MAIL_USER ? {
         user: process.env.MAIL_USER,
         pass: process.env.MAIL_PASSWORD,
       } : undefined,
     });
+  }
+
+  private handleSendError(methodName: string, recipient: string, error: any, extraInfo?: string): void {
+    const isConnError = error?.code === 'ECONNREFUSED' || error?.code === 'ESOCKET';
+    if (process.env.NODE_ENV === 'development' && isConnError) {
+      console.warn(`[MailService DEV] Local SMTP server not active on ${this.mailHost}:${this.mailPort}.${extraInfo ? ` ${extraInfo}` : ` Delivery of ${methodName} to ${recipient} skipped.`}`);
+      return;
+    }
+    console.error(`[MailService] Failed to send ${methodName} to ${recipient}:`, error);
   }
 
   async sendInvitationEmail(
@@ -83,11 +97,12 @@ The Sify Workforce Team
       });
       console.log(`[MailService] Successfully sent invitation to ${email}`);
     } catch (error: any) {
-      console.error(`[MailService] Failed to send invitation email to ${email}:`, error);
-      if (process.env.NODE_ENV === 'development' && (error?.code === 'ECONNREFUSED' || error?.code === 'ESOCKET')) {
-        console.warn(`[MailService DEV] Local SMTP server not active on port 1025. Simulated invitation link: ${invitationLink}`);
+      const isConnError = error?.code === 'ECONNREFUSED' || error?.code === 'ESOCKET';
+      if (process.env.NODE_ENV === 'development' && isConnError) {
+        console.warn(`[MailService DEV] Local SMTP server not active on ${this.mailHost}:${this.mailPort}. Simulated invitation link: ${invitationLink}`);
         return;
       }
+      console.error(`[MailService] Failed to send invitation email to ${email}:`, error);
       throw new InternalServerErrorException('Failed to deliver invitation email. Please try again later.');
     }
   }
@@ -179,11 +194,12 @@ ${frontendUrl}
       });
       console.log(`[MailService] Successfully sent credentials email to ${email}`);
     } catch (error: any) {
-      console.error(`[MailService] Failed to send credentials email to ${email}:`, error);
-      if (process.env.NODE_ENV === 'development' && (error?.code === 'ECONNREFUSED' || error?.code === 'ESOCKET')) {
-        console.warn(`[MailService DEV] Local SMTP server not active on port 1025. Simulated credentials email delivered to ${email}: Username="${username}", Password="${password}".`);
+      const isConnError = error?.code === 'ECONNREFUSED' || error?.code === 'ESOCKET';
+      if (process.env.NODE_ENV === 'development' && isConnError) {
+        console.warn(`[MailService DEV] Local SMTP server not active on ${this.mailHost}:${this.mailPort}. Simulated credentials email delivered to ${email}: Username="${username}", Password="${password}".`);
         return;
       }
+      console.error(`[MailService] Failed to send credentials email to ${email}:`, error);
       throw new InternalServerErrorException('Failed to deliver invitation email. Please try again later.');
     }
   }
@@ -231,8 +247,8 @@ The Sify Workforce Team
         html: htmlContent,
       });
       console.log(`[MailService] Sent Timesheet Approval Email to ${email}`);
-    } catch (error) {
-      console.error(`[MailService] Failed to send Timesheet Approval Email to ${email}:`, error);
+    } catch (error: any) {
+      this.handleSendError('Timesheet Approval Email', email, error);
     }
   }
 
@@ -288,8 +304,8 @@ The Sify Workforce Team
         html: htmlContent,
       });
       console.log(`[MailService] Sent Timesheet Rejection Email to ${email}`);
-    } catch (error) {
-      console.error(`[MailService] Failed to send Timesheet Rejection Email to ${email}:`, error);
+    } catch (error: any) {
+      this.handleSendError('Timesheet Rejection Email', email, error);
     }
   }
 
@@ -339,8 +355,8 @@ The Sify Workforce Team
         html: htmlContent,
       });
       console.log(`[MailService] Sent Timesheet Submission Email to ${managerEmail}`);
-    } catch (error) {
-      console.error(`[MailService] Failed to send Timesheet Submission Email to ${managerEmail}:`, error);
+    } catch (error: any) {
+      this.handleSendError('Timesheet Submission Email', managerEmail, error);
     }
   }
 
@@ -394,8 +410,8 @@ The Sify Workforce Team
         html: htmlContent,
       });
       console.log(`[MailService] Sent reminder email to ${email}`);
-    } catch (error) {
-      console.error(`[MailService] Failed to send reminder to ${email}:`, error);
+    } catch (error: any) {
+      this.handleSendError('Timesheet Reminder Email', email, error);
     }
   }
 
@@ -454,9 +470,8 @@ ${frontendUrl}
         html: htmlContent,
       });
       console.log(`[MailService] Successfully sent notification email to ${email}`);
-    } catch (error) {
-      console.error(`[MailService] Failed to send notification email to ${email}:`, error);
-      // We do not throw an error here, so we don't break the business transaction
+    } catch (error: any) {
+      this.handleSendError('notification email', email, error);
     }
   }
 }

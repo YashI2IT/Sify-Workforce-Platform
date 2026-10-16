@@ -125,6 +125,13 @@ export const AppLayout = () => {
       ]
     },
     {
+      title: 'TIMESHEETS',
+      items: [
+        { name: 'My Timesheets', path: '/timesheets', icon: CalendarDays },
+        { name: 'Pending Approvals', path: '/approvals', icon: CheckSquare },
+      ]
+    },
+    {
       title: 'SYSTEM',
       items: [
         { name: 'Working Times', path: '/admin/working-times', icon: Clock },
@@ -147,7 +154,14 @@ export const AppLayout = () => {
       items: [
         { name: 'My Projects', path: '/projects', icon: Briefcase, roles: ['EMPLOYEE', 'MANAGER'] },
         { name: 'Time Entries', path: '/time-entries', icon: Clock, roles: ['EMPLOYEE', 'MANAGER'] },
+      ]
+    },
+    {
+      title: 'Timesheets',
+      items: [
         { name: 'My Timesheets', path: '/timesheets', icon: CalendarDays, roles: ['EMPLOYEE', 'MANAGER'] },
+        { name: 'Team Timesheets', path: '/team-timesheets', icon: Users, roles: ['MANAGER'] },
+        { name: 'Pending Approvals', path: '/approvals', icon: CheckSquare, roles: ['MANAGER'] },
       ]
     },
     {
@@ -156,12 +170,6 @@ export const AppLayout = () => {
         { name: 'Employees', path: '/employees', icon: Users, roles: ['MANAGER'] },
         { name: 'Teams', path: '/teams', icon: UsersRound, roles: ['MANAGER'] },
         { name: 'Projects', path: '/admin/projects', icon: Briefcase, roles: ['MANAGER'] },
-      ]
-    },
-    {
-      title: 'Approvals',
-      items: [
-        { name: 'Pending Approvals', path: '/approvals', icon: CheckSquare, roles: ['MANAGER'] },
       ]
     },
     {
@@ -191,6 +199,21 @@ export const AppLayout = () => {
     const currentPath = location.pathname;
     if (itemPath === '/dashboard') {
       return currentPath === '/dashboard';
+    }
+
+    // Team Timesheets active check
+    if (itemPath === '/team-timesheets') {
+      return currentPath.startsWith('/team-timesheets');
+    }
+
+    // My Timesheets active check: match /timesheets and subpaths except /team-timesheets
+    if (itemPath === '/timesheets') {
+      return (currentPath === '/timesheets' || currentPath.startsWith('/timesheets/')) && !currentPath.startsWith('/team-timesheets');
+    }
+
+    // Approvals active check: matches /approvals and /approvals/timesheets/:id
+    if (itemPath === '/approvals') {
+      return currentPath.startsWith('/approvals');
     }
 
     // Projects active check: keeps Projects highlighted for nested project workspace routes

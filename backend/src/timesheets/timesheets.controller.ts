@@ -32,6 +32,29 @@ export class TimesheetsController {
     return this.timesheetsService.findPendingApprovals(auth, page, limit);
   }
 
+  @Get('team')
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({ summary: 'Get timesheets for employees in the manager\'s authorized teams' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'status', required: false, type: String })
+  @ApiQuery({ name: 'employeeId', required: false, type: String })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  async findTeamTimesheets(@GetAuthContext() auth: AuthenticatedContext, @Query() query: any) {
+    const { page, limit } = parsePagination(query);
+    return this.timesheetsService.findTeamTimesheets(auth, {
+      page,
+      limit,
+      status: query.status,
+      employeeId: query.employeeId,
+      startDate: query.startDate,
+      endDate: query.endDate,
+      search: query.search,
+    });
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a specific timesheet' })
   @ApiParam({ name: 'id', description: 'Timesheet UUID' })

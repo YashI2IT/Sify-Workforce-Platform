@@ -1,4 +1,0 @@
-{
-    "semgrep.scan.onlyGitDirty": false,
-    "css.lint.unknownAtRules": "ignore"
-}

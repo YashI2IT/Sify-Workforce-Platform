@@ -1,26 +1,26 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Sliders, AlertCircle, ArrowUp, ArrowDown, X, AlertTriangle } from 'lucide-react';
 
-export type VersatileFieldType =
-  | 'SHORT_TEXT'
-  | 'LONG_TEXT'
-  | 'DROPDOWN'
-  | 'TEXT_AREA'
-  | 'NUMBER'
-  | 'DATE'
-  | 'CHECKBOX';
+import {
+  type VersatileFieldType,
+  type VersatileCustomField,
+  validateCustomFields,
+} from './versatileFieldUtils';
 
-export const SUPPORTED_FIELD_TYPES = [
+export type { VersatileFieldType, VersatileCustomField };
+export { validateCustomFields };
+
+const SUPPORTED_FIELD_TYPES = [
   { value: 'SHORT_TEXT', label: 'Short Text' },
   { value: 'LONG_TEXT', label: 'Long Text' },
   { value: 'DROPDOWN', label: 'Dropdown' },
 ] as const;
 
-export const isLegacyType = (type: string): boolean => {
+const isLegacyType = (type: string): boolean => {
   return ['NUMBER', 'DATE', 'CHECKBOX'].includes(type);
 };
 
-export const formatFieldTypeLabel = (type: string): string => {
+const formatFieldTypeLabel = (type: string): string => {
   switch (type) {
     case 'SHORT_TEXT': return 'Short Text';
     case 'LONG_TEXT':
@@ -33,16 +33,6 @@ export const formatFieldTypeLabel = (type: string): string => {
   }
 };
 
-export interface VersatileCustomField {
-  id: string;
-  name: string;
-  type: VersatileFieldType;
-  required: boolean;
-  placeholder?: string;
-  options?: string[];
-  previousNames?: string[];
-}
-
 export interface VersatileFieldBuilderProps {
   fields: VersatileCustomField[];
   onChange: (fields: VersatileCustomField[]) => void;
@@ -52,42 +42,6 @@ export interface VersatileFieldBuilderProps {
   isSaving?: boolean;
   showSaveButton?: boolean;
 }
-
-export const validateCustomFields = (fields: VersatileCustomField[]): string | null => {
-  const seenNames = new Set<string>();
-
-  for (let i = 0; i < fields.length; i++) {
-    const f = fields[i];
-    const trimmedName = f.name.trim();
-
-    if (!trimmedName) {
-      return `Field #${i + 1}: Field label is required.`;
-    }
-
-    const lower = trimmedName.toLowerCase();
-    if (seenNames.has(lower)) {
-      return `Duplicate field label "${trimmedName}". Each field must have a unique label.`;
-    }
-    seenNames.add(lower);
-
-    if (f.type === 'DROPDOWN') {
-      const validOptions = (f.options || []).map(o => o.trim()).filter(Boolean);
-      if (validOptions.length === 0) {
-        return `Dropdown field "${trimmedName}" must have at least one valid option.`;
-      }
-      const seenOpts = new Set<string>();
-      for (const opt of validOptions) {
-        const lowerOpt = opt.toLowerCase();
-        if (seenOpts.has(lowerOpt)) {
-          return `Dropdown field "${trimmedName}" contains duplicate option "${opt}".`;
-        }
-        seenOpts.add(lowerOpt);
-      }
-    }
-  }
-
-  return null;
-};
 
 export const VersatileFieldBuilder: React.FC<VersatileFieldBuilderProps> = ({
   fields,
@@ -399,9 +353,11 @@ export const VersatileFieldBuilder: React.FC<VersatileFieldBuilderProps> = ({
                       aria-label="Field Type"
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 shadow-2xs"
                     >
-                      <option value="SHORT_TEXT">Short Text</option>
-                      <option value="LONG_TEXT">Long Text</option>
-                      <option value="DROPDOWN">Dropdown</option>
+                      {SUPPORTED_FIELD_TYPES.map(t => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
                       {isLegacyType(field.type) && (
                         <option value={field.type} disabled>
                           {formatFieldTypeLabel(field.type)} (Legacy)

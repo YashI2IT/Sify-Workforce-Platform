@@ -318,7 +318,7 @@ export const ProjectOnboarding: React.FC<ProjectOnboardingProps> = ({
 
     if (isModal) {
       return (
-        <Modal isOpen={isOpen} onClose={onClose || (() => {})} title="Access Restricted" maxWidth="md">
+        <Modal isOpen={isOpen} onClose={onClose || (() => { })} title="Access Restricted" maxWidth="md">
           {errorBody}
         </Modal>
       );
@@ -357,22 +357,20 @@ export const ProjectOnboarding: React.FC<ProjectOnboardingProps> = ({
                 className="flex-1 flex flex-col gap-1.5"
               >
                 <div
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    isCompleted
-                      ? 'bg-emerald-500'
-                      : isCurrent
+                  className={`h-1.5 rounded-full transition-all duration-300 ${isCompleted
+                    ? 'bg-emerald-500'
+                    : isCurrent
                       ? 'bg-slate-900'
                       : 'bg-slate-100'
-                  }`}
+                    }`}
                 />
                 <span
-                  className={`text-[10px] hidden sm:block font-bold tracking-tight truncate ${
-                    isCompleted
-                      ? 'text-emerald-700'
-                      : isCurrent
+                  className={`text-[10px] hidden sm:block font-bold tracking-tight truncate ${isCompleted
+                    ? 'text-emerald-700'
+                    : isCurrent
                       ? 'text-slate-900'
                       : 'text-slate-400'
-                  }`}
+                    }`}
                 >
                   {s.label}
                 </span>
@@ -709,6 +707,7 @@ export const ProjectOnboarding: React.FC<ProjectOnboardingProps> = ({
             </div>
           </div>
 
+
           {/* ── Reused Exact Task Form Modal for Task Creation ── */}
           <TaskFormModal
             isOpen={isTaskModalOpen}
@@ -945,7 +944,7 @@ export const ProjectOnboarding: React.FC<ProjectOnboardingProps> = ({
     return (
       <Modal
         isOpen={isOpen}
-        onClose={onClose || (() => {})}
+        onClose={onClose || (() => { })}
         title="Create New Project"
         maxWidth="lg"
       >
