@@ -51,6 +51,10 @@ export class UmsAuthGuard implements CanActivate {
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const request = ctx.switchToHttp().getRequest();
 
+    if (request.path.startsWith('/api/v1/user')) {
+      return true; // Public UMS auth proxy routes (login, register, refresh-token, etc.)
+    }
+
     if (request.path === '/api/v1/organizations' && request.method === 'POST') {
       return true; // Let UmsOnboardingGuard handle this specific route
     }

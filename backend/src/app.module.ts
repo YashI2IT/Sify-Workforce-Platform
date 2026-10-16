@@ -31,6 +31,7 @@ import { UmsAuthGuard } from './auth/ums-auth.guard.js';
  */
 import { RolesGuard } from './auth/roles.guard.js';
 import { AuthController } from './auth/auth.controller.js';
+import { UmsProxyController } from './auth/ums-proxy.controller.js';
 import { EmployeeInvitationsModule } from './employee-invitations/employee-invitations.module.js';
 import { MailModule } from './mail/mail.module.js';
 import { WorkingTimesModule } from './working-times/working-times.module.js';
@@ -72,7 +73,7 @@ const authGuardProvider = [
     TimesheetSubmissionsModule,
 
   ],
-  controllers: [AppController, AuthController],
+  controllers: [AppController, AuthController, UmsProxyController],
   providers: [
     AppService,
     ...authGuardProvider,

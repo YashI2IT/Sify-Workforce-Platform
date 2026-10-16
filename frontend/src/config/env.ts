@@ -1,6 +1,6 @@
 export const env = {
   VITE_API_URL: import.meta.env.VITE_API_URL || '/api/v1',
-  VITE_USER_MANAGEMENT_URL: import.meta.env.VITE_USER_MANAGEMENT_URL || 'https://apidev.sifymodernization.digital/user-mgt/api',
+  VITE_USER_MANAGEMENT_URL: import.meta.env.VITE_USER_MANAGEMENT_URL || import.meta.env.VITE_API_URL || '/api/v1',
   VITE_AUTH_APP_ID: import.meta.env.VITE_AUTH_APP_ID || 'Project-Management',
 
   /**
