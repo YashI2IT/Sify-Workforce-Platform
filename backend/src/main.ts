@@ -68,6 +68,11 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);
 
+  // Redirect root to API docs
+  app.getHttpAdapter().getInstance().get('/', (_req: any, res: any) => {
+    res.redirect('/api/docs');
+  });
+
   await app.listen(port, host);
   logger.log(`Server listening on http://${host}:${port}`);
 }
