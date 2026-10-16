@@ -69,13 +69,25 @@ export class UmsAuthGuard implements CanActivate {
       return true; // Let UmsOnboardingGuard handle this specific route
     }
 
+    const isAuthMe = request.path === '/api/v1/auth/me' && request.method === 'GET';
+
     const authHeader = request.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      if (isAuthMe) {
+        request.umsUser = null;
+        return true;
+      }
       throw new UnauthorizedException('Missing or invalid Authorization header');
     }
 
     const token = authHeader.substring(7);
-    if (!token) throw new UnauthorizedException('Missing token');
+    if (!token) {
+      if (isAuthMe) {
+        request.umsUser = null;
+        return true;
+      }
+      throw new UnauthorizedException('Missing token');
+    }
 
     // Validate token via UMS
     let umsUser: { id: string; email: string; role: Record<string, any> };
@@ -91,19 +103,35 @@ export class UmsAuthGuard implements CanActivate {
       });
 
       if (!response.ok) {
+        if (isAuthMe) {
+          request.umsUser = null;
+          return true;
+        }
         throw new UnauthorizedException('Token invalid or expired');
       }
 
       const body = await response.json();
       if (!body?.data?.valid) {
+        if (isAuthMe) {
+          request.umsUser = null;
+          return true;
+        }
         throw new UnauthorizedException('Token invalid or expired');
       }
 
       umsUser = body.data.user;
       if (!umsUser?.email) {
+        if (isAuthMe) {
+          request.umsUser = null;
+          return true;
+        }
         throw new UnauthorizedException('User email missing from token');
       }
     } catch (err) {
+      if (isAuthMe) {
+        request.umsUser = null;
+        return true;
+      }
       if (err instanceof UnauthorizedException) throw err;
       console.error('[UmsAuthGuard] Token validation failed:', (err as Error).message);
       throw new UnauthorizedException('Token validation failed');
@@ -186,7 +214,6 @@ export class UmsAuthGuard implements CanActivate {
       employee = null;
     }
 
-    const isAuthMe = request.path.endsWith('/auth/me');
     const isAcceptInvite = (request.path.match(/^\/api\/v1\/employee-invitations\/[^/]+\/accept$/) || request.path.match(/^\/api\/v1\/employee-invitations\/[^/]+\/accept-invite$/)) && request.method === 'POST';
     const isMyInvitations = request.path.endsWith('/employee-invitations/my-invitations') && request.method === 'GET';
 
