@@ -33,7 +33,7 @@ async function waitForPort(port: number, host: string, maxAttempts = 10, delayMs
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const port = Number(process.env.PORT ?? 3000);
-  const host = '127.0.0.1';
+  const host = process.env.HOST ?? (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
 
   await waitForPort(port, host, 10, 500, logger);
 
@@ -41,9 +41,20 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
   app.enableShutdownHooks();
 
-  // Enable CORS for local development frontend
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://127.0.0.1:5173',
+  ];
+  if (process.env.FRONTEND_URL) {
+    const feUrl = process.env.FRONTEND_URL.trim().replace(/\/$/, '');
+    if (!allowedOrigins.includes(feUrl)) allowedOrigins.push(feUrl);
+  }
+
+  // Enable CORS
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://127.0.0.1:5173'],
+    origin: allowedOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });

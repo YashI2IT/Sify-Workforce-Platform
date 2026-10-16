@@ -61,3 +61,12 @@ desktop.ini
 # Binaries and local utilities
 mailpit.exe
 *.exe
+
+# Local machine documentation (kept locally, excluded from git)
+docs/
+
+# Prisma skills sync directories
+.agents/
+.claude/
+.cursor/
+.devin/
