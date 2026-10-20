@@ -214,7 +214,19 @@ export const EmployeesList = ({ isSetupWizard = false }: EmployeesListProps = {}
       inviteFormData.name.trim().toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9._-]/g, '') ||
       'user';
 
+    if (derivedUsername.length < 3) {
+      setFormError('Username must be at least 3 characters long.');
+      setFormSubmitting(false);
+      return;
+    }
+
     const derivedPassword = inviteFormData.password.trim() || createRandomPassword();
+
+    if (derivedPassword.length < 6) {
+      setFormError('Password must be at least 6 characters long.');
+      setFormSubmitting(false);
+      return;
+    }
 
     try {
       await createInvitation({
@@ -230,9 +242,16 @@ export const EmployeesList = ({ isSetupWizard = false }: EmployeesListProps = {}
       showToast('Invitation sent successfully with login details', 'success');
       loadData();
     } catch (err: any) {
-      const msg = typeof err?.data === 'string'
-        ? err.data
-        : err?.data?.message || err?.message || 'Failed to send invitation';
+      let msg = 'Failed to send invitation';
+      if (Array.isArray(err?.data?.errors) && err.data.errors.length > 0) {
+        msg = err.data.errors.map((e: any) => e.message || e).join(', ');
+      } else if (typeof err?.data === 'string') {
+        msg = err.data;
+      } else if (err?.data?.message) {
+        msg = err.data.message;
+      } else if (err?.message) {
+        msg = err.message;
+      }
       setFormError(msg);
     } finally {
       setFormSubmitting(false);
@@ -915,6 +934,7 @@ export const EmployeesList = ({ isSetupWizard = false }: EmployeesListProps = {}
                     <input
                       type="text"
                       required
+                      minLength={3}
                       placeholder="e.g. johndoe"
                       value={inviteFormData.username}
                       onChange={e => setInviteFormData({ ...inviteFormData, username: e.target.value.toLowerCase().replace(/\s+/g, '') })}
