@@ -913,6 +913,31 @@ export const ManagerTimesheetReview = () => {
       : popoverContent;
   };
 
+  if (loading) {
+    return (
+      <div className="py-24 text-center text-slate-500 space-y-3">
+        <LoadingSpinner size="lg" />
+        <p className="text-xs font-mono font-medium">Loading timesheet review...</p>
+      </div>
+    );
+  }
+
+  if (error || !timesheet) {
+    return (
+      <div className="p-8 max-w-xl mx-auto text-center space-y-4">
+        <AlertCircle className="w-12 h-9 text-rose-500 mx-auto" />
+        <h2 className="text-xl font-bold text-slate-900 font-display">Timesheet Not Found</h2>
+        <p className="text-sm text-rose-600">{error || 'The requested timesheet could not be retrieved.'}</p>
+        <Link
+          to="/approvals"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-slate-950 text-white rounded-xl text-sm font-medium hover:bg-slate-800 shadow-2xs transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Pending Approvals
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">

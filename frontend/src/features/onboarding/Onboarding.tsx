@@ -244,11 +244,13 @@ export const Onboarding = () => {
         {/* Floating Curved Card */}
         <div className="rounded-[28px] bg-white border border-slate-200/90 shadow-2xl shadow-slate-200/70 overflow-hidden transition-all duration-300">
           <div className="p-6 sm:p-8 space-y-5">
-            {/* Brand Logo Squircle */}
-            <div className="w-12 h-9 rounded-[18px] bg-slate-900 border border-slate-800 flex items-center justify-center shadow-md mx-auto transition-transform hover:scale-105 duration-200">
-              <span className="w-5 h-5 rounded bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-xs">
-                SW
-              </span>
+            {/* Brand Logo */}
+            <div className="flex justify-center">
+              <img
+                src="/sify Workforce Logo on Transparent Canvas.png"
+                alt="Sify Workforce"
+                className="h-10 w-auto max-w-[190px] object-contain transition-transform hover:scale-105 duration-200"
+              />
             </div>
 
             {/* Header Titles */}

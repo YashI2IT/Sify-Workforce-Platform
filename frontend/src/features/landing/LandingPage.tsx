@@ -2,20 +2,20 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import Lenis from 'lenis';
-import { 
-  Users, 
-  Briefcase, 
-  Clock, 
-  CheckCircle2, 
-  ArrowRight, 
-  Layers, 
-  CalendarCheck, 
-  Building2, 
-  UserCheck, 
-  Check, 
-  BarChart3, 
-  SlidersHorizontal, 
-  FolderGit2, 
+import {
+  Users,
+  Briefcase,
+  Clock,
+  CheckCircle2,
+  ArrowRight,
+  Layers,
+  CalendarCheck,
+  Building2,
+  UserCheck,
+  Check,
+  BarChart3,
+  SlidersHorizontal,
+  FolderGit2,
   Shield,
   PieChart,
   Activity,
@@ -27,14 +27,14 @@ import type { RootState } from '@/store';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
-function ScrollReveal({ 
-  children, 
-  className = '', 
+function ScrollReveal({
+  children,
+  className = '',
   delay = 0,
   id,
-}: { 
-  children: React.ReactNode; 
-  className?: string; 
+}: {
+  children: React.ReactNode;
+  className?: string;
   delay?: number;
   id?: string;
 }) {
@@ -73,9 +73,8 @@ function ScrollReveal({
         transitionDuration: '700ms',
         transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
       }}
-      className={`transition-all will-change-transform ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
-      } ${className}`}
+      className={`transition-all will-change-transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+        } ${className}`}
     >
       {children}
     </div>
@@ -125,11 +124,10 @@ function ScrollCard({
         transitionDuration: '650ms',
         transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
       }}
-      className={`transition-all will-change-transform ${
-        isVisible
-          ? 'opacity-100 translate-y-0 scale-100'
-          : 'opacity-0 translate-y-7 scale-[0.98]'
-      } ${className}`}
+      className={`transition-all will-change-transform ${isVisible
+        ? 'opacity-100 translate-y-0 scale-100'
+        : 'opacity-0 translate-y-7 scale-[0.98]'
+        } ${className}`}
     >
       {children}
     </div>
@@ -180,8 +178,8 @@ function AnimatedWord() {
       `}</style>
       <span className="relative text-slate-950 whitespace-nowrap text-left">
         {text}
-        <span 
-          className="inline-block w-[2px] h-[0.9em] bg-[#27F087] align-middle ml-[2px] -mt-[0.1em]" 
+        <span
+          className="inline-block w-[2px] h-[0.9em] bg-[#27F087] align-middle ml-[2px] -mt-[0.1em]"
           style={{ animation: 'cursor-blink 1s step-end infinite' }}
         />
       </span>
@@ -349,10 +347,11 @@ export function LandingPage() {
       <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/85 backdrop-blur-md transition-all">
         <div className="w-full px-6 md:px-10 lg:px-16 h-18 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#27F087] rounded-md group">
-            <div className="w-8 h-8 rounded-lg bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-sm shadow-xs transition-transform group-hover:scale-105">
-              SW
-            </div>
-            <span className="text-xl font-bold text-slate-950 tracking-tight font-display">Sify Workforce</span>
+            <img
+              src="/sify Workforce Logo on Transparent Canvas.png"
+              alt="Sify Workforce"
+              className="h-9 w-auto max-w-[190px] object-contain transition-transform group-hover:scale-105"
+            />
           </Link>
 
           <Link to={isAuthenticated ? "/dashboard" : "/register"}>
@@ -414,12 +413,12 @@ export function LandingPage() {
             </div>
 
             {/* Hero Workspace Preview with Scroll-Driven Focus Animation & Apple Window Frame */}
-            <div 
+            <div
               className="mt-12 relative max-w-5xl mx-auto transition-all duration-300 ease-out will-change-transform"
               style={{
                 perspective: '1200px',
-                transform: scrollProgress >= 0.99 
-                  ? 'none' 
+                transform: scrollProgress >= 0.99
+                  ? 'none'
                   : `perspective(1200px) rotateX(${rotateXValue}deg) scale(${scaleValue})`,
                 filter: blurValue > 0.1 ? `blur(${blurValue}px)` : 'none',
                 opacity: opacityValue,
@@ -428,7 +427,7 @@ export function LandingPage() {
             >
               {/* Apple macOS Window Container with Subtle Green Neon Border */}
               <div className="rounded-[14px] bg-white border border-[#27F087]/25 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35),0_0_18px_rgba(39,240,135,0.12)] ring-1 ring-slate-900/10 overflow-hidden flex flex-col transition-all">
-                
+
                 {/* Apple macOS Window Header Chrome */}
                 <div className="h-9 px-4 bg-[#16181D] border-b border-white/[0.08] flex items-center justify-between text-xs select-none backdrop-blur-md">
                   {/* macOS Traffic Lights */}
@@ -455,10 +454,11 @@ export function LandingPage() {
                   <div className="lg:col-span-3 bg-[#0F1318] text-slate-300 p-4 sm:p-5 flex flex-col justify-between border-r border-white/[0.08]">
                     <div className="space-y-6">
                       <div className="flex items-center gap-2.5 px-2">
-                        <div className="w-6 h-6 rounded-md bg-[#27F087] flex items-center justify-center text-slate-950 font-bold text-xs shadow-xs">
-                          SW
-                        </div>
-                        <span className="text-sm font-bold text-white tracking-tight">Sify Workforce</span>
+                        <img
+                          src="/sify Workforce Logo on Transparent Canvas.png"
+                          alt="Sify Workforce"
+                          className="h-6 w-auto max-w-[140px] object-contain brightness-0 invert"
+                        />
                       </div>
 
                       <div className="space-y-1 text-xs">
@@ -471,11 +471,10 @@ export function LandingPage() {
                               key={tab.id}
                               type="button"
                               onClick={() => setActiveTab(tab.id)}
-                              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-all cursor-pointer ${
-                                isActive
-                                  ? 'bg-white/15 text-white font-medium shadow-xs border border-white/10'
-                                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-                              }`}
+                              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-all cursor-pointer ${isActive
+                                ? 'bg-white/15 text-white font-medium shadow-xs border border-white/10'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                }`}
                             >
                               <div className="flex items-center gap-2.5">
                                 <TabIcon className={`w-4 h-4 ${isActive ? 'text-[#27F087]' : ''}`} />
@@ -498,349 +497,348 @@ export function LandingPage() {
                     </div>
                   </div>
 
-                    {/* Mockup Main Canvas */}
-                    <div className="lg:col-span-9 p-5 sm:p-7 flex flex-col justify-between space-y-5 bg-white">
-                      
-                      {/* VIEW 1: Dashboard View */}
-                      {activeTab === 'dashboard' && (
-                        <div className="space-y-5 animate-fadeIn">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
-                            <div>
-                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Operations Dashboard</p>
-                              <h2 className="text-xl sm:text-2xl font-bold text-slate-950 mt-0.5 font-display">Workforce Time & Velocity</h2>
-                              <p className="text-xs text-slate-500">Real-time team hours and project capacity</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 border border-slate-200 text-xs font-semibold">
-                                <Calendar className="w-3.5 h-3.5 text-slate-600" />
-                                Week 38 (Current)
-                              </span>
-                            </div>
+                  {/* Mockup Main Canvas */}
+                  <div className="lg:col-span-9 p-5 sm:p-7 flex flex-col justify-between space-y-5 bg-white">
+
+                    {/* VIEW 1: Dashboard View */}
+                    {activeTab === 'dashboard' && (
+                      <div className="space-y-5 animate-fadeIn">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Operations Dashboard</p>
+                            <h2 className="text-xl sm:text-2xl font-bold text-slate-950 mt-0.5 font-display">Workforce Time & Velocity</h2>
+                            <p className="text-xs text-slate-500">Real-time team hours and project capacity</p>
                           </div>
-
-                          {/* Metric Stat Cards */}
-                          <div className="grid grid-cols-3 gap-3">
-                            <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-200/80">
-                              <p className="text-[10px] font-semibold text-slate-500 uppercase">Weekly Hours</p>
-                              <div className="flex items-baseline gap-1 mt-0.5">
-                                <span className="text-lg sm:text-xl font-extrabold text-slate-950 font-mono">38.5</span>
-                                <span className="text-xs text-slate-400 font-mono">/ 40.0h</span>
-                              </div>
-                              <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
-                                <div className="bg-[#27F087] h-full rounded-full" style={{ width: '96%' }} />
-                              </div>
-                            </div>
-
-                            <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-200/80">
-                              <p className="text-[10px] font-semibold text-slate-500 uppercase">Active Projects</p>
-                              <div className="flex items-baseline gap-1 mt-0.5">
-                                <span className="text-lg sm:text-xl font-extrabold text-slate-950 font-mono">2</span>
-                                <span className="text-xs text-emerald-600 font-semibold font-mono">Active</span>
-                              </div>
-                              <p className="text-[10px] text-slate-400 mt-2">12 Tasks Allocated</p>
-                            </div>
-
-                            <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-200/80">
-                              <p className="text-[10px] font-semibold text-slate-500 uppercase">Timesheet Status</p>
-                              <div className="flex items-baseline gap-1 mt-0.5">
-                                <span className="text-xs sm:text-sm font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">Ready</span>
-                              </div>
-                              <p className="text-[10px] text-slate-400 mt-2">Mon–Sun Batch</p>
-                            </div>
-                          </div>
-
-                          {/* Weekly Hours Bar Chart */}
-                          <div className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/70 space-y-2.5">
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="font-semibold text-slate-800">Weekly Hours Distribution</span>
-                              <span className="text-[11px] font-mono text-slate-500">Mon–Fri: 8.0h avg • Weekend: 0h</span>
-                            </div>
-
-                            <div className="h-28 flex items-end justify-between gap-2 pt-2 px-2">
-                              {[
-                                { day: 'Mon', h: '8.0h', height: '100%', fill: 'bg-[#27F087]' },
-                                { day: 'Tue', h: '8.0h', height: '100%', fill: 'bg-[#27F087]' },
-                                { day: 'Wed', h: '7.5h', height: '94%', fill: 'bg-[#27F087]' },
-                                { day: 'Thu', h: '8.0h', height: '100%', fill: 'bg-[#27F087]' },
-                                { day: 'Fri', h: '7.0h', height: '88%', fill: 'bg-[#27F087]' },
-                                { day: 'Sat', h: '—', height: '6%', fill: 'bg-slate-200' },
-                                { day: 'Sun', h: '—', height: '6%', fill: 'bg-slate-200' },
-                              ].map((bar) => (
-                                <div key={bar.day} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
-                                  <span className="text-[10px] font-mono text-slate-500">{bar.h}</span>
-                                  <div className="w-full max-w-[34px] bg-slate-200/80 rounded-t-md relative overflow-hidden h-[60px]">
-                                    <div
-                                      className={`w-full absolute bottom-0 rounded-t-md transition-all duration-500 ${bar.fill}`}
-                                      style={{ height: bar.height }}
-                                    />
-                                  </div>
-                                  <span className="text-[10px] font-semibold text-slate-600 uppercase">{bar.day}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* VIEW 2: Projects View */}
-                      {activeTab === 'projects' && (
-                        <div className="space-y-4 animate-fadeIn">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
-                            <div>
-                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Project Portfolio</p>
-                              <h2 className="text-xl sm:text-2xl font-bold text-slate-950 mt-0.5 font-display">Active Projects & Deliverables</h2>
-                              <p className="text-xs text-slate-500">Initiatives, requirements, and allocated team assignments</p>
-                            </div>
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200 text-xs font-semibold">
-                              2 Active Projects
-                            </span>
-                          </div>
-
-                          <div className="space-y-3">
-                            <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="w-8 h-8 rounded-lg bg-[#27F087]/20 border border-[#27F087]/40 flex items-center justify-center text-slate-900 font-bold text-xs">
-                                    WF
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-bold text-slate-900">Project: Workforce Operations Platform</p>
-                                    <p className="text-xs text-slate-500">Core timesheets, approvals and employee workflows</p>
-                                  </div>
-                                </div>
-                                <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700">In Progress</span>
-                              </div>
-                              <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
-                                <span>12 Tasks • 4 Activities • 6 Team Members</span>
-                                <span className="font-mono font-semibold text-slate-800">32.0 hrs logged</span>
-                              </div>
-                              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-[#27F087] h-full rounded-full" style={{ width: '80%' }} />
-                              </div>
-                            </div>
-
-                            <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-xs">
-                                    IM
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-bold text-slate-900">Project: Identity & Access Management (UMS)</p>
-                                    <p className="text-xs text-slate-500">Authentication, RBAC roles and employee onboarding</p>
-                                  </div>
-                                </div>
-                                <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-blue-50 text-blue-700">Active</span>
-                              </div>
-                              <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
-                                <span>5 Tasks • 3 Activities • 4 Team Members</span>
-                                <span className="font-mono font-semibold text-slate-800">8.0 hrs logged</span>
-                              </div>
-                              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-blue-500 h-full rounded-full" style={{ width: '65%' }} />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* VIEW 3: Time Entries View */}
-                      {activeTab === 'time-entries' && (
-                        <div className="space-y-4 animate-fadeIn">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
-                            <div>
-                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Daily Time Entries</p>
-                              <h2 className="text-xl sm:text-2xl font-bold text-slate-950 mt-0.5 font-display">Daily Work Logging</h2>
-                              <p className="text-xs text-slate-500">Record hours against project, task & activity</p>
-                            </div>
+                          <div className="flex items-center gap-2">
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 border border-slate-200 text-xs font-semibold">
-                              <Clock className="w-3.5 h-3.5 text-slate-600" />
-                              September 2026
+                              <Calendar className="w-3.5 h-3.5 text-slate-600" />
+                              Week 38 (Current)
                             </span>
                           </div>
+                        </div>
 
-                          {/* Mini Calendar / Week Strip Widget */}
-                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
-                            <p className="text-[10px] font-semibold text-slate-500 uppercase px-1 mb-1.5">Interactive Week Calendar</p>
-                            <div className="grid grid-cols-7 gap-1 text-center">
-                              {[
-                                { date: '15', day: 'Mon', h: '8.0h', status: 'logged' },
-                                { date: '16', day: 'Tue', h: '8.0h', status: 'logged' },
-                                { date: '17', day: 'Wed', h: '7.5h', status: 'logged' },
-                                { date: '18', day: 'Thu', h: '8.0h', status: 'logged' },
-                                { date: '19', day: 'Fri', h: '7.0h', status: 'today' },
-                                { date: '20', day: 'Sat', h: '—', status: 'off' },
-                                { date: '21', day: 'Sun', h: '—', status: 'off' },
-                              ].map((d) => (
-                                <div
-                                  key={d.day}
-                                  className={`py-1.5 rounded-lg border text-xs transition-all ${
-                                    d.status === 'today'
-                                      ? 'bg-slate-950 text-white border-slate-900 shadow-xs'
-                                      : d.status === 'logged'
-                                      ? 'bg-white border-slate-200 text-slate-800'
-                                      : 'bg-transparent border-transparent text-slate-400'
-                                  }`}
-                                >
-                                  <p className="text-[9px] uppercase font-bold opacity-75">{d.day} {d.date}</p>
-                                  <p className="font-mono font-bold text-xs mt-0.5">{d.h}</p>
-                                </div>
-                              ))}
+                        {/* Metric Stat Cards */}
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-200/80">
+                            <p className="text-[10px] font-semibold text-slate-500 uppercase">Weekly Hours</p>
+                            <div className="flex items-baseline gap-1 mt-0.5">
+                              <span className="text-lg sm:text-xl font-extrabold text-slate-950 font-mono">38.5</span>
+                              <span className="text-xs text-slate-400 font-mono">/ 40.0h</span>
+                            </div>
+                            <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                              <div className="bg-[#27F087] h-full rounded-full" style={{ width: '96%' }} />
                             </div>
                           </div>
 
-                          <div className="space-y-2">
-                            <div className="p-3 rounded-xl border border-slate-200 bg-white flex items-center justify-between text-xs">
-                              <div className="space-y-0.5">
-                                <p className="font-semibold text-slate-900">Project: Workforce • Task: Timesheet & Daily Logging</p>
-                                <p className="text-slate-500">Activity: Frontend Development • Implemented Apple window design</p>
-                              </div>
-                              <span className="font-mono font-bold text-slate-900 px-2 py-1 bg-slate-100 rounded-md">5.0h</span>
+                          <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-200/80">
+                            <p className="text-[10px] font-semibold text-slate-500 uppercase">Active Projects</p>
+                            <div className="flex items-baseline gap-1 mt-0.5">
+                              <span className="text-lg sm:text-xl font-extrabold text-slate-950 font-mono">2</span>
+                              <span className="text-xs text-emerald-600 font-semibold font-mono">Active</span>
                             </div>
+                            <p className="text-[10px] text-slate-400 mt-2">12 Tasks Allocated</p>
+                          </div>
 
-                            <div className="p-3 rounded-xl border border-slate-200 bg-white flex items-center justify-between text-xs">
-                              <div className="space-y-0.5">
-                                <p className="font-semibold text-slate-900">Project: Workforce • Task: Code Review & Quality</p>
-                                <p className="text-slate-500">Activity: Testing • Verified test suite passes 100%</p>
-                              </div>
-                              <span className="font-mono font-bold text-slate-900 px-2 py-1 bg-slate-100 rounded-md">2.0h</span>
+                          <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-200/80">
+                            <p className="text-[10px] font-semibold text-slate-500 uppercase">Timesheet Status</p>
+                            <div className="flex items-baseline gap-1 mt-0.5">
+                              <span className="text-xs sm:text-sm font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">Ready</span>
                             </div>
+                            <p className="text-[10px] text-slate-400 mt-2">Mon–Sun Batch</p>
                           </div>
                         </div>
-                      )}
 
-                      {/* VIEW 4: Timesheets View (Monday – Sunday Cycle) */}
-                      {activeTab === 'timesheets' && (
-                        <div className="space-y-4 animate-fadeIn">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
-                            <div>
-                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Weekly Timesheet Cycle</p>
-                              <h2 className="text-2xl sm:text-3xl font-bold text-slate-950 mt-1 font-display">Monday – Sunday Timesheet</h2>
-                              <p className="text-xs text-slate-500 mt-0.5">Organized by Project, Task & Activity</p>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
-                                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                Ready for Review
-                              </span>
-                            </div>
+                        {/* Weekly Hours Bar Chart */}
+                        <div className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/70 space-y-2.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-slate-800">Weekly Hours Distribution</span>
+                            <span className="text-[11px] font-mono text-slate-500">Mon–Fri: 8.0h avg • Weekend: 0h</span>
                           </div>
 
-                          <div className="space-y-3">
-                            <div className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/70 flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-lg bg-[#27F087]/20 border border-[#27F087]/40 flex items-center justify-center text-slate-900 font-bold text-xs">
-                                  WF
-                                </div>
-                                <div>
-                                  <p className="text-sm font-semibold text-slate-900">Project: Workforce</p>
-                                  <p className="text-xs text-slate-500">Task: Timesheet & Daily Logging • Activity: Development</p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <span className="text-xs px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-medium">Monday–Friday</span>
-                              </div>
-                            </div>
-
-                            <div className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/70 flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">
-                                  AP
-                                </div>
-                                <div>
-                                  <p className="text-sm font-semibold text-slate-900">Manager Approvals</p>
-                                  <p className="text-xs text-slate-500">Submissions review, approval & correction comment queue</p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <span className="text-xs px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 font-medium">In Review</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Authentic Weekly Day Distribution Bar */}
-                          <div className="grid grid-cols-7 gap-1.5 p-2 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                          <div className="h-28 flex items-end justify-between gap-2 pt-2 px-2">
                             {[
-                              { day: 'Mon', hrs: '8.0h', active: true },
-                              { day: 'Tue', hrs: '8.0h', active: true },
-                              { day: 'Wed', hrs: '8.0h', active: true },
-                              { day: 'Thu', hrs: '8.0h', active: true },
-                              { day: 'Fri', hrs: '8.0h', active: true },
-                              { day: 'Sat', hrs: '—', active: false },
-                              { day: 'Sun', hrs: '—', active: false },
-                            ].map((item) => (
-                              <div key={item.day} className={`py-1.5 px-1 rounded-lg text-xs ${item.active ? 'bg-white shadow-2xs border border-slate-200/80' : 'text-slate-400'}`}>
-                                <p className="text-[10px] font-semibold text-slate-500 uppercase">{item.day}</p>
-                                <p className={`font-mono text-xs font-bold ${item.active ? 'text-slate-900' : 'text-slate-400'}`}>{item.hrs}</p>
+                              { day: 'Mon', h: '8.0h', height: '100%', fill: 'bg-[#27F087]' },
+                              { day: 'Tue', h: '8.0h', height: '100%', fill: 'bg-[#27F087]' },
+                              { day: 'Wed', h: '7.5h', height: '94%', fill: 'bg-[#27F087]' },
+                              { day: 'Thu', h: '8.0h', height: '100%', fill: 'bg-[#27F087]' },
+                              { day: 'Fri', h: '7.0h', height: '88%', fill: 'bg-[#27F087]' },
+                              { day: 'Sat', h: '—', height: '6%', fill: 'bg-slate-200' },
+                              { day: 'Sun', h: '—', height: '6%', fill: 'bg-slate-200' },
+                            ].map((bar) => (
+                              <div key={bar.day} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
+                                <span className="text-[10px] font-mono text-slate-500">{bar.h}</span>
+                                <div className="w-full max-w-[34px] bg-slate-200/80 rounded-t-md relative overflow-hidden h-[60px]">
+                                  <div
+                                    className={`w-full absolute bottom-0 rounded-t-md transition-all duration-500 ${bar.fill}`}
+                                    style={{ height: bar.height }}
+                                  />
+                                </div>
+                                <span className="text-[10px] font-semibold text-slate-600 uppercase">{bar.day}</span>
                               </div>
                             ))}
                           </div>
                         </div>
-                      )}
+                      </div>
+                    )}
 
-                      {/* VIEW 5: Approvals View */}
-                      {activeTab === 'approvals' && (
-                        <div className="space-y-4 animate-fadeIn">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
-                            <div>
-                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Manager Review Queue</p>
-                              <h2 className="text-xl sm:text-2xl font-bold text-slate-950 mt-0.5 font-display">Timesheet Approvals</h2>
-                              <p className="text-xs text-slate-500">Submissions review, approval & correction comment queue</p>
+                    {/* VIEW 2: Projects View */}
+                    {activeTab === 'projects' && (
+                      <div className="space-y-4 animate-fadeIn">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Project Portfolio</p>
+                            <h2 className="text-xl sm:text-2xl font-bold text-slate-950 mt-0.5 font-display">Active Projects & Deliverables</h2>
+                            <p className="text-xs text-slate-500">Initiatives, requirements, and allocated team assignments</p>
+                          </div>
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200 text-xs font-semibold">
+                            2 Active Projects
+                          </span>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-[#27F087]/20 border border-[#27F087]/40 flex items-center justify-center text-slate-900 font-bold text-xs">
+                                  WF
+                                </div>
+                                <div>
+                                  <p className="text-sm font-bold text-slate-900">Project: Workforce Operations Platform</p>
+                                  <p className="text-xs text-slate-500">Core timesheets, approvals and employee workflows</p>
+                                </div>
+                              </div>
+                              <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700">In Progress</span>
                             </div>
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold">
-                              1 Pending Action
-                            </span>
+                            <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+                              <span>12 Tasks • 4 Activities • 6 Team Members</span>
+                              <span className="font-mono font-semibold text-slate-800">32.0 hrs logged</span>
+                            </div>
+                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                              <div className="bg-[#27F087] h-full rounded-full" style={{ width: '80%' }} />
+                            </div>
                           </div>
 
-                          <div className="space-y-3">
-                            <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-3">
-                              <div className="flex items-center justify-between">
+                          <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-xs">
+                                  IM
+                                </div>
                                 <div>
-                                  <p className="text-sm font-bold text-slate-900">Alex Rivera • Employee #SW-104</p>
-                                  <p className="text-xs text-slate-500">Week 38 (Monday – Sunday) • 40.0 hrs logged across 2 projects</p>
-                                </div>
-                                <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-amber-50 text-amber-700">Pending Review</span>
-                              </div>
-                              <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                                <span className="text-slate-500">Workforce (32h) • IAM Service (8h)</span>
-                                <div className="flex items-center gap-2">
-                                  <button type="button" className="px-3 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium">
-                                    Request Fix
-                                  </button>
-                                  <button type="button" className="px-3 py-1 rounded-md bg-slate-950 hover:bg-slate-800 text-white font-medium flex items-center gap-1">
-                                    <Check className="w-3 h-3 text-[#27F087]" />
-                                    Approve
-                                  </button>
+                                  <p className="text-sm font-bold text-slate-900">Project: Identity & Access Management (UMS)</p>
+                                  <p className="text-xs text-slate-500">Authentication, RBAC roles and employee onboarding</p>
                                 </div>
                               </div>
+                              <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-blue-50 text-blue-700">Active</span>
                             </div>
-
-                            <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/60 flex items-center justify-between text-xs opacity-75">
-                              <div>
-                                <p className="font-semibold text-slate-800">Sam Chen • Week 37</p>
-                                <p className="text-slate-500">40.0 hrs • Approved by Manager</p>
-                              </div>
-                              <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1">
-                                <Check className="w-3 h-3" />
-                                Approved
-                              </span>
+                            <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+                              <span>5 Tasks • 3 Activities • 4 Team Members</span>
+                              <span className="font-mono font-semibold text-slate-800">8.0 hrs logged</span>
+                            </div>
+                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                              <div className="bg-blue-500 h-full rounded-full" style={{ width: '65%' }} />
                             </div>
                           </div>
                         </div>
-                      )}
-
-                      {/* Canvas Shared Bottom Audit Bar */}
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                        <span>Weekly submission & audit trail</span>
-                        <span className="font-semibold text-slate-800">Connected Project Attribution</span>
                       </div>
+                    )}
+
+                    {/* VIEW 3: Time Entries View */}
+                    {activeTab === 'time-entries' && (
+                      <div className="space-y-4 animate-fadeIn">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Daily Time Entries</p>
+                            <h2 className="text-xl sm:text-2xl font-bold text-slate-950 mt-0.5 font-display">Daily Work Logging</h2>
+                            <p className="text-xs text-slate-500">Record hours against project, task & activity</p>
+                          </div>
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 border border-slate-200 text-xs font-semibold">
+                            <Clock className="w-3.5 h-3.5 text-slate-600" />
+                            September 2026
+                          </span>
+                        </div>
+
+                        {/* Mini Calendar / Week Strip Widget */}
+                        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                          <p className="text-[10px] font-semibold text-slate-500 uppercase px-1 mb-1.5">Interactive Week Calendar</p>
+                          <div className="grid grid-cols-7 gap-1 text-center">
+                            {[
+                              { date: '15', day: 'Mon', h: '8.0h', status: 'logged' },
+                              { date: '16', day: 'Tue', h: '8.0h', status: 'logged' },
+                              { date: '17', day: 'Wed', h: '7.5h', status: 'logged' },
+                              { date: '18', day: 'Thu', h: '8.0h', status: 'logged' },
+                              { date: '19', day: 'Fri', h: '7.0h', status: 'today' },
+                              { date: '20', day: 'Sat', h: '—', status: 'off' },
+                              { date: '21', day: 'Sun', h: '—', status: 'off' },
+                            ].map((d) => (
+                              <div
+                                key={d.day}
+                                className={`py-1.5 rounded-lg border text-xs transition-all ${d.status === 'today'
+                                  ? 'bg-slate-950 text-white border-slate-900 shadow-xs'
+                                  : d.status === 'logged'
+                                    ? 'bg-white border-slate-200 text-slate-800'
+                                    : 'bg-transparent border-transparent text-slate-400'
+                                  }`}
+                              >
+                                <p className="text-[9px] uppercase font-bold opacity-75">{d.day} {d.date}</p>
+                                <p className="font-mono font-bold text-xs mt-0.5">{d.h}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="p-3 rounded-xl border border-slate-200 bg-white flex items-center justify-between text-xs">
+                            <div className="space-y-0.5">
+                              <p className="font-semibold text-slate-900">Project: Workforce • Task: Timesheet & Daily Logging</p>
+                              <p className="text-slate-500">Activity: Frontend Development • Implemented Apple window design</p>
+                            </div>
+                            <span className="font-mono font-bold text-slate-900 px-2 py-1 bg-slate-100 rounded-md">5.0h</span>
+                          </div>
+
+                          <div className="p-3 rounded-xl border border-slate-200 bg-white flex items-center justify-between text-xs">
+                            <div className="space-y-0.5">
+                              <p className="font-semibold text-slate-900">Project: Workforce • Task: Code Review & Quality</p>
+                              <p className="text-slate-500">Activity: Testing • Verified test suite passes 100%</p>
+                            </div>
+                            <span className="font-mono font-bold text-slate-900 px-2 py-1 bg-slate-100 rounded-md">2.0h</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* VIEW 4: Timesheets View (Monday – Sunday Cycle) */}
+                    {activeTab === 'timesheets' && (
+                      <div className="space-y-4 animate-fadeIn">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Weekly Timesheet Cycle</p>
+                            <h2 className="text-2xl sm:text-3xl font-bold text-slate-950 mt-1 font-display">Monday – Sunday Timesheet</h2>
+                            <p className="text-xs text-slate-500 mt-0.5">Organized by Project, Task & Activity</p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              Ready for Review
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/70 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-lg bg-[#27F087]/20 border border-[#27F087]/40 flex items-center justify-center text-slate-900 font-bold text-xs">
+                                WF
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-slate-900">Project: Workforce</p>
+                                <p className="text-xs text-slate-500">Task: Timesheet & Daily Logging • Activity: Development</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-xs px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-medium">Monday–Friday</span>
+                            </div>
+                          </div>
+
+                          <div className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/70 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">
+                                AP
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-slate-900">Manager Approvals</p>
+                                <p className="text-xs text-slate-500">Submissions review, approval & correction comment queue</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-xs px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 font-medium">In Review</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Authentic Weekly Day Distribution Bar */}
+                        <div className="grid grid-cols-7 gap-1.5 p-2 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                          {[
+                            { day: 'Mon', hrs: '8.0h', active: true },
+                            { day: 'Tue', hrs: '8.0h', active: true },
+                            { day: 'Wed', hrs: '8.0h', active: true },
+                            { day: 'Thu', hrs: '8.0h', active: true },
+                            { day: 'Fri', hrs: '8.0h', active: true },
+                            { day: 'Sat', hrs: '—', active: false },
+                            { day: 'Sun', hrs: '—', active: false },
+                          ].map((item) => (
+                            <div key={item.day} className={`py-1.5 px-1 rounded-lg text-xs ${item.active ? 'bg-white shadow-2xs border border-slate-200/80' : 'text-slate-400'}`}>
+                              <p className="text-[10px] font-semibold text-slate-500 uppercase">{item.day}</p>
+                              <p className={`font-mono text-xs font-bold ${item.active ? 'text-slate-900' : 'text-slate-400'}`}>{item.hrs}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* VIEW 5: Approvals View */}
+                    {activeTab === 'approvals' && (
+                      <div className="space-y-4 animate-fadeIn">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Manager Review Queue</p>
+                            <h2 className="text-xl sm:text-2xl font-bold text-slate-950 mt-0.5 font-display">Timesheet Approvals</h2>
+                            <p className="text-xs text-slate-500">Submissions review, approval & correction comment queue</p>
+                          </div>
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold">
+                            1 Pending Action
+                          </span>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-bold text-slate-900">Alex Rivera • Employee #SW-104</p>
+                                <p className="text-xs text-slate-500">Week 38 (Monday – Sunday) • 40.0 hrs logged across 2 projects</p>
+                              </div>
+                              <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-amber-50 text-amber-700">Pending Review</span>
+                            </div>
+                            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                              <span className="text-slate-500">Workforce (32h) • IAM Service (8h)</span>
+                              <div className="flex items-center gap-2">
+                                <button type="button" className="px-3 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium">
+                                  Request Fix
+                                </button>
+                                <button type="button" className="px-3 py-1 rounded-md bg-slate-950 hover:bg-slate-800 text-white font-medium flex items-center gap-1">
+                                  <Check className="w-3 h-3 text-[#27F087]" />
+                                  Approve
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/60 flex items-center justify-between text-xs opacity-75">
+                            <div>
+                              <p className="font-semibold text-slate-800">Sam Chen • Week 37</p>
+                              <p className="text-slate-500">40.0 hrs • Approved by Manager</p>
+                            </div>
+                            <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1">
+                              <Check className="w-3 h-3" />
+                              Approved
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Canvas Shared Bottom Audit Bar */}
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                      <span>Weekly submission & audit trail</span>
+                      <span className="font-semibold text-slate-800">Connected Project Attribution</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </section>
+          </div>
+        </section>
 
         {/* 2. Product Introduction (Connected Dark Container with 6 Product Areas) */}
         <ScrollReveal id="product" className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto scroll-mt-24">
@@ -1146,7 +1144,7 @@ export function LandingPage() {
         {/* 9. Final CTA */}
         <ScrollReveal className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-8">
           <div className="relative overflow-hidden rounded-3xl p-8 sm:p-14 md:p-16 bg-[#27F087] text-slate-950 text-center space-y-6 cta-selection">
-            
+
             <div className="relative z-10 space-y-4 max-w-2xl mx-auto">
               <h2 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-950 leading-[1.12] font-display">
                 Bring people, projects and time together.
@@ -1179,10 +1177,11 @@ export function LandingPage() {
           <div className="flex flex-col lg:flex-row justify-between gap-12 mb-16">
             <div className="lg:w-1/3 space-y-6">
               <Link to="/" className="flex items-center gap-2 focus-visible:outline-none rounded-md group inline-flex">
-                <div className="w-7 h-7 rounded-md bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-[11px] shadow-xs transition-transform group-hover:scale-105">
-                  SW
-                </div>
-                <span className="text-lg font-bold text-slate-950 tracking-tight font-display">Sify Workforce</span>
+                <img
+                  src="/sify Workforce Logo on Transparent Canvas.png"
+                  alt="Sify Workforce"
+                  className="h-8 w-auto max-w-[180px] object-contain transition-transform group-hover:scale-105"
+                />
               </Link>
               <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
                 Bring people, projects and time together. The complete operating system for modern workforce management and professional services.

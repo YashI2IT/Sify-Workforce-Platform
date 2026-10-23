@@ -12,16 +12,95 @@ export interface CreateNotificationDto {
   relatedEntityId?: string;
 }
 
+export function computeNotificationDestination(notification: {
+  type?: string;
+  relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
+}): string | null {
+  const { type, relatedEntityType, relatedEntityId } = notification;
+
+  if (
+    relatedEntityType === 'TASK' ||
+    type === 'TASK_ASSIGNED' ||
+    type === 'TASK_STATUS_CHANGED' ||
+    type === 'DEPENDENCY_ADDED' ||
+    type === 'DEPENDENCY_REMOVED' ||
+    type === 'COMMENT_ADDED' ||
+    type === 'COMMENT_MENTION' ||
+    type?.startsWith('TASK_') ||
+    type?.startsWith('COMMENT_') ||
+    type?.startsWith('DEPENDENCY_')
+  ) {
+    if (relatedEntityId) {
+      const parts = relatedEntityId.split(':');
+      if (parts.length >= 2 && parts[0] && parts[1]) {
+        return `/projects/${parts[0]}?taskId=${parts[1]}`;
+      }
+      return `/projects/${relatedEntityId}`;
+    }
+    return '/projects';
+  }
+
+  if (
+    relatedEntityType === 'PROJECT' ||
+    type === 'PROJECT_ASSIGNED' ||
+    type === 'PROJECT_UNASSIGNED' ||
+    type === 'PROJECT_UPDATE' ||
+    type?.startsWith('PROJECT_')
+  ) {
+    if (relatedEntityId) {
+      return `/projects/${relatedEntityId}`;
+    }
+    return '/projects';
+  }
+
+  if (relatedEntityType === 'TIMESHEET_SUBMISSION') {
+    if (type === 'TIMESHEET_SUBMITTED' || type === 'TIMESHEET_RESUBMITTED') {
+      return relatedEntityId ? `/submission-approvals?submissionId=${relatedEntityId}` : '/submission-approvals';
+    }
+    if (type === 'TIMESHEET_REJECTED') {
+      return '/time-entries';
+    }
+    return '/timesheets';
+  }
+
+  if (relatedEntityType === 'TIMESHEET' || type?.includes('TIMESHEET')) {
+    if (type === 'TIMESHEET_SUBMITTED' || type === 'TIMESHEET_RESUBMITTED') {
+      return relatedEntityId ? `/approvals/timesheets/${relatedEntityId}` : '/approvals';
+    }
+    return relatedEntityId ? `/timesheets/${relatedEntityId}` : '/timesheets';
+  }
+
+  if (relatedEntityType === 'EMPLOYEE' || type?.startsWith('EMPLOYEE_')) {
+    return '/employees';
+  }
+
+  if (relatedEntityType === 'TEAM' || type?.startsWith('TEAM_')) {
+    return '/teams';
+  }
+
+  if (relatedEntityType === 'ORGANIZATION' || type?.startsWith('ORGANIZATION_')) {
+    return '/organization';
+  }
+
+  return null;
+}
+
 @Injectable()
 export class NotificationsService {
   constructor(private readonly mailService: MailService) {}
 
   async getMyNotifications(auth: AuthenticatedContext) {
-    return db.orm.public.Notification.where({
+    const list = await db.orm.public.Notification.where({
       recipientId: auth.employeeId,
     })
       .orderBy((m: any) => m.createdAt.desc())
       .all();
+
+    return list.map((item: any) => ({
+      ...item,
+      destination: computeNotificationDestination(item),
+    }));
   }
 
   async markAsRead(notificationId: string, auth: AuthenticatedContext) {
@@ -106,7 +185,21 @@ export class NotificationsService {
   }
 
   private async dispatchEmailIfEnabled(dto: CreateNotificationDto) {
-    // 1. Resolve preference (defaults to true)
+    // 1. Resolve employee details
+    const employee = await db.orm.public.Employee.where({ id: dto.recipientId }).first();
+    if (!employee || !employee.email) {
+      return;
+    }
+
+    // 2. Check Organization Settings policy first
+    if (employee.organizationId) {
+      const orgSettings = await db.orm.public.OrganizationSettings.where({ organizationId: employee.organizationId }).first();
+      if (orgSettings && orgSettings.emailNotifications === false) {
+        return; // Organization-wide policy has disabled email notifications
+      }
+    }
+
+    // 3. Resolve user preference (defaults to true)
     const pref = await db.orm.public.UserPreference.where({ employeeId: dto.recipientId }).first();
     const emailEnabled = pref?.emailNotifications ?? true;
     
@@ -114,13 +207,8 @@ export class NotificationsService {
       return; // Do not send email
     }
 
-    // 2. Resolve employee details
-    const employee = await db.orm.public.Employee.where({ id: dto.recipientId }).first();
-    if (!employee || !employee.email) {
-      return;
-    }
-
     const name = employee.name ? employee.name.trim() : 'Team Member';
+    const destination = computeNotificationDestination(dto);
     
     // 3. Dispatch through MailService
     await this.mailService.sendNotificationEmail({
@@ -129,6 +217,7 @@ export class NotificationsService {
       title: dto.title,
       message: dto.message,
       relatedEntityId: dto.relatedEntityId,
+      targetPath: destination || undefined,
     });
   }
 }

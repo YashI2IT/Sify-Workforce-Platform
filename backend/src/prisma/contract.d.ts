@@ -33,7 +33,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'018ca1daf3d6cf27e0d879933f2d52b23124075078d8c4e0414df44484460d16'>;
+  StorageHashBase<'d8463d49d5d573ed3a98c610be8e3206ffb39b4a8e6dadfb71d6359dfaac6a35'>;
 export type ExecutionHash =
   ExecutionHashBase<'b873037b4a66fdde73bf64afecee0794a1a2893e2d75e0bd4929554610722515'>;
 export type ProfileHash =
@@ -330,6 +330,8 @@ export type FieldOutputTypes = {
       readonly organizationId: CodecTypes['pg/text@1']['output'];
       readonly weekStartsOn: CodecTypes['pg/int4@1']['output'];
       readonly timeZone: CodecTypes['pg/text@1']['output'];
+      readonly dateFormat: CodecTypes['pg/text@1']['output'];
+      readonly emailNotifications: CodecTypes['pg/bool@1']['output'];
       readonly timesheetApprovalRequired: CodecTypes['pg/bool@1']['output'];
       readonly defaultEmployeeRole: CodecTypes['pg/text@1']['output'];
       readonly employeeJoinPolicy: CodecTypes['pg/text@1']['output'];
@@ -609,6 +611,8 @@ export type FieldInputTypes = {
       readonly organizationId: CodecTypes['pg/text@1']['input'];
       readonly weekStartsOn: CodecTypes['pg/int4@1']['input'];
       readonly timeZone: CodecTypes['pg/text@1']['input'];
+      readonly dateFormat: CodecTypes['pg/text@1']['input'];
+      readonly emailNotifications: CodecTypes['pg/bool@1']['input'];
       readonly timesheetApprovalRequired: CodecTypes['pg/bool@1']['input'];
       readonly defaultEmployeeRole: CodecTypes['pg/text@1']['input'];
       readonly employeeJoinPolicy: CodecTypes['pg/text@1']['input'];
@@ -885,7 +889,9 @@ export type StorageColumnTypes = {
     };
     readonly organization_settings: {
       readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
+      readonly dateFormat: CodecTypes['pg/text@1']['output'];
       readonly defaultEmployeeRole: CodecTypes['pg/text@1']['output'];
+      readonly emailNotifications: CodecTypes['pg/bool@1']['output'];
       readonly employeeJoinPolicy: CodecTypes['pg/text@1']['output'];
       readonly id: CodecTypes['pg/text@1']['output'];
       readonly organizationId: CodecTypes['pg/text@1']['output'];
@@ -1164,7 +1170,9 @@ export type StorageColumnInputTypes = {
     };
     readonly organization_settings: {
       readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['input'];
+      readonly dateFormat: CodecTypes['pg/text@1']['input'];
       readonly defaultEmployeeRole: CodecTypes['pg/text@1']['input'];
+      readonly emailNotifications: CodecTypes['pg/bool@1']['input'];
       readonly employeeJoinPolicy: CodecTypes['pg/text@1']['input'];
       readonly id: CodecTypes['pg/text@1']['input'];
       readonly organizationId: CodecTypes['pg/text@1']['input'];
@@ -1517,6 +1525,12 @@ type ContractBase = Omit<
                   readonly name: 'audit_log_resourceId_idx_72964925';
                   readonly prefix: 'audit_log_resourceId_idx';
                   readonly columns: readonly ['resourceId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'audit_log_organizationId_createdAt_idx_c52d1cc3';
+                  readonly prefix: 'audit_log_organizationId_createdAt_idx';
+                  readonly columns: readonly ['organizationId', 'createdAt'];
                   readonly unique: false;
                 },
               ];
@@ -2113,6 +2127,24 @@ type ContractBase = Omit<
                   readonly default: {
                     readonly kind: 'literal';
                     readonly value: DefaultLiteralValue<'pg/text@1', 'UTC'>;
+                  };
+                };
+                readonly dateFormat: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'DD/MM/YYYY'>;
+                  };
+                };
+                readonly emailNotifications: {
+                  readonly nativeType: 'bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', true>;
                   };
                 };
                 readonly timesheetApprovalRequired: {
@@ -4906,6 +4938,14 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly dateFormat: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly emailNotifications: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
               readonly timesheetApprovalRequired: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
@@ -4962,6 +5002,8 @@ type ContractBase = Omit<
                 readonly organizationId: { readonly column: 'organizationId' };
                 readonly weekStartsOn: { readonly column: 'weekStartsOn' };
                 readonly timeZone: { readonly column: 'timeZone' };
+                readonly dateFormat: { readonly column: 'dateFormat' };
+                readonly emailNotifications: { readonly column: 'emailNotifications' };
                 readonly timesheetApprovalRequired: {
                   readonly column: 'timesheetApprovalRequired';
                 };

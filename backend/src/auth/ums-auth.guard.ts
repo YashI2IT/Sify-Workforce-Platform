@@ -51,6 +51,10 @@ export class UmsAuthGuard implements CanActivate {
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const request = ctx.switchToHttp().getRequest();
 
+    if (request.path.startsWith('/api/v1/inngest') || request.path.startsWith('/api/inngest') || request.path.startsWith('/inngest')) {
+      return true; // Allow Inngest communication handler (signature verification handled by Inngest SDK)
+    }
+
     if (request.path.startsWith('/api/v1/user')) {
       return true; // Public UMS auth proxy routes (login, register, refresh-token, etc.)
     }

@@ -1,7 +1,7 @@
 import ReactDOM from 'react-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
-import { Clock, AlertCircle, GripVertical, User, ChevronDown, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Clock, AlertCircle, GripVertical, User, ChevronDown, ChevronRight, CheckCircle2, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 import type { Task, Employee } from './ProjectTasksTab';
 import { statusColors, priorityColors, fmt, isOverdue } from './taskUtils';
@@ -158,6 +158,15 @@ export const ProjectTasksBacklog = ({
                                         {t.ticketId && (
                                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200/80 shrink-0 shadow-2xs">
                                             {t.ticketId}
+                                          </span>
+                                        )}
+                                        {t.recurrence && (
+                                          <span
+                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-purple-50 text-purple-700 border border-purple-200 shrink-0 shadow-2xs"
+                                            title={`Recurring Task: ${t.recurrence}`}
+                                          >
+                                            <RotateCcw className="w-2.5 h-2.5" />
+                                            {t.recurrence}
                                           </span>
                                         )}
                                         <h5 className={`font-semibold text-sm leading-snug truncate font-sans ${section.id === 'COMPLETED' ? 'text-slate-400 line-through' : 'text-slate-900 group-hover:text-indigo-600 transition-colors'}`}>

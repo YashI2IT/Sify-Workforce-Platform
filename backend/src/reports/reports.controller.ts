@@ -52,6 +52,15 @@ const advancedAnalyticsQuerySchema = z.object({
   interval: z.enum(['day', 'week', 'month']).default('week'),
 }).refine(dateRangeRefinement, dateRangeRefinementOptions);
 
+const adminReportQuerySchema = z.object({
+  startDate: dateStringSchema.optional(),
+  endDate: dateStringSchema.optional(),
+  projectId: z.string().uuid('Invalid project ID').optional(),
+  teamId: z.string().uuid('Invalid team ID').optional(),
+  employeeId: z.string().uuid('Invalid employee ID').optional(),
+  status: z.enum(['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']).optional(),
+}).refine(dateRangeRefinement, dateRangeRefinementOptions);
+
 
 @ApiTags('Reports')
 @Controller('reports')
@@ -399,6 +408,57 @@ export class ReportsController {
     }
 
     return this.reportsService.getAdvancedAnalytics(finalStartDate, finalEndDate, interval as 'day' | 'week' | 'month', auth);
+  }
+
+  @Get('admin-report')
+  @ApiOperation({ summary: 'Get comprehensive admin reports and analytics' })
+  @ApiQuery({ name: 'startDate', required: false, type: String, description: 'YYYY-MM-DD' })
+  @ApiQuery({ name: 'endDate', required: false, type: String, description: 'YYYY-MM-DD' })
+  @ApiQuery({ name: 'projectId', required: false, type: String })
+  @ApiQuery({ name: 'teamId', required: false, type: String })
+  @ApiQuery({ name: 'employeeId', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, enum: ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'] })
+  @ApiResponse({ status: 200, description: 'Admin report data' })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getAdminReport(
+    @Query() query: any,
+    @GetAuthContext() auth: AuthenticatedContext
+  ) {
+    if (!auth.roles.includes('ADMIN')) {
+      throw new ForbiddenException('Only administrators can access the admin report');
+    }
+
+    const parsed = adminReportQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw new BadRequestException(formatZodError(parsed.error));
+    }
+
+    const { startDate, endDate, projectId, teamId, employeeId, status } = parsed.data;
+
+    const end = endDate ? new Date(endDate) : new Date();
+    const start = startDate ? new Date(startDate) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    if (isNaN(end.getTime()) || isNaN(start.getTime())) {
+      throw new BadRequestException('Invalid date provided');
+    }
+
+    const formatYMD = (d: Date) => d.toISOString().split('T')[0];
+    const finalStartDate = formatYMD(start);
+    const finalEndDate = formatYMD(end);
+
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays > 365) {
+      throw new BadRequestException('Date range cannot exceed 365 days');
+    }
+
+    return this.reportsService.getAdminReport(
+      finalStartDate,
+      finalEndDate,
+      { projectId, teamId, employeeId, status },
+      auth
+    );
   }
 }
 

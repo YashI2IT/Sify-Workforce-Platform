@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   useGetPendingSubmissionsQuery,
   useApproveSubmissionMutation,
@@ -35,6 +36,9 @@ export const SubmissionApprovals: React.FC = () => {
   const [approveM, { isLoading: approving }] = useApproveSubmissionMutation();
   const [rejectM, { isLoading: rejecting }] = useRejectSubmissionMutation();
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const submissionIdFromUrl = searchParams.get('submissionId');
+
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [rejectModal, setRejectModal] = useState<{ submissionId: string; employeeName: string } | null>(null);
   const [rejectComment, setRejectComment] = useState('');
@@ -49,6 +53,21 @@ export const SubmissionApprovals: React.FC = () => {
     setFeedbackType(type);
     setTimeout(() => setFeedbackMsg(''), 5000);
   };
+
+  useEffect(() => {
+    if (submissionIdFromUrl && !isLoading) {
+      const match = submissionList.find((s) => s.id === submissionIdFromUrl);
+      if (match) {
+        setExpandedId(submissionIdFromUrl);
+        searchParams.delete('submissionId');
+        setSearchParams(searchParams, { replace: true });
+      } else if (submissionList.length > 0 || !isFetching) {
+        showFeedback('The requested submission has already been reviewed or is no longer pending.', 'error');
+        searchParams.delete('submissionId');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+  }, [submissionIdFromUrl, isLoading, isFetching, submissionList, searchParams, setSearchParams]);
 
   const handleApprove = async (id: string, empName: string) => {
     try {

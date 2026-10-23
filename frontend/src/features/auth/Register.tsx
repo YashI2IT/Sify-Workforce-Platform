@@ -84,13 +84,13 @@ export const Register = () => {
         <div className="bg-white rounded-[26px] border border-slate-200/80 shadow-xl shadow-slate-200/60 overflow-hidden transition-all">
           {/* Card Body */}
           <div className="p-6 sm:p-7 space-y-4">
-            {/* Top Brand Logo Squircle */}
+            {/* Top Brand Logo */}
             <div className="flex justify-center pt-1">
-              <div className="w-12 h-9 rounded-[18px] bg-slate-950 flex items-center justify-center shadow-md shadow-slate-900/15 transition-transform hover:scale-105">
-                <div className="w-7 h-7 rounded-lg bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-xs">
-                  SW
-                </div>
-              </div>
+              <img
+                src="/sify Workforce Logo on Transparent Canvas.png"
+                alt="Sify Workforce"
+                className="h-10 w-auto max-w-[180px] object-contain transition-transform hover:scale-105"
+              />
             </div>
 
             {/* Header Text */}
@@ -256,11 +256,12 @@ export const Register = () => {
         <div className="mt-5 text-center space-y-1">
           <div className="inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium">
             <span>Secured by</span>
-            <span className="font-bold text-slate-900 tracking-tight flex items-center gap-1">
-              <span className="w-3.5 h-3.5 rounded bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-[9px]">
-                SW
-              </span>
-              Sify Workforce
+            <span className="font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+              <img
+                src="/sify Workforce Logo on Transparent Canvas.png"
+                alt="Sify Workforce"
+                className="h-4 w-auto object-contain"
+              />
             </span>
           </div>
         </div>

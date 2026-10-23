@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
+import { isRouteAllowedForRole } from '../lib/authUtils';
 
 /**
  * ProtectedRoute
@@ -10,9 +11,9 @@ import type { RootState } from '../store';
  *
  * States:
  *   - !isInitialized: Verifying session (loading skeleton)
- *   - !isAuthenticated: Redirect to /login with returnTo
+ *   - !isAuthenticated: Redirect to /login
  *   - onboardingRequired || !employee: Redirect to /onboarding
- *   - authenticated + employee: Render Outlet (enforcing admin setup lock)
+ *   - authenticated + employee: Enforce admin setup lock and role-based route permissions
  */
 export const ProtectedRoute = () => {
   const isInitialized = useSelector((state: RootState) => state.auth.isInitialized);
@@ -29,10 +30,12 @@ export const ProtectedRoute = () => {
         data-testid="session-loading"
         className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-4 antialiased"
       >
-        <div className="w-10 h-10 rounded-xl bg-slate-950 flex items-center justify-center shadow-md mb-4 animate-pulse">
-          <div className="w-6 h-6 rounded bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-xs">
-            SW
-          </div>
+        <div className="mb-4">
+          <img
+            src="/sify Workforce Logo on Transparent Canvas.png"
+            alt="Sify Workforce"
+            className="h-10 w-auto max-w-[180px] object-contain animate-pulse"
+          />
         </div>
         <div className="flex items-center gap-2 text-slate-600 text-sm font-medium">
           <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin" />
@@ -42,16 +45,9 @@ export const ProtectedRoute = () => {
     );
   }
 
-  // STATE A & STATE E: Unauthenticated or session expired
+  // STATE A: Unauthenticated or session expired
   if (!isAuthenticated) {
-    const targetUrl = location.pathname + location.search;
-    return (
-      <Navigate 
-        to={`/login?returnTo=${encodeURIComponent(targetUrl)}`} 
-        state={{ from: targetUrl }} 
-        replace 
-      />
-    );
+    return <Navigate to="/login" replace />;
   }
 
   // STATE C: Authenticated with UMS, but no Workforce Employee record exists
@@ -69,6 +65,13 @@ export const ProtectedRoute = () => {
 
   // Prevent accessing setup after it is complete
   if (!isInitialSetup && currentPath === '/setup') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Enforce authoritative role-based landing & route protection
+  // If an employee's old page (e.g. /time-entries) is accessed by an ADMIN or unauthorized role,
+  // redirect immediately to the role-specific landing destination (/dashboard).
+  if (!isRouteAllowedForRole(currentPath, employee)) {
     return <Navigate to="/dashboard" replace />;
   }
 

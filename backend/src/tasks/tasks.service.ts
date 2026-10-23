@@ -3,6 +3,9 @@ import { db } from '../prisma/db.js';
 import { CreateTaskDto, UpdateTaskDto } from './dto/create-task.dto.js';
 import { AuthenticatedContext } from '../auth/authenticated-context.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { computeInitialSchedule } from './recurrence/recurrence.calculator.js';
+import { RecurrenceFrequency } from './recurrence/recurrence.types.js';
+
 
 const TASK_METADATA_PREFIX = '<!--SIFY_TASK_METADATA:';
 const TASK_METADATA_SUFFIX = '-->';
@@ -204,15 +207,46 @@ export class TasksService {
       }
     }
 
+    const recurrence = (createTaskDto as any).recurrence ?? null;
+    let metadata: any = (createTaskDto as any).metadata ? { ...(createTaskDto as any).metadata } : {};
+
+    if (recurrence) {
+      const incomingConfig = metadata.recurrenceConfig || {};
+      const baseDate = startDate ? new Date(startDate) : new Date();
+      const scheduleStart = incomingConfig.scheduleStart || baseDate.toISOString().split('T')[0];
+
+      const configToSchedule = {
+        frequency: recurrence as RecurrenceFrequency,
+        interval: Math.max(1, Number(incomingConfig.interval) || 1),
+        weekdays: incomingConfig.weekdays,
+        dayOfMonth: incomingConfig.dayOfMonth ? Number(incomingConfig.dayOfMonth) : undefined,
+        scheduleStart,
+        endType: incomingConfig.endType || 'NEVER',
+        endDate: incomingConfig.endDate || null,
+        maxOccurrences: incomingConfig.maxOccurrences ? Number(incomingConfig.maxOccurrences) : null,
+        timezone: incomingConfig.timezone || 'Asia/Kolkata',
+      };
+
+      const nextScheduledAt = incomingConfig.nextScheduledAt || computeInitialSchedule(configToSchedule, new Date()).toISOString();
+
+      metadata.recurrenceConfig = {
+        ...configToSchedule,
+        nextScheduledAt,
+        occurrenceIndex: 1,
+      };
+    } else {
+      delete metadata.recurrenceConfig;
+    }
+
     const taskData: any = {
       projectId,
       name,
-      description: encodeTaskDescriptionWithMetadata(description, (createTaskDto as any).metadata),
+      description: encodeTaskDescriptionWithMetadata(description, metadata),
       status,
       isActive: isActive ?? true,
       priority: priority ?? 'MEDIUM',
       creatorId: auth.employeeId ?? null,
-      recurrence: (createTaskDto as any).recurrence ?? null,
+      recurrence,
     };
 
     if (assigneeId !== undefined) taskData.assigneeId = assigneeId;
@@ -234,6 +268,13 @@ export class TasksService {
           
           taskData.ticketId = `${currentProject.code}-${nextSequence}`;
           task = await tx.orm.public.Task.create(taskData);
+
+          if (recurrence && task.id && !metadata.recurrenceConfig.seriesId) {
+            metadata.recurrenceConfig.seriesId = task.id;
+            const updatedDesc = encodeTaskDescriptionWithMetadata(description, metadata);
+            await tx.orm.public.Task.where({ id: task.id }).update({ description: updatedDesc });
+            task.description = updatedDesc;
+          }
           
           if (task.assigneeId && task.assigneeId !== auth.employeeId) {
             await this.notificationsService.createNotification({
@@ -336,11 +377,44 @@ export class TasksService {
 
     const updateData: any = {};
 
-    if (name !== undefined) updateData.name = name;
-    if (description !== undefined || (updateTaskDto as any).metadata !== undefined) {
+    if (description !== undefined || (updateTaskDto as any).metadata !== undefined || recurrence !== undefined) {
       const existingDecoded = decodeTaskDescriptionWithMetadata(task.description);
-      const targetMetadata = (updateTaskDto as any).metadata !== undefined ? (updateTaskDto as any).metadata : existingDecoded.metadata;
+      let targetMetadata = (updateTaskDto as any).metadata !== undefined 
+        ? { ...(updateTaskDto as any).metadata } 
+        : { ...(existingDecoded.metadata || {}) };
       const targetDescription = description !== undefined ? description : existingDecoded.description;
+
+      const effectiveRecurrence = recurrence !== undefined ? recurrence : task.recurrence;
+      if (effectiveRecurrence) {
+        const incomingConfig = targetMetadata.recurrenceConfig || {};
+        const effectiveStart = startDate !== undefined ? startDate : task.startDate;
+        const baseDate = effectiveStart ? new Date(effectiveStart.toString()) : new Date();
+        const scheduleStart = incomingConfig.scheduleStart || baseDate.toISOString().split('T')[0];
+
+        const configToSchedule = {
+          frequency: effectiveRecurrence as RecurrenceFrequency,
+          interval: Math.max(1, Number(incomingConfig.interval) || 1),
+          weekdays: incomingConfig.weekdays,
+          dayOfMonth: incomingConfig.dayOfMonth ? Number(incomingConfig.dayOfMonth) : undefined,
+          scheduleStart,
+          endType: incomingConfig.endType || 'NEVER',
+          endDate: incomingConfig.endDate || null,
+          maxOccurrences: incomingConfig.maxOccurrences ? Number(incomingConfig.maxOccurrences) : null,
+          timezone: incomingConfig.timezone || 'Asia/Kolkata',
+        };
+
+        const nextScheduledAt = incomingConfig.nextScheduledAt || computeInitialSchedule(configToSchedule, new Date()).toISOString();
+
+        targetMetadata.recurrenceConfig = {
+          ...configToSchedule,
+          nextScheduledAt,
+          occurrenceIndex: incomingConfig.occurrenceIndex || 1,
+          seriesId: incomingConfig.seriesId || task.id,
+        };
+      } else {
+        delete targetMetadata.recurrenceConfig;
+      }
+
       updateData.description = encodeTaskDescriptionWithMetadata(targetDescription, targetMetadata);
     }
     if (status !== undefined) updateData.status = status;
@@ -361,52 +435,6 @@ export class TasksService {
         await db.transaction(async (tx) => {
           const currentTask = await tx.orm.public.Task.where({ id }).first();
           if (!currentTask) throw new NotFoundException('Task not found');
-          
-          if (status === 'COMPLETED' && currentTask.status !== 'COMPLETED') {
-            const activeRecurrence = recurrence !== undefined ? recurrence : currentTask.recurrence;
-            if (activeRecurrence && !currentTask.nextOccurrenceId) {
-              const calculateNextDate = (dateVal: any, rec: string) => {
-                if (!dateVal) return null;
-                const d = new Date(dateVal.toString());
-                if (rec === 'DAILY') d.setDate(d.getDate() + 1);
-                else if (rec === 'WEEKLY') d.setDate(d.getDate() + 7);
-                else if (rec === 'MONTHLY') d.setMonth(d.getMonth() + 1);
-                return (globalThis as any).Temporal.Instant.from(d.toISOString());
-              };
-
-              const nextStartDate = calculateNextDate(currentTask.startDate, activeRecurrence);
-              const nextDueDate = calculateNextDate(currentTask.dueDate, activeRecurrence);
-
-              const currentProject = await tx.orm.public.Project.where({ id: currentTask.projectId }).first();
-              if (!currentProject) throw new NotFoundException('Project not found');
-              const nextSequence = (currentProject.taskSequence || 0) + 1;
-              await tx.orm.public.Project.where({ id: currentTask.projectId }).update({ taskSequence: nextSequence });
-
-              const nextTaskData: any = {
-                projectId: currentTask.projectId,
-                name: currentTask.name,
-                description: currentTask.description,
-                status: 'TODO',
-                isActive: true,
-                priority: currentTask.priority,
-                creatorId: auth.employeeId,
-                assigneeId: currentTask.assigneeId,
-                requirementId: currentTask.requirementId,
-                milestoneId: currentTask.milestoneId,
-                parentTaskId: currentTask.parentTaskId,
-                estimatedHours: currentTask.estimatedHours,
-                recurrence: activeRecurrence,
-                startDate: nextStartDate,
-                dueDate: nextDueDate,
-                ticketId: `${currentProject.code}-${nextSequence}`
-              };
-
-              const generatedTask = await tx.orm.public.Task.create(nextTaskData);
-              updateData.nextOccurrenceId = generatedTask.id;
-            }
-          } else if (status === 'COMPLETED' && currentTask.status === 'COMPLETED') {
-             // Task already completed concurrently, skip generation to prevent duplicate tasks
-          }
 
           updated = await tx.orm.public.Task.where({ id }).update(updateData);
           

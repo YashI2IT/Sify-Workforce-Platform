@@ -4,8 +4,8 @@
 
 @theme inline {
   --radius: 0.625rem;
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   --color-background: oklch(0.975 0 0);
@@ -58,30 +58,39 @@
     text-rendering: optimizeLegibility;
   }
   body {
-    background-color: var(--color-background);
+    background-color: #FFFFFF;
     color: var(--color-foreground);
     font-family: var(--font-sans);
     letter-spacing: -0.011em;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-sans);
-    letter-spacing: -0.025em;
+    letter-spacing: -0.022em;
+    font-weight: 700;
+  }
+  button, input, select, textarea, kbd {
+    font-family: var(--font-sans);
+    letter-spacing: inherit;
   }
 
   /* Globally eliminate ugly native Windows scrollbar arrow buttons and white tracks */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+  }
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background-color: rgba(148, 163, 184, 0.3);
+    background-color: rgba(148, 163, 184, 0.35);
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(100, 116, 139, 0.55);
+    background-color: rgba(100, 116, 139, 0.6);
   }
   ::-webkit-scrollbar-button {
     display: none !important;
@@ -90,40 +99,59 @@
   }
 }
 
-/* Sidebar sleek auto-hiding scrollbar: clean & minimalist without Windows arrows */
-.sidebar-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.sidebar-scrollbar::-webkit-scrollbar {
-  width: 4px;
-  display: none;
-}
-
-.sidebar-scrollbar:hover {
+/* Jira-style sleek viewport scrollbar for main workspace */
+#main-scroll-container {
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
 }
-
-.sidebar-scrollbar:hover::-webkit-scrollbar {
-  display: block;
+#main-scroll-container::-webkit-scrollbar {
+  width: 7px;
 }
-
-.sidebar-scrollbar::-webkit-scrollbar-track {
+#main-scroll-container::-webkit-scrollbar-track {
   background: transparent;
 }
-
-.sidebar-scrollbar::-webkit-scrollbar-thumb {
+#main-scroll-container::-webkit-scrollbar-thumb {
   background-color: rgba(148, 163, 184, 0.4);
   border-radius: 9999px;
 }
-
-.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(100, 116, 139, 0.7);
+#main-scroll-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 116, 139, 0.65);
 }
 
-.sidebar-scrollbar::-webkit-scrollbar-button {
+/* Sidebar clean static styling: completely hides native scrollbars and arrows in all browsers */
+.sidebar-scrollbar,
+.no-scrollbar {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track,
+.no-scrollbar::-webkit-scrollbar-track {
+  display: none !important;
+  background: transparent !important;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb,
+.no-scrollbar::-webkit-scrollbar-thumb {
+  display: none !important;
+}
+
+.font-sidebar {
+  font-family: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  letter-spacing: -0.012em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-button,
+.no-scrollbar::-webkit-scrollbar-button {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
@@ -261,3 +289,13 @@
     animation: none;
   }
 }
+
+/* ── Hide scrollbar utilities ────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

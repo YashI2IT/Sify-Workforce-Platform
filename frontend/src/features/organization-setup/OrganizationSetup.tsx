@@ -269,16 +269,13 @@ export const OrganizationSetup: React.FC = () => {
       <header className="bg-white border-b border-slate-200/80 px-4 sm:px-8 py-3.5 sticky top-0 z-20 shadow-xs">
         <div className="max-w-6xl w-full mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shadow-xs">
-              <span className="w-4 h-4 rounded bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-[10px]">
-                SW
-              </span>
-            </div>
-            <div>
-              <h1 className="font-semibold text-base sm:text-lg leading-tight tracking-tight text-slate-900">
-                Sify Workforce
-              </h1>
-              <p className="text-xs text-slate-500 font-medium">
+            <img
+              src="/sify Workforce Logo on Transparent Canvas.png"
+              alt="Sify Workforce"
+              className="h-8 w-auto max-w-[160px] object-contain"
+            />
+            <div className="border-l border-slate-200 pl-3">
+              <p className="text-xs text-slate-500 font-semibold tracking-wide uppercase">
                 Organization Setup
               </p>
             </div>

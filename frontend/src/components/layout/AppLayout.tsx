@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
-import { apiSlice, useGetMyPreferencesQuery } from '../../store/apiSlice';
+import { 
+  apiSlice, 
+  useGetMyPreferencesQuery 
+} from '../../store/apiSlice';
 import { authService } from '../../services/authService';
 import { authStorage } from '../../lib/authUtils';
 import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
@@ -11,24 +14,29 @@ import {
   CheckSquare, 
   Users, 
   UsersRound, 
+  UserCheck,
+  FolderKanban,
   Menu, 
   X, 
   ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  ArrowLeft,
+  Search,
   Building,
-  SlidersHorizontal,
   ShieldAlert,
-  User,
   PieChart, 
   TrendingUp, 
   LayoutDashboard, 
   Briefcase, 
   Clock, 
-  CalendarDays, 
-  LogOut,
-  Settings
+  CalendarDays,
+  CalendarRange
 } from 'lucide-react';
 import { NotificationsMenu } from './NotificationsMenu';
 import { ProfileModal } from './ProfileModal';
+import { UserProfileMenu } from './UserProfileMenu';
+import { GlobalSearchPalette } from './GlobalSearchPalette';
 
 export const AppLayout = () => {
   const dispatch = useDispatch();
@@ -36,22 +44,70 @@ export const AppLayout = () => {
   const location = useLocation();
   const { employee } = useCurrentEmployee();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
+  
+  // Sidebar collapsed state with localStorage persistence
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem('sify_sidebar_collapsed') === 'true';
+    }
+    return false;
+  });
+
+  // Collapsible section states for expanded sidebar mode
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
+  // Quick jump search palette state
+  const [searchOpen, setSearchOpen] = useState(false);
+
   const { data: preferences } = useGetMyPreferencesQuery();
 
+  const toggleSidebar = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('sify_sidebar_collapsed', String(next));
+      }
+      return next;
+    });
+  };
+
+  const toggleSection = (sectionId: string) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }));
+  };
+
+  // Keyboard shortcut listeners (Ctrl+B for sidebar, Ctrl+K for search)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
-        setProfileOpen(false);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
       }
     };
-    if (profileOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+
+
+  // Reset workspace scroll container position immediately on page navigation
+  useEffect(() => {
+    const container = document.getElementById('main-scroll-container');
+    if (container) {
+      if (typeof container.scrollTo === 'function') {
+        container.scrollTo({ top: 0, behavior: 'instant' });
+      } else {
+        container.scrollTop = 0;
+      }
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [profileOpen]);
+  }, [location.pathname]);
 
   useEffect(() => {
     const applyTheme = (theme: string) => {
@@ -61,7 +117,7 @@ export const AppLayout = () => {
         document.documentElement.classList.remove('dark');
       } else {
         // system
-        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
           document.documentElement.classList.add('dark');
         } else {
           document.documentElement.classList.remove('dark');
@@ -74,14 +130,16 @@ export const AppLayout = () => {
     }
     
     // Listen for system theme changes if set to system
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      if (preferences?.theme === 'system') {
-        applyTheme('system');
-      }
-    };
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = () => {
+        if (preferences?.theme === 'system') {
+          applyTheme('system');
+        }
+      };
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
   }, [preferences?.theme]);
 
   const handleLogout = async () => {
@@ -100,43 +158,38 @@ export const AppLayout = () => {
 
   const isAdmin = Boolean(employee?.roles?.includes('ADMIN') || employee?.role === 'ADMIN');
 
-  // Final Admin sidebar navigation structure
+  // Final Admin sidebar navigation structure (refined for clarity and familiar business language)
   const adminNavigationGroups = [
     {
+      id: 'main',
       title: null,
       items: [
         { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard }
       ]
     },
     {
-      title: 'ORGANIZATION',
-      items: [
-        { name: 'Organization', path: '/organization', icon: Building },
-        { name: 'Settings', path: '/organization/settings', icon: SlidersHorizontal },
-      ]
-    },
-    {
-      title: 'WORKFORCE',
+      id: 'people-teams',
+      title: 'PEOPLE & TEAMS',
       items: [
         { name: 'Employees', path: '/employees', icon: Users },
         { name: 'Teams', path: '/teams', icon: UsersRound },
+      ]
+    },
+    {
+      id: 'projects-reports',
+      title: 'PROJECTS & REPORTS',
+      items: [
         { name: 'Projects', path: '/admin/projects', icon: Briefcase },
         { name: 'Reports', path: '/reports', icon: PieChart },
       ]
     },
     {
-      title: 'TIMESHEETS',
+      id: 'company',
+      title: 'COMPANY',
       items: [
-        { name: 'My Timesheets', path: '/timesheets', icon: CalendarDays },
-        { name: 'Pending Approvals', path: '/approvals', icon: CheckSquare },
-      ]
-    },
-    {
-      title: 'SYSTEM',
-      items: [
-        { name: 'Working Times', path: '/admin/working-times', icon: Clock },
-        { name: 'Public Holidays', path: '/admin/public-holidays', icon: CalendarDays },
-        { name: 'Audit Logs', path: '/admin/audit-logs', icon: ShieldAlert },
+        { name: 'Organization', path: '/organization', icon: Building },
+        { name: 'Work Calendar', path: '/admin/work-calendar', icon: CalendarRange },
+        { name: 'Activity History', path: '/admin/audit-logs', icon: ShieldAlert },
       ]
     }
   ];
@@ -144,12 +197,14 @@ export const AppLayout = () => {
   // Preserved standard navigation for non-admin roles (Employee, Manager)
   const standardNavigationGroups = [
     {
+      id: 'main',
       title: null,
       items: [
         { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['EMPLOYEE', 'MANAGER'] }
       ]
     },
     {
+      id: 'my-work',
       title: 'My Work',
       items: [
         { name: 'My Projects', path: '/projects', icon: Briefcase, roles: ['EMPLOYEE', 'MANAGER'] },
@@ -157,31 +212,28 @@ export const AppLayout = () => {
       ]
     },
     {
+      id: 'timesheets',
       title: 'Timesheets',
       items: [
         { name: 'My Timesheets', path: '/timesheets', icon: CalendarDays, roles: ['EMPLOYEE', 'MANAGER'] },
-        { name: 'Team Timesheets', path: '/team-timesheets', icon: Users, roles: ['MANAGER'] },
+        { name: 'Team Timesheets', path: '/team-timesheets', icon: UserCheck, roles: ['MANAGER'] },
         { name: 'Pending Approvals', path: '/approvals', icon: CheckSquare, roles: ['MANAGER'] },
       ]
     },
     {
+      id: 'management',
       title: 'Management',
       items: [
         { name: 'Employees', path: '/employees', icon: Users, roles: ['MANAGER'] },
         { name: 'Teams', path: '/teams', icon: UsersRound, roles: ['MANAGER'] },
-        { name: 'Projects', path: '/admin/projects', icon: Briefcase, roles: ['MANAGER'] },
+        { name: 'Projects', path: '/admin/projects', icon: FolderKanban, roles: ['MANAGER'] },
       ]
     },
     {
+      id: 'reports',
       title: 'Reports',
       items: [
-        { name: 'Reports', path: '/reports', icon: TrendingUp, roles: ['EMPLOYEE', 'MANAGER'] },
-      ]
-    },
-    {
-      title: 'Settings',
-      items: [
-        { name: 'Timesheet Settings', path: '/settings/timesheets', icon: Clock, roles: ['MANAGER'] },
+        { name: 'Reports', path: '/reports', icon: TrendingUp, roles: ['MANAGER'] },
       ]
     }
   ];
@@ -194,6 +246,8 @@ export const AppLayout = () => {
         ...group,
         items: group.items.filter(item => hasRole(item.roles))
       })).filter(group => group.items.length > 0);
+
+
 
   const isItemActive = (itemPath: string) => {
     const currentPath = location.pathname;
@@ -221,20 +275,26 @@ export const AppLayout = () => {
       return currentPath.startsWith('/admin/projects');
     }
     if (itemPath === '/projects') {
-      return currentPath.startsWith('/projects');
+      return currentPath.startsWith('/projects') && !currentPath.startsWith('/admin/projects');
     }
 
-    // Reports active check: only /reports root highlights for everything. Sub-reports rely on exact match below.
+    // Reports active check
     if (itemPath === '/reports') {
       return currentPath.startsWith('/reports');
     }
 
     // Organization active checks
     if (itemPath === '/organization') {
-      return currentPath === '/organization' || currentPath === '/organization/overview';
+      return currentPath.startsWith('/organization');
     }
-    if (itemPath === '/organization/settings') {
-      return currentPath === '/organization/settings' || currentPath === '/organization/profile';
+
+    // Work Calendar active check (matches /admin/work-calendar and legacy /admin/working-times, /admin/public-holidays)
+    if (itemPath === '/admin/work-calendar') {
+      return (
+        currentPath.startsWith('/admin/work-calendar') ||
+        currentPath.startsWith('/admin/working-times') ||
+        currentPath.startsWith('/admin/public-holidays')
+      );
     }
 
     return currentPath === itemPath || currentPath.startsWith(itemPath + '/');
@@ -243,29 +303,59 @@ export const AppLayout = () => {
   const currentGroup = visibleGroups.find(g => g.items.some(item => isItemActive(item.path)));
   const currentNav = currentGroup?.items.find(item => isItemActive(item.path));
 
-  const getSectionTitle = () => {
-    if (!currentGroup?.title) {
-      return 'Platform';
+  const isDashboard = location.pathname === '/dashboard' || location.pathname === '/';
+
+  const getBreadcrumbs = () => {
+    if (isDashboard) {
+      return { parent: null, current: 'Dashboard' };
     }
-    const t = currentGroup.title.trim();
-    if (t === t.toUpperCase()) {
-      return t.charAt(0) + t.slice(1).toLowerCase();
+
+    let current = currentNav?.name;
+    if (location.pathname.startsWith('/organization/settings')) {
+      current = 'Settings';
+    } else if (location.pathname.startsWith('/organization/profile')) {
+      current = 'Organization Profile';
+    } else if (!current) {
+      if (location.pathname.startsWith('/submission-approvals')) current = 'Submission Approvals';
+      else if (location.pathname.startsWith('/approvals/timesheets')) current = 'Timesheet Review';
+      else if (location.pathname.startsWith('/timesheets/')) current = 'Timesheet Details';
+      else if (location.pathname.startsWith('/projects/')) current = 'Project Details';
+      else if (location.pathname.startsWith('/organization/overview')) current = 'Organization Overview';
+      else if (location.pathname.startsWith('/profile')) current = 'Profile';
+      else current = 'Dashboard';
     }
-    return t;
+
+    let parent: string | null = null;
+    if (location.pathname.startsWith('/organization/settings') || location.pathname.startsWith('/organization/profile')) {
+      parent = isAdmin ? 'Company' : 'Organization';
+    } else if (currentGroup?.title) {
+      const t = currentGroup.title.trim();
+      parent = t === t.toUpperCase()
+        ? t.split(' ').map(w => w === '&' ? '&' : w.charAt(0) + w.slice(1).toLowerCase()).join(' ')
+        : t;
+    } else if (location.pathname.startsWith('/projects/')) {
+      parent = 'Projects';
+    } else if (location.pathname.startsWith('/approvals/timesheets') || location.pathname.startsWith('/submission-approvals')) {
+      parent = 'Approvals';
+    } else if (location.pathname.startsWith('/timesheets/')) {
+      parent = 'Timesheets';
+    } else if (location.pathname.startsWith('/profile')) {
+      parent = 'Account';
+    }
+
+    if (parent && current && parent.toLowerCase() === current.toLowerCase()) {
+      parent = null;
+    }
+
+    return { parent, current };
   };
-  const sectionTitle = getSectionTitle();
+  const breadcrumbs = getBreadcrumbs();
 
   const closeMobileNav = () => setMobileNavOpen(false);
-
-  const getInitials = (name?: string) => {
-    if (!name) return 'SW';
-    const parts = name.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  };
+  const isCollapsed = sidebarCollapsed && !mobileNavOpen;
 
   return (
-    <div className="flex h-screen bg-[#f6f7f8] overflow-hidden font-sans">
+    <div className="flex h-screen bg-white overflow-hidden font-sans">
       {/* Mobile backdrop */}
       {mobileNavOpen && (
         <div
@@ -274,188 +364,322 @@ export const AppLayout = () => {
         />
       )}
 
-      {/* Enterprise Executive Sidebar */}
+      {/* Enterprise Executive Sidebar: full viewport height (h-screen) */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[#F9FBFC] border-r border-slate-200/60 flex flex-col transition-transform duration-200 ease-in-out shadow-xs ${
-          mobileNavOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        style={{ backgroundColor: '#F7F8FA' }}
+        className={`fixed lg:static inset-y-0 left-0 z-40 bg-[#F7F8FA] border-r border-slate-200/80 flex flex-col shrink-0 transition-[width,transform] duration-[250ms] ease-in-out motion-reduce:transition-none select-none overflow-x-hidden font-sidebar will-change-[width] ${
+          mobileNavOpen 
+            ? 'translate-x-0 w-56' 
+            : `-translate-x-full lg:translate-x-0 ${sidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'}`
         }`}
+        aria-label="Sidebar navigation"
       >
-        {/* Brand Header */}
-        <div className="h-[68px] flex items-center justify-between px-6 border-b border-slate-200/80 shrink-0 bg-transparent">
-          <Link to="/dashboard" className="flex items-center gap-3.5 group">
-            <div className="w-[38px] h-[38px] rounded-[14px] bg-[#12161F] text-white flex items-center justify-center shadow-xs relative transition-transform group-hover:scale-105">
-              <span className="font-sans tracking-[0.15em] font-bold text-white text-[11px] ml-0.5">SW</span>
-              <span className="absolute -top-0.5 -right-0.5 w-[11px] h-[11px] rounded-full bg-[#4ade80] border-[2.5px] border-[#F9FBFC]" />
-            </div>
-            <div>
-              <span className="text-[15px] font-bold text-[#12161F] tracking-tight font-sans block leading-none mb-1">
-                Sify Workforce
-              </span>
-              <span className="text-[9px] font-sans text-[#8ba2be] tracking-[0.15em] uppercase font-bold block leading-none">
-                Enterprise OS
-              </span>
-            </div>
-          </Link>
-          <button
-            onClick={closeMobileNav}
-            className="lg:hidden text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-            aria-label="Close sidebar"
+        {/* Sidebar Brand & Collapse/Expand Header (Height 68px matching workspace header) */}
+        <div 
+          style={{ backgroundColor: '#F7F8FA' }}
+          className="shrink-0 h-[68px] bg-[#F7F8FA] flex items-center px-3.5 relative overflow-hidden transition-colors duration-200"
+        >
+          {/* Brand wordmark link (visible on expanded desktop or mobile drawer) */}
+          <div
+            className={`w-[136px] shrink-0 overflow-hidden whitespace-nowrap select-none ${
+              isCollapsed
+                ? 'opacity-0 -translate-x-2.5 pointer-events-none transition-[opacity,transform] duration-100 ease-out'
+                : 'opacity-100 translate-x-0 transition-[opacity,transform] duration-200 delay-75 ease-out'
+            }`}
+            aria-hidden={isCollapsed ? 'true' : undefined}
           >
-            <X className="w-5 h-5" />
+            <Link
+              to="/dashboard"
+              onClick={closeMobileNav}
+              tabIndex={isCollapsed ? -1 : 0}
+              className="flex items-center hover:opacity-90 transition-opacity select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B1738]/20 rounded-sm"
+              aria-label="Sify Workforce Platform Home"
+            >
+              <img
+                src="/sify Workforce Logo on Transparent Canvas.png"
+                alt="Sify Workforce"
+                className="h-9 w-auto max-w-[136px] object-contain select-none"
+                draggable={false}
+              />
+            </Link>
+          </div>
+
+          {/* Desktop Collapse / Expand Toggle Button: GPU-accelerated translation and arrow rotation */}
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            style={{
+              left: '20px',
+              transform: `translateY(-50%) translateX(${isCollapsed ? '0px' : '158px'})`,
+            }}
+            className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg bg-white hover:bg-slate-50 border border-slate-200/90 hover:border-slate-300 text-slate-500 hover:text-[#0B1738] shadow-2xs hover:shadow-xs transition-[transform,colors,box-shadow,border-color] duration-[250ms] ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B1738]/20 shrink-0 absolute top-1/2 z-10"
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={isCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+          >
+            <ChevronLeft
+              className={`w-4 h-4 text-slate-500 hover:text-[#0B1738] transition-transform duration-[250ms] ease-in-out ${
+                isCollapsed ? 'rotate-180' : 'rotate-0'
+              }`}
+              strokeWidth={2}
+            />
           </button>
+
+          {/* Mobile Drawer Close Button */}
+          {mobileNavOpen && (
+            <button
+              type="button"
+              onClick={closeMobileNav}
+              className="lg:hidden text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer ml-auto"
+              aria-label="Close sidebar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Navigation List */}
-        <nav className="flex-1 px-3.5 py-3 space-y-2.5 overflow-y-auto sidebar-scrollbar">
-          {visibleGroups.map((group, groupIndex) => (
-            <div key={groupIndex} className="space-y-1">
-              {group.title && (
-                <div className="px-3 pt-3 pb-1">
-                  <p className="text-[10px] font-bold text-[#8ba2be] uppercase tracking-wider font-sans">
-                    {group.title}
-                  </p>
-                </div>
-              )}
-              <div className="space-y-1 mt-1">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = isItemActive(item.path);
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={closeMobileNav}
-                      className={`group flex items-center justify-between px-3 py-2.5 rounded-[12px] text-[14.5px] transition-all duration-300 ease-out font-sans ${
-                        isActive
-                          ? 'bg-[#12161F] shadow-sm text-white font-medium'
-                          : 'text-[#1e3a5f] hover:bg-slate-100/70 hover:text-[#12161F] font-medium'
+        <nav className="flex-1 overflow-x-hidden sidebar-scrollbar px-3 py-2.5 space-y-1 overflow-y-auto">
+          {visibleGroups.map((group, groupIndex) => {
+            const isGroupCollapsed = Boolean(collapsedSections[group.id]);
+            const showGroupItems = isCollapsed || !isGroupCollapsed;
+
+            return (
+              <div key={group.id || groupIndex} className="space-y-1">
+                {group.title && (
+                  <div className="h-7 relative flex items-center my-0.5">
+                    {/* Expanded Section Heading: stable absolute layout preventing vertical shifting */}
+                    <div
+                      className={`absolute inset-0 flex items-center whitespace-nowrap ${
+                        isCollapsed
+                          ? 'opacity-0 -translate-x-2.5 pointer-events-none transition-[opacity,transform] duration-100 ease-out'
+                          : 'opacity-100 translate-x-0 transition-[opacity,transform] duration-200 delay-75 ease-out'
                       }`}
+                      aria-hidden={isCollapsed ? 'true' : undefined}
                     >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <Icon className={`w-[20px] h-[20px] shrink-0 transition-colors duration-300 ${
-                          isActive ? 'text-white' : 'text-[#1e3a5f] group-hover:text-[#12161F]'
-                        }`} strokeWidth={1.75} />
-                        <span className="truncate tracking-tight">{item.name}</span>
+                      <button
+                        type="button"
+                        tabIndex={isCollapsed ? -1 : 0}
+                        onClick={() => toggleSection(group.id)}
+                        className="flex items-center justify-between w-full px-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-sidebar group cursor-pointer hover:text-slate-800 transition-colors"
+                      >
+                        <span className="truncate">{group.title}</span>
+                        <ChevronDown
+                          className={`w-3 h-3 text-slate-400 group-hover:text-slate-600 shrink-0 transition-transform duration-200 ${
+                            isGroupCollapsed ? '-rotate-90' : ''
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Collapsed Divider between groups: same height container, zero layout jump */}
+                    {groupIndex > 0 && (
+                      <div
+                        className={`w-full flex items-center justify-center ${
+                          isCollapsed
+                            ? 'opacity-100 transition-opacity duration-200 delay-75 ease-out'
+                            : 'opacity-0 pointer-events-none transition-opacity duration-100 ease-out'
+                        }`}
+                        aria-hidden={!isCollapsed ? 'true' : undefined}
+                      >
+                        <div className="w-6 border-t border-slate-200/80" aria-hidden="true" />
                       </div>
-                    </Link>
-                  );
-                })}
+                    )}
+                  </div>
+                )}
+
+                {/* Group Items */}
+                {showGroupItems && (
+                  <div className="space-y-1">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = isItemActive(item.path);
+
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={closeMobileNav}
+                          title={item.name}
+                          aria-label={item.name}
+                          className={`group relative flex items-center h-10 w-full rounded-[10px] text-[13px] transition-colors duration-150 font-sidebar select-none overflow-hidden ${
+                            isActive
+                              ? 'bg-white shadow-2xs border border-slate-200/90 text-[#0B1738] font-semibold'
+                              : 'text-[#2C3E5D] hover:bg-slate-200/60 hover:text-[#0B1738] font-medium border border-transparent'
+                          }`}
+                        >
+                          {/* Active Indicator Bar on left edge */}
+                          {isActive && (
+                            <span
+                              className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#0B1738]"
+                              aria-hidden="true"
+                            />
+                          )}
+
+                          {/* Fixed Center Icon Box (48px wide = w-12, exactly centered in 72px sidebar) */}
+                          <div className="w-12 h-10 shrink-0 flex items-center justify-center">
+                            <Icon
+                              className={`w-4 h-4 shrink-0 transition-colors ${
+                                isActive ? 'text-[#0B1738]' : 'text-[#5E6C84] group-hover:text-[#0B1738]'
+                              }`}
+                              strokeWidth={isActive ? 2 : 1.75}
+                            />
+                          </div>
+
+                          {/* Full width label container: asymmetric fade prevents letter clipping and text jumping */}
+                          <div
+                            className={`flex-1 min-w-0 pr-1.5 overflow-hidden whitespace-nowrap select-none pointer-events-none ${
+                              isCollapsed
+                                ? 'opacity-0 -translate-x-2.5 transition-[opacity,transform] duration-100 ease-out'
+                                : 'opacity-100 translate-x-0 transition-[opacity,transform] duration-200 delay-75 ease-out'
+                            }`}
+                          >
+                            <span className="truncate block text-[13px] tracking-[-0.01em]">
+                              {item.name}
+                            </span>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
-        {/* Footer */}
+        {/* Dev bypass context badge (if enabled) */}
         {env.VITE_DEV_AUTH_BYPASS && (
-          <div className="p-3.5 border-t border-slate-200/80 shrink-0 bg-slate-50/50">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50/60 rounded-xl border border-amber-200/70 text-xs text-amber-800">
+          <div 
+            style={{ backgroundColor: '#F7F8FA' }}
+            className={`p-2 border-t border-slate-200/80 shrink-0 bg-[#F7F8FA] overflow-hidden transition-[opacity,max-height] duration-[250ms] ease-in-out ${
+              isCollapsed ? 'opacity-0 max-h-0 pointer-events-none p-0 border-t-0' : 'opacity-100 max-h-16'
+            }`}
+          >
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-amber-50/70 rounded-lg border border-amber-200/60 text-[11px] text-amber-800 font-medium whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <span className="truncate font-medium text-[11px]">Active Context: {employee?.name || 'Dev User'}</span>
+              <span className="truncate">Active Context: {employee?.name || 'Dev User'}</span>
             </div>
           </div>
         )}
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Header Bar */}
-        <header className="h-[68px] bg-white border-b border-slate-200/80 px-4 sm:px-6 flex items-center justify-between shrink-0 z-10 sticky top-0">
-          <div className="flex items-center gap-3">
+      {/* Workspace & Main Scroll Container: full height, scrollbar starts at y = 0 */}
+      <div
+        id="main-scroll-container"
+        className="flex-1 min-w-0 h-screen overflow-y-auto bg-white flex flex-col relative select-text"
+      >
+        {/* Global Enterprise SaaS Header: sticky top-0 inside scrolling workspace */}
+        <header className="h-[68px] bg-white sticky top-0 z-30 flex items-center justify-between shrink-0 px-4 sm:px-6">
+          {/* Mobile hamburger menu & brand fallback */}
+          <div className="flex items-center gap-2.5 lg:hidden">
             <button
+              type="button"
               onClick={() => setMobileNavOpen(true)}
-              className="lg:hidden text-[#1e3a5f] hover:bg-slate-100 p-1.5 -ml-1 rounded-xl cursor-pointer transition-colors"
-              aria-label="Open sidebar"
+              className="text-[#0B1738] hover:bg-slate-200/60 p-1.5 -ml-1 rounded-lg cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B1738]/20"
+              aria-label="Open navigation sidebar"
             >
               <Menu className="w-5 h-5" strokeWidth={1.75} />
             </button>
-            <div className="flex items-center gap-2.5 text-[13.5px]">
-              <span className="text-[#8ba2be] font-medium font-sans">{sectionTitle}</span>
-              {currentNav?.name && currentNav.name.toLowerCase() !== sectionTitle.toLowerCase() && (
-                <>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-300" strokeWidth={2.5} />
-                  <span className="font-bold text-[#12161F] font-sans">{currentNav.name}</span>
-                </>
-              )}
-            </div>
+            <Link
+              to="/dashboard"
+              className="flex items-center hover:opacity-90 select-none"
+              aria-label="Sify Workforce Platform Home"
+            >
+              <img
+                src="/sify Workforce Logo on Transparent Canvas.png"
+                alt="Sify Workforce"
+                className="h-8 w-auto max-w-[130px] object-contain select-none"
+                draggable={false}
+              />
+            </Link>
           </div>
 
-          <div className="flex items-center gap-3">
-            <NotificationsMenu />
-            
-            {employee && (
-              <div className="relative" ref={profileRef}>
+          {/* Area B: Breadcrumb Navigation & Back Button */}
+          <div className="flex-1 flex items-center min-w-0 gap-3">
+            {/* Back button (hidden on root dashboard) */}
+            {!isDashboard && (
+              <>
                 <button
-                  onClick={() => setProfileOpen(!profileOpen)}
-                  className="flex items-center gap-2.5 px-1.5 py-1.5 sm:px-2.5 sm:py-2 bg-white hover:bg-slate-50 border border-[#e2e8f0] rounded-full transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => {
+                    if (window.history.length > 1) {
+                      navigate(-1);
+                    } else {
+                      navigate('/dashboard');
+                    }
+                  }}
+                  aria-label="Go back"
+                  title="Go back"
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer shrink-0"
                 >
-                  <div className="w-[26px] h-[26px] rounded-full bg-[#12161F] text-white font-sans font-bold text-[10px] flex items-center justify-center tracking-wider">
-                    {getInitials(employee.name)}
-                  </div>
-                  <span className="font-bold text-[#12161F] font-sans pr-1.5 text-[13.5px] hidden sm:inline leading-none pt-0.5">{employee.name.split(' ')[0]}</span>
+                  <ArrowLeft className="w-4 h-4" strokeWidth={2} />
                 </button>
 
-                {profileOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-dropdown">
-                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
-                      <p className="text-sm font-bold text-slate-900 truncate">{employee.name}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-200/70 text-slate-700">
-                          {employee.role || employee.roles?.[0] || 'EMPLOYEE'}
-                        </span>
-                        <span className="text-[10px] font-mono text-slate-500 truncate">
-                          {employee.employeeCode}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="py-1">
-                      <button
-                        onClick={() => {
-                          setProfileOpen(false);
-                          setProfileModalOpen(true);
-                        }}
-                        className="flex items-center gap-2.5 px-4 py-2 w-full text-left text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
-                      >
-                        <User className="w-4 h-4 text-slate-400" />
-                        Profile Settings
-                      </button>
-                      <Link
-                        to="/preferences"
-                        onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
-                      >
-                        <Settings className="w-4 h-4 text-slate-400" />
-                        Preferences
-                      </Link>
-                    </div>
-
-                    <div className="border-t border-slate-100">
-                      <button
-                        onClick={() => {
-                          setProfileOpen(false);
-                          handleLogout();
-                        }}
-                        className="flex items-center gap-2.5 px-4 py-3 w-full text-left text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Sign Out
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+                <div className="h-4 w-px bg-slate-200 shrink-0 hidden sm:block" aria-hidden="true" />
+              </>
             )}
+
+            <nav aria-label="Breadcrumb" className="min-w-0">
+              <ol className="flex items-center gap-2 text-[13.5px]">
+                {breadcrumbs.parent && (
+                  <>
+                    <li className="text-slate-400 font-medium font-sans truncate hidden sm:inline">
+                      {breadcrumbs.parent}
+                    </li>
+                    <li className="hidden sm:flex items-center" aria-hidden="true">
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" strokeWidth={2.25} />
+                    </li>
+                  </>
+                )}
+                <li className="font-semibold text-[#0B1738] font-sans truncate" aria-current="page">
+                  {breadcrumbs.current}
+                </li>
+              </ol>
+            </nav>
+          </div>
+
+          {/* Areas C & D: Search, Notifications and User Profile (Right) */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Jira-style Quick Search command trigger */}
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="hidden md:flex items-center gap-2.5 px-3 h-8 text-xs text-slate-500 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-xl transition-all cursor-pointer shadow-2xs group focus:outline-none focus:ring-2 focus:ring-[#0B1738]/20"
+              title="Search application (Ctrl+K or ⌘K)"
+              aria-label="Search pages"
+            >
+              <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+              <span className="text-[12.5px] font-medium text-slate-400 group-hover:text-slate-600">Search projects, tasks, people...</span>
+              <kbd className="text-[10px] font-sans font-semibold bg-white text-slate-500 border border-slate-200/90 rounded px-1.5 py-0.5 shadow-2xs">Ctrl K</kbd>
+            </button>
+
+            {/* Area C: Notification dropdown button */}
+            <NotificationsMenu />
+
+            {/* Area D: User Profile pill control with menu */}
+            <UserProfileMenu
+              employee={employee}
+              onOpenProfileModal={() => setProfileModalOpen(true)}
+              onLogout={handleLogout}
+            />
           </div>
         </header>
 
-        {/* Scrollable Page Outlet with Smooth Transition */}
-        <main className="flex-1 overflow-hidden bg-slate-50/50 relative">
-          <div id="main-scroll-container" key={location.pathname} className="animate-pageTransition absolute inset-0 overflow-auto">
+        {/* Main Content Area */}
+        <main className="flex-1 bg-white relative">
+          <div key={location.pathname} className="animate-pageTransition">
             <Outlet />
           </div>
         </main>
       </div>
-      
+
+      {/* Enterprise Jira-style Global Search Palette */}
+      <GlobalSearchPalette
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        employee={employee}
+      />
+
       {employee && (
         <ProfileModal 
           isOpen={profileModalOpen} 

@@ -421,9 +421,11 @@ The Sify Workforce Team
     title: string;
     message: string;
     relatedEntityId?: string;
+    targetPath?: string;
   }) {
-    const { email, name, title, message } = params;
+    const { email, name, title, message, targetPath } = params;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const targetLink = `${frontendUrl}${targetPath || ''}`;
 
     const textContent = `
 Hello ${name},
@@ -433,7 +435,7 @@ ${title}
 ${message}
 
 Sify Workforce Platform
-${frontendUrl}
+${targetLink}
     `;
 
     const htmlContent = `
@@ -450,7 +452,7 @@ ${frontendUrl}
           </div>
           
           <div style="margin: 30px 0; text-align: center;">
-            <a href="${frontendUrl}" style="background-color: #0f172a; color: white; padding: 12px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; display: inline-block;">View in Sify Workforce</a>
+            <a href="${targetLink}" style="background-color: #0f172a; color: white; padding: 12px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; display: inline-block;">View in Sify Workforce</a>
           </div>
           
           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Eye,
   EyeOff,
@@ -9,7 +9,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { authService } from '../../services/authService';
-import { authStorage, sanitizeReturnTo } from '../../lib/authUtils';
+import { authStorage, determineLandingDestination } from '../../lib/authUtils';
 import { setAuth } from '../../store/slices/authSlice';
 import { apiSlice } from '../../store/apiSlice';
 import { loginSchema } from './schemas/loginSchema';
@@ -26,26 +26,25 @@ export const Login = () => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
+  const employee = useSelector((state: RootState) => state.auth.employee);
+  const onboardingRequired = useSelector((state: RootState) => state.auth.onboardingRequired);
+  const isInitialSetup = useSelector((state: RootState) => state.auth.isInitialSetup);
   const isLoggingIn = useRef(false);
 
-  // Extract and sanitize intended return destination
-  const searchParams = new URLSearchParams(location.search);
-  const rawReturnTo = searchParams.get('returnTo') || (location.state as any)?.from;
-  const returnTo = sanitizeReturnTo(rawReturnTo);
-
+  // If already authenticated and not currently processing login, redirect appropriately
   useEffect(() => {
     if (isAuthenticated && !isLoggingIn.current) {
-      const pendingInvToken = sessionStorage.getItem('pending_invitation_token');
-      if (pendingInvToken) {
-        navigate(`/invite/${pendingInvToken}`, { replace: true });
-      } else {
-        navigate(returnTo, { replace: true });
-      }
+      const destination = determineLandingDestination({
+        employee,
+        onboardingRequired,
+        isInitialSetup,
+        pendingInvitationToken: sessionStorage.getItem('pending_invitation_token'),
+      });
+      navigate(destination, { replace: true });
     }
-  }, [isAuthenticated, navigate, returnTo]);
+  }, [isAuthenticated, employee, onboardingRequired, isInitialSetup, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,15 +92,15 @@ export const Login = () => {
         onboardingRequired: !!bootstrapState.onboardingRequired,
       }));
 
-      const pendingInvToken = sessionStorage.getItem('pending_invitation_token');
+      // 5. Authoritative landing destination based on newly authenticated employee
+      const landingDestination = determineLandingDestination({
+        employee: bootstrapState.employee,
+        onboardingRequired: !!bootstrapState.onboardingRequired,
+        isInitialSetup: !!bootstrapState.isInitialSetup,
+        pendingInvitationToken: sessionStorage.getItem('pending_invitation_token'),
+      });
 
-      if (pendingInvToken) {
-        navigate(`/invite/${pendingInvToken}`);
-      } else if (bootstrapState.onboardingRequired) {
-        navigate('/onboarding');
-      } else {
-        navigate(returnTo, { replace: true });
-      }
+      navigate(landingDestination, { replace: true });
     } catch (err: any) {
       isLoggingIn.current = false;
       // Controlled error message normalization without leaking raw stacks or tokens
@@ -157,13 +156,13 @@ export const Login = () => {
         <div className="bg-white rounded-[26px] border border-slate-200/80 shadow-xl shadow-slate-200/60 overflow-hidden transition-all">
           {/* Card Body */}
           <div className="p-6 sm:p-7 space-y-4">
-            {/* Top Brand Logo Squircle */}
+            {/* Top Brand Logo */}
             <div className="flex justify-center pt-1">
-              <div className="w-12 h-9 rounded-[18px] bg-slate-950 flex items-center justify-center shadow-md shadow-slate-900/15 transition-transform hover:scale-105">
-                <div className="w-7 h-7 rounded-lg bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-xs">
-                  SW
-                </div>
-              </div>
+              <img
+                src="/sify Workforce Logo on Transparent Canvas.png"
+                alt="Sify Workforce"
+                className="h-10 w-auto max-w-[180px] object-contain transition-transform hover:scale-105"
+              />
             </div>
 
             {/* Header Text */}
@@ -315,11 +314,12 @@ export const Login = () => {
         <div className="mt-5 text-center space-y-1">
           <div className="inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium">
             <span>Secured by</span>
-            <span className="font-bold text-slate-900 tracking-tight flex items-center gap-1">
-              <span className="w-3.5 h-3.5 rounded bg-[#27F087] flex items-center justify-center text-slate-950 font-black text-[9px]">
-                SW
-              </span>
-              Sify Workforce
+            <span className="font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+              <img
+                src="/sify Workforce Logo on Transparent Canvas.png"
+                alt="Sify Workforce"
+                className="h-4 w-auto object-contain"
+              />
             </span>
           </div>
         </div>

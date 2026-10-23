@@ -28,9 +28,7 @@ import { ReportsAndAnalytics } from './features/reports/ReportsAndAnalytics';
 import { AuditLogsList } from './features/system/AuditLogsList';
 
 import { ManagerWorkingTimesView } from './features/working-times/ManagerWorkingTimesView';
-import { WorkingTimesConfig } from './features/working-times/WorkingTimesConfig';
-import { PublicHolidaysConfig } from './features/working-times/PublicHolidaysConfig';
-import { UserPreferences } from './features/working-times/UserPreferences';
+import { WorkCalendar } from './features/working-times/WorkCalendar';
 
 import { OrganizationSetup } from './features/organization-setup/OrganizationSetup';
 import { LandingPage } from './features/landing/LandingPage';
@@ -71,9 +69,10 @@ function App() {
             <Route path="/admin/projects" element={<AllProjectsList />} />
             <Route path="/admin/projects/onboarding" element={<ProjectOnboarding />} />
             <Route path="/projects/onboarding" element={<ProjectOnboarding />} />
-            <Route path="/admin/working-times" element={<WorkingTimesConfig />} />
+            <Route path="/admin/work-calendar" element={<WorkCalendar />} />
+            <Route path="/admin/working-times" element={<Navigate to="/admin/work-calendar" replace />} />
             <Route path="/settings/timesheets" element={<ManagerWorkingTimesView />} />
-            <Route path="/admin/public-holidays" element={<PublicHolidaysConfig />} />
+            <Route path="/admin/public-holidays" element={<Navigate to="/admin/work-calendar#public-holidays" replace />} />
             
             {/* Reports Routing - Unified Single Page */}
             <Route path="/reports" element={<ReportsAndAnalytics />} />
@@ -82,7 +81,7 @@ function App() {
 
             {/* System */}
             <Route path="/admin/audit-logs" element={<AuditLogsList />} />
-            <Route path="/preferences" element={<UserPreferences />} />
+            <Route path="/preferences" element={<Navigate to="/organization/settings" replace />} />
           </Route>
         </Route>
         

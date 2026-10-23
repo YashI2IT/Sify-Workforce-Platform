@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { db } from '../prisma/db.js';
 import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 
@@ -193,6 +193,9 @@ export class OrganizationsService {
     if (!settings) {
       settings = await db.orm.public.OrganizationSettings.create({
         organizationId,
+        timeZone: 'UTC',
+        dateFormat: 'DD/MM/YYYY',
+        emailNotifications: true,
       });
     }
     return settings;
@@ -203,11 +206,36 @@ export class OrganizationsService {
     
     // Only allow updating supported fields
     const updates: any = {};
-    if (payload.weekStartsOn !== undefined) updates.weekStartsOn = payload.weekStartsOn;
-    if (payload.timeZone !== undefined) updates.timeZone = payload.timeZone;
+    if (payload.weekStartsOn !== undefined) {
+      if (typeof payload.weekStartsOn !== 'number' || payload.weekStartsOn < 1 || payload.weekStartsOn > 7) {
+        throw new BadRequestException('weekStartsOn must be a number between 1 and 7');
+      }
+      updates.weekStartsOn = payload.weekStartsOn;
+    }
+    if (payload.timeZone !== undefined) {
+      if (typeof payload.timeZone !== 'string' || !payload.timeZone.trim()) {
+        throw new BadRequestException('timeZone must be a non-empty string');
+      }
+      updates.timeZone = payload.timeZone.trim();
+    }
+    if (payload.dateFormat !== undefined) {
+      const ALLOWED_DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'];
+      if (!ALLOWED_DATE_FORMATS.includes(payload.dateFormat)) {
+        throw new BadRequestException(`dateFormat must be one of: ${ALLOWED_DATE_FORMATS.join(', ')}`);
+      }
+      updates.dateFormat = payload.dateFormat;
+    }
+    if (payload.emailNotifications !== undefined) {
+      if (typeof payload.emailNotifications !== 'boolean') {
+        throw new BadRequestException('emailNotifications must be a boolean');
+      }
+      updates.emailNotifications = payload.emailNotifications;
+    }
     if (payload.defaultEmployeeRole !== undefined) updates.defaultEmployeeRole = payload.defaultEmployeeRole;
     if (payload.projectCreationPermission !== undefined) updates.projectCreationPermission = payload.projectCreationPermission;
     if (payload.projectAssignmentPermission !== undefined) updates.projectAssignmentPermission = payload.projectAssignmentPermission;
+
+    updates.updatedAt = (globalThis as any).Temporal.Instant.from(new Date().toISOString());
 
     const updated = await db.orm.public.OrganizationSettings.where({ id: settings.id }).update(updates);
     

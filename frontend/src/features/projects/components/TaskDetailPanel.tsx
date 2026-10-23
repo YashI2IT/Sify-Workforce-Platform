@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Edit2, Clock, Calendar, AlertCircle, Send, Trash2, Edit3, MessageSquare, Link, Plus } from 'lucide-react';
+import { X, Edit2, Clock, Calendar, AlertCircle, Send, Trash2, Edit3, MessageSquare, Link, Plus, RotateCcw } from 'lucide-react';
 import { useCurrentEmployee } from '../../../hooks/useCurrentEmployee';
 import {
   useGetTaskCommentsQuery,
@@ -16,6 +16,13 @@ import {
 } from '../../../store/apiSlice';
 import { useToast } from '../../../context/ToastContext';
 import { Select } from '../../../components/ui/Select';
+import {
+  extractRecurrenceConfig,
+  formatRecurrenceSummary,
+  formatDateIST,
+  formatFrequencyLabel,
+  WEEKDAY_NAMES,
+} from '../utils/recurrenceHelper';
 
 interface Task {
   id: string;
@@ -33,6 +40,8 @@ interface Task {
   parentTaskId?: string | null;
   requirementId?: string | null;
   milestoneId?: string | null;
+  recurrence?: string | null;
+  nextOccurrenceId?: string | null;
   metadata?: Record<string, any> | null;
 }
 
@@ -48,6 +57,7 @@ interface TaskDetailPanelProps {
   projectIsActive: boolean;
   projectId: string;
   onEdit: (t: Task) => void;
+  onSelectTask?: (t: Task) => void;
 }
 
 const statusColors: Record<string, string> = {
@@ -89,9 +99,21 @@ export const TaskDetailPanel = ({
   projectIsActive,
   projectId,
   onEdit,
+  onSelectTask,
 }: TaskDetailPanelProps) => {
   const { employee } = useCurrentEmployee();
   const { showToast } = useToast();
+
+  const recurrenceConfig = useMemo(() => extractRecurrenceConfig(task), [task]);
+  const nextOccurrenceTask = useMemo(() => {
+    if (!task?.nextOccurrenceId) return null;
+    return tasks.find(t => t.id === task.nextOccurrenceId) || null;
+  }, [task?.nextOccurrenceId, tasks]);
+
+  const previousOccurrenceTask = useMemo(() => {
+    if (!task?.id) return null;
+    return tasks.find(t => (t as any).nextOccurrenceId === task.id) || null;
+  }, [task?.id, tasks]);
   
   const [updateProjectTask] = useUpdateProjectTaskMutation();
 
@@ -318,6 +340,12 @@ export const TaskDetailPanel = ({
               <span className={'px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono ' + priorityCls}>
                 {task.priority ?? 'MEDIUM'}
               </span>
+              {task.recurrence && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs">
+                  <RotateCcw className="w-2.5 h-2.5" />
+                  {task.recurrence}
+                </span>
+              )}
               {!task.isActive && (
                 <span className="px-2.5 py-0.5 text-[10px] font-mono font-bold bg-slate-100 text-slate-500 border border-slate-200 rounded-full">
                   INACTIVE
@@ -414,6 +442,178 @@ export const TaskDetailPanel = ({
               </MetaRow>
             </div>
           </section>
+
+          {/* ── RECURRING TASK AUTOMATION ── */}
+          {recurrenceConfig && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600">
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </div>
+                  <h3 className="text-xs font-bold text-slate-900 tracking-tight font-sans">
+                    Recurring Task Automation
+                  </h3>
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-purple-50 text-purple-700 border border-purple-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                  Inngest Active
+                </span>
+              </div>
+
+              <div className="bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 border border-indigo-100/80 rounded-2xl p-3.5 space-y-3 shadow-xs">
+                {/* Summary banner */}
+                <div className="flex items-start justify-between gap-2.5 pb-2.5 border-b border-indigo-100/60">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-indigo-950 font-sans leading-snug">
+                      {formatRecurrenceSummary(recurrenceConfig)}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5 font-sans">
+                      Automated execution in <span className="font-semibold text-slate-700">{recurrenceConfig.timezone || 'Asia/Kolkata'}</span>
+                    </p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold font-mono bg-indigo-100 text-indigo-800 uppercase tracking-wide shrink-0">
+                    {formatFrequencyLabel(recurrenceConfig.frequency, recurrenceConfig.interval)}
+                  </span>
+                </div>
+
+                {/* Form Field Breakdown Grid */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2.5 bg-white/90 rounded-xl border border-slate-200/70 shadow-2xs">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase font-sans">Frequency & Interval</span>
+                    <span className="font-semibold text-slate-800 font-sans">
+                      {recurrenceConfig.frequency} (Every {recurrenceConfig.interval})
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 bg-white/90 rounded-xl border border-slate-200/70 shadow-2xs">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase font-sans">Schedule Start</span>
+                    <span className="font-semibold text-slate-800 font-sans">
+                      {formatDateIST(recurrenceConfig.scheduleStart, false)}
+                    </span>
+                  </div>
+
+                  {recurrenceConfig.frequency === 'WEEKLY' && (
+                    <div className="col-span-2 p-2.5 bg-white/90 rounded-xl border border-slate-200/70 shadow-2xs">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase font-sans mb-1">Weekly Repeat Days</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {WEEKDAY_NAMES.map((name, idx) => {
+                          const isSelected = (recurrenceConfig.weekdays || [1]).includes(idx);
+                          return (
+                            <span
+                              key={name}
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-colors ${
+                                isSelected
+                                  ? 'bg-indigo-600 text-white shadow-2xs'
+                                  : 'bg-slate-100 text-slate-400'
+                              }`}
+                            >
+                              {name}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {recurrenceConfig.frequency === 'MONTHLY' && (
+                    <div className="col-span-2 p-2.5 bg-white/90 rounded-xl border border-slate-200/70 shadow-2xs">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase font-sans">Day of Month</span>
+                      <span className="font-semibold text-slate-800 font-sans">
+                        Day {recurrenceConfig.dayOfMonth || 1} of every month
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="col-span-2 p-2.5 bg-white/90 rounded-xl border border-slate-200/70 shadow-2xs">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase font-sans">End Condition</span>
+                    <span className="font-semibold text-slate-800 font-sans">
+                      {recurrenceConfig.endType === 'NEVER' && 'Never (Indefinite series)'}
+                      {recurrenceConfig.endType === 'ON_DATE' && `Ends on ${recurrenceConfig.endDate}`}
+                      {recurrenceConfig.endType === 'AFTER_COUNT' && `Ends after ${recurrenceConfig.maxOccurrences} occurrence(s)`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Occurrence State & Succession Links */}
+                <div className="pt-2 border-t border-indigo-100/60 space-y-2">
+                  {nextOccurrenceTask ? (
+                    <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[10px] font-bold uppercase text-emerald-700 font-sans block">
+                          Next Occurrence Generated
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="px-1.5 py-0.5 text-[10px] font-bold font-mono bg-white text-emerald-800 border border-emerald-300 rounded shadow-2xs">
+                            {nextOccurrenceTask.ticketId}
+                          </span>
+                          <span className="text-xs font-semibold text-emerald-950 truncate font-sans">
+                            {nextOccurrenceTask.name}
+                          </span>
+                        </div>
+                      </div>
+                      {onSelectTask && (
+                        <button
+                          type="button"
+                          onClick={() => onSelectTask(nextOccurrenceTask)}
+                          className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-white border border-emerald-300 rounded-lg hover:bg-emerald-50 transition-colors cursor-pointer shrink-0"
+                        >
+                          View Task →
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-indigo-50/70 border border-indigo-200/80 rounded-xl shadow-2xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-bold uppercase text-indigo-700 font-sans">
+                          Next Scheduled Occurrence
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-indigo-700">
+                          <Clock className="w-3 h-3" />
+                          Awaiting Schedule
+                        </span>
+                      </div>
+                      <p className="text-xs font-bold text-indigo-950 mt-1 font-mono">
+                        {recurrenceConfig.nextScheduledAt
+                          ? formatDateIST(recurrenceConfig.nextScheduledAt, true)
+                          : 'Pending calculation'}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5 font-sans">
+                        Will be automatically spawned into the project board by Inngest.
+                      </p>
+                    </div>
+                  )}
+
+                  {previousOccurrenceTask && (
+                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase font-sans block">
+                          Previous Occurrence
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="px-1.5 py-0.5 text-[10px] font-bold font-mono bg-white text-slate-700 border border-slate-300 rounded shadow-2xs">
+                            {previousOccurrenceTask.ticketId}
+                          </span>
+                          <span className="text-xs font-semibold text-slate-800 truncate font-sans">
+                            {previousOccurrenceTask.name}
+                          </span>
+                        </div>
+                      </div>
+                      {onSelectTask && (
+                        <button
+                          type="button"
+                          onClick={() => onSelectTask(previousOccurrenceTask)}
+                          className="px-2.5 py-1 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                        >
+                          ← View
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* ── CUSTOM FIELDS ── */}
           {customFieldsToDisplay.length > 0 && (

@@ -84,7 +84,9 @@ export class AssignmentsService {
       
       if (auth.employeeId) {
         await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'EMPLOYEE_ASSIGNED_TO_PROJECT', 'Project', projectId, {
-          assignedEmployeeId: employeeId
+          assignedEmployeeId: employeeId,
+          assignedEmployeeName: employee.name,
+          projectName: project.name,
         }, tx);
       }
       return created;
@@ -134,8 +136,11 @@ export class AssignmentsService {
       }
       
       if (auth.employeeId) {
+        const removedEmployee = await tx.orm.public.Employee.where({ id: employeeId, organizationId: auth.organizationId }).first();
         await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'EMPLOYEE_REMOVED_FROM_PROJECT', 'Project', projectId, {
-          removedEmployeeId: employeeId
+          removedEmployeeId: employeeId,
+          removedEmployeeName: removedEmployee?.name || 'Assigned Member',
+          projectName: project.name,
         }, tx);
       }
     });

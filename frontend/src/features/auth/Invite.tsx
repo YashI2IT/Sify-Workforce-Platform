@@ -202,6 +202,13 @@ export const Invite = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md bg-white rounded-lg shadow-xs border p-8 text-center">
+        <div className="flex justify-center mb-5">
+          <img
+            src="/sify Workforce Logo on Transparent Canvas.png"
+            alt="Sify Workforce"
+            className="h-9 w-auto max-w-[180px] object-contain"
+          />
+        </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Organization Invitation</h1>
         <p className="text-gray-600 mb-6">
           <strong>{details.inviterName}</strong> has invited you to join <strong>{details.organizationName}</strong> on Sify Workforce.

@@ -40,6 +40,8 @@ import { UserPreferencesModule } from './user-preferences/user-preferences.modul
 import { AuditLogsModule } from './audit-logs/audit-logs.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { TimesheetSubmissionsModule } from './timesheet-submissions/timesheet-submissions.module.js';
+import { InngestModule } from './inngest/inngest.module.js';
+import { SearchModule } from './search/search.module.js';
 
 
 const authGuardProvider = [
@@ -71,7 +73,8 @@ const authGuardProvider = [
     AuditLogsModule,
     NotificationsModule,
     TimesheetSubmissionsModule,
-
+    InngestModule,
+    SearchModule,
   ],
   controllers: [AppController, AuthController, UmsProxyController],
   providers: [

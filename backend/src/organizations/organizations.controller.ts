@@ -136,7 +136,11 @@ export class OrganizationsController {
   @Get('current/settings')
   @ApiOperation({ summary: 'Get current organization settings' })
   @ApiResponse({ status: 200, description: 'Organization settings record' })
+  @ApiResponse({ status: 403, description: 'Only admins can view organization settings' })
   async getSettings(@GetAuthContext() auth: AuthenticatedContext) {
+    if (!auth.roles?.includes('ADMIN')) {
+      throw new ForbiddenException('Only admins can view organization settings');
+    }
     return this.organizationsService.getSettings(auth.organizationId);
   }
 

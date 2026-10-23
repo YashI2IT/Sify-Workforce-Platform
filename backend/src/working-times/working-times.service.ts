@@ -129,34 +129,17 @@ export class WorkingTimesService {
   }
 
   // ---------------------------------------------------------------------------
-  // API: List employee overrides (ADMIN sees all; MANAGER sees their team)
+  // API: List employee overrides (ADMIN only)
   // ---------------------------------------------------------------------------
   async listOverrides(auth: AuthenticatedContext) {
-    let employeeIds: string[] | null = null;
-
     if (!auth.roles.includes('ADMIN')) {
-      // Manager scope
-      const teams = await db.orm.public.Team.where({
-        managerId: auth.employeeId,
-        organizationId: auth.organizationId,
-      }).all();
-      const teamIds = teams.map((t: any) => t.id);
-      if (teamIds.length === 0) return [];
-      const members = await db.orm.public.Employee
-        .where((e: any) => e.teamId.in(teamIds))
-        .all();
-      employeeIds = members.map((e: any) => e.id);
+      throw new ForbiddenException('Only admins can view working-time overrides');
     }
 
-    const rows = employeeIds
-      ? await db.orm.public.WorkingTime
-          .where({ organizationId: auth.organizationId })
-          .where((w: any) => w.employeeId.in(employeeIds!))
-          .all()
-      : await db.orm.public.WorkingTime
-          .where({ organizationId: auth.organizationId })
-          .where((w: any) => w.employeeId.neq(null))
-          .all();
+    const rows = await db.orm.public.WorkingTime
+      .where({ organizationId: auth.organizationId })
+      .where((w: any) => w.employeeId.neq(null))
+      .all();
 
     return rows;
   }
@@ -267,15 +250,6 @@ export class WorkingTimesService {
 
     if (auth.roles.includes('ADMIN')) return;
 
-    if (auth.roles.includes('MANAGER')) {
-      if (!emp.teamId) throw new ForbiddenException('Employee is not assigned to a team');
-      const team = await db.orm.public.Team.where({
-        id: emp.teamId, organizationId: auth.organizationId, managerId: auth.employeeId,
-      }).first();
-      if (!team) throw new ForbiddenException('You are not the manager of this employee\'s team');
-      return;
-    }
-
-    throw new ForbiddenException('Only ADMIN or the employee\'s MANAGER can manage working time overrides');
+    throw new ForbiddenException('Only admins can manage working-time overrides');
   }
 }

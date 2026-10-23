@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, BadRequestException, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, BadRequestException, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { TeamsService } from './teams.service.js';
 import { createTeamSchema, updateTeamSchema } from './dto/create-team.dto.js';
@@ -98,5 +98,16 @@ export class TeamsController {
       }
       throw error;
     }
+  }
+
+  @Delete(':id')
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({ summary: 'Delete a team' })
+  @ApiParam({ name: 'id', description: 'Team UUID' })
+  @ApiResponse({ status: 200, description: 'Team deleted' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Team not found' })
+  async delete(@Param('id') id: string, @GetAuthContext() auth: AuthenticatedContext) {
+    return this.teamsService.delete(id, auth);
   }
 }

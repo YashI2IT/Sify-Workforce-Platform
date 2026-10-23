@@ -118,18 +118,21 @@ export const ProjectDetail = () => {
   const taskIdFromUrl = searchParams.get('taskId');
 
   useEffect(() => {
-    if (taskIdFromUrl && tasks.length > 0) {
+    if (taskIdFromUrl && !tasksLoading) {
       const task = tasks.find((t: any) => t.id === taskIdFromUrl);
       if (task) {
         setActiveTab('tasks');
         setDetailTask(task);
         setDetailPanelOpen(true);
-        // Clear param so it doesn't reopen if they close it and refresh
+        searchParams.delete('taskId');
+        setSearchParams(searchParams, { replace: true });
+      } else if (Array.isArray(tasksData)) {
+        showToast('The requested task could not be found or may have been deleted.', 'error');
         searchParams.delete('taskId');
         setSearchParams(searchParams, { replace: true });
       }
     }
-  }, [taskIdFromUrl, tasks, searchParams, setSearchParams]);
+  }, [taskIdFromUrl, tasksLoading, tasksData, tasks, searchParams, setSearchParams, showToast]);
 
   const fetchProjectData = () => {
     refetchProject();
@@ -444,6 +447,7 @@ export const ProjectDetail = () => {
             projectIsActive={project.isActive}
             projectId={projectId}
             onEdit={(t) => { setEditingTask(t); setTaskModalOpen(true); }}
+            onSelectTask={(t) => setDetailTask(t)}
           />
           {projectId && (
             <EditProjectModal

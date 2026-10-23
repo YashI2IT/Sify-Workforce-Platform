@@ -27,6 +27,9 @@ export interface Task {
   parentTaskId?: string | null;
   requirementId?: string | null;
   milestoneId?: string | null;
+  recurrence?: string | null;
+  nextOccurrenceId?: string | null;
+  metadata?: Record<string, any> | null;
 }
 
 export interface Employee {

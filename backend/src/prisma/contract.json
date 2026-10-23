@@ -1419,10 +1419,24 @@
                   "kind": "scalar"
                 }
               },
+              "dateFormat": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "defaultEmployeeRole": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "emailNotifications": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
                   "kind": "scalar"
                 }
               },
@@ -1512,8 +1526,14 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "dateFormat": {
+                  "column": "dateFormat"
+                },
                 "defaultEmployeeRole": {
                   "column": "defaultEmployeeRole"
+                },
+                "emailNotifications": {
+                  "column": "emailNotifications"
                 },
                 "employeeJoinPolicy": {
                   "column": "employeeJoinPolicy"
@@ -4285,6 +4305,15 @@
                 },
                 {
                   "columns": [
+                    "organizationId",
+                    "createdAt"
+                  ],
+                  "name": "audit_log_organizationId_createdAt_idx_c52d1cc3",
+                  "prefix": "audit_log_organizationId_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "organizationId"
                   ],
                   "name": "audit_log_organizationId_idx_2e17ef41",
@@ -5002,6 +5031,15 @@
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
+                "dateFormat": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "DD/MM/YYYY"
+                  },
+                  "nativeType": "text",
+                  "nullable": false
+                },
                 "defaultEmployeeRole": {
                   "codecId": "pg/text@1",
                   "default": {
@@ -5009,6 +5047,15 @@
                     "value": "EMPLOYEE"
                   },
                   "nativeType": "text",
+                  "nullable": false
+                },
+                "emailNotifications": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": true
+                  },
+                  "nativeType": "bool",
                   "nullable": false
                 },
                 "employeeJoinPolicy": {
@@ -7342,7 +7389,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "018ca1daf3d6cf27e0d879933f2d52b23124075078d8c4e0414df44484460d16"
+    "storageHash": "d8463d49d5d573ed3a98c610be8e3206ffb39b4a8e6dadfb71d6359dfaac6a35"
   },
   "execution": {
     "executionHash": "b873037b4a66fdde73bf64afecee0794a1a2893e2d75e0bd4929554610722515",

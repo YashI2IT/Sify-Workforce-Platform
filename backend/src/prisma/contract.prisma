@@ -24,6 +24,8 @@ model OrganizationSettings {
   organizationId              String       @unique
   weekStartsOn                Int          @default(1) // 1 = Monday
   timeZone                    String       @default("UTC")
+  dateFormat                  String       @default("DD/MM/YYYY")
+  emailNotifications          Boolean      @default(true)
   timesheetApprovalRequired   Boolean      @default(true)
   defaultEmployeeRole         String       @default("EMPLOYEE")
   employeeJoinPolicy          String       @default("INVITATION_ONLY")
@@ -521,6 +523,7 @@ model AuditLog {
   @@index([actorId])
   @@index([resourceType])
   @@index([resourceId])
+  @@index([organizationId, createdAt])
   @@map("audit_log")
 }
 

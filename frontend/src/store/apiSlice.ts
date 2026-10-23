@@ -39,6 +39,26 @@ const customBaseQuery = async (args: any) => {
   }
 };
 
+export interface GlobalSearchResultItem {
+  id: string;
+  type: 'project' | 'task' | 'employee' | 'team' | 'timesheet';
+  title: string;
+  subtitle?: string;
+  badge?: string;
+  badgeVariant?: 'default' | 'success' | 'warning' | 'info' | 'purple';
+  url: string;
+  meta?: Record<string, any>;
+}
+
+export interface UnifiedSearchResponse {
+  projects: GlobalSearchResultItem[];
+  tasks: GlobalSearchResultItem[];
+  employees: GlobalSearchResultItem[];
+  teams: GlobalSearchResultItem[];
+  timesheets: GlobalSearchResultItem[];
+  totalMatches: number;
+}
+
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: customBaseQuery,
@@ -120,9 +140,12 @@ export const apiSlice = createApi({
     // ==========================================
     // SYSTEM & AUDIT LOGS
     // ==========================================
-    getAuditLogs: builder.query<any, { limit?: number; page?: number; type?: string; actorId?: string; action?: string; resourceType?: string; resourceId?: string; from?: string; to?: string } | void>({
+    getAuditLogs: builder.query<any, { limit?: number; page?: number; type?: string; actorId?: string; action?: string; resourceType?: string; resourceId?: string; from?: string; to?: string; search?: string; sortOrder?: 'desc' | 'asc' } | void>({
       query: (params) => ({ url: '/audit-logs', params: params || {} }),
       providesTags: ['AuditLog'],
+    }),
+    getAuditLogFilterOptions: builder.query<{ actions: { value: string; label: string }[]; resourceTypes: { value: string; label: string }[]; actors: { id: string; name: string; email: string }[] }, void>({
+      query: () => '/audit-logs/filter-options',
     }),
     createOrganization: builder.mutation<any, { name: string; organizationType: string; description?: string }>({
       query: (body) => ({ url: '/organizations', method: 'POST', body }),
@@ -523,6 +546,17 @@ export const apiSlice = createApi({
       query: (params) => ({ url: '/reports/advanced-analytics', params }),
       providesTags: ['Report'],
     }),
+    getAdminReport: builder.query<any, {
+      startDate: string;
+      endDate: string;
+      projectId?: string;
+      teamId?: string;
+      employeeId?: string;
+      status?: string;
+    }>({
+      query: (params) => ({ url: '/reports/admin-report', params }),
+      providesTags: ['Report', 'Project', 'Task', 'Team', 'TimeEntry'],
+    }),
 
 
     // ==========================================
@@ -655,6 +689,15 @@ export const apiSlice = createApi({
       },
       invalidatesTags: ['Notification'],
     }),
+    // ==========================================
+    // GLOBAL SEARCH
+    // ==========================================
+    search: builder.query<UnifiedSearchResponse, { q: string; limit?: number }>({
+      query: ({ q, limit = 5 }) => ({
+        url: '/search',
+        params: { q, limit },
+      }),
+    }),
   }),
 });
 
@@ -746,6 +789,7 @@ export const {
   useGetProjectHoursReportQuery,
   useGetProjectAnalysisReportQuery,
   useGetAdvancedAnalyticsReportQuery,
+  useGetAdminReportQuery,
 
   // Working Times
   useGetOrgWorkingTimeQuery,
@@ -780,6 +824,7 @@ export const {
   useGetOrganizationSettingsQuery,
   useUpdateOrganizationSettingsMutation,
   useGetAuditLogsQuery,
+  useGetAuditLogFilterOptionsQuery,
 
   // Notifications
   useGetMyNotificationsQuery,
@@ -794,4 +839,8 @@ export const {
   useSubmitWeekMutation,
   useApproveSubmissionMutation,
   useRejectSubmissionMutation,
+
+  // Global Search
+  useSearchQuery,
+  useLazySearchQuery,
 } = apiSlice;

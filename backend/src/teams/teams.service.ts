@@ -169,4 +169,30 @@ export class TeamsService {
 
     return updated;
   }
+
+  async delete(id: string, auth: AuthenticatedContext) {
+    const isAuthorized = auth.roles && (auth.roles.includes('ADMIN') || auth.roles.includes('MANAGER'));
+    if (!isAuthorized) {
+      throw new ForbiddenException('Only administrators and managers can delete teams');
+    }
+
+    const team = await db.orm.public.Team.where({ id, organizationId: auth.organizationId }).first();
+    if (!team) {
+      throw new NotFoundException('Team not found');
+    }
+
+    // Protect associated data: dissociate employees assigned to this team
+    await db.orm.public.Employee.where({ teamId: id }).update({ teamId: null });
+
+    // Delete the team record
+    await db.orm.public.Team.where({ id }).delete();
+
+    if (auth.employeeId) {
+      await this.auditLogsService.logEvent(auth.organizationId, auth.employeeId, 'TEAM_DELETED', 'Team', id, {
+        name: team.name,
+      }).catch(() => {});
+    }
+
+    return { success: true };
+  }
 }

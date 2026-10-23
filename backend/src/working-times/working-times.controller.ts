@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Delete, Param, Body, UseGuards, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiBody } from '@nestjs/swagger';
 import { WorkingTimesService } from './working-times.service.js';
 import type { WorkingTimeConfig } from './working-times.service.js';
@@ -27,13 +27,19 @@ export class WorkingTimesController {
     thursday: { type: 'number' }, friday: { type: 'number' }, saturday: { type: 'number' }, sunday: { type: 'number' }
   }}})
   async upsertOrgDefault(@GetAuthContext() auth: AuthenticatedContext, @Body() body: WorkingTimeConfig) {
+    if (!auth.roles?.includes('ADMIN')) {
+      throw new ForbiddenException('Only admins can configure default working times');
+    }
     return this.workingTimesService.upsertOrgDefault(auth, body);
   }
 
   @Get('overrides')
-  @Roles('ADMIN', 'MANAGER')
-  @ApiOperation({ summary: 'List all employee working-time overrides' })
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'List all employee working-time overrides (ADMIN)' })
   async listOverrides(@GetAuthContext() auth: AuthenticatedContext) {
+    if (!auth.roles?.includes('ADMIN')) {
+      throw new ForbiddenException('Only admins can view working-time overrides');
+    }
     return this.workingTimesService.listOverrides(auth);
   }
 
@@ -45,22 +51,28 @@ export class WorkingTimesController {
   }
 
   @Put('overrides/:employeeId')
-  @Roles('ADMIN', 'MANAGER')
-  @ApiOperation({ summary: 'Create or update working-time override for an employee (ADMIN/MANAGER)' })
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Create or update working-time override for an employee (ADMIN)' })
   @ApiParam({ name: 'employeeId', description: 'Employee UUID' })
   async upsertOverride(
     @Param('employeeId') employeeId: string,
     @GetAuthContext() auth: AuthenticatedContext,
     @Body() body: WorkingTimeConfig,
   ) {
+    if (!auth.roles?.includes('ADMIN')) {
+      throw new ForbiddenException('Only admins can update working-time overrides');
+    }
     return this.workingTimesService.upsertOverride(employeeId, auth, body);
   }
 
   @Delete('overrides/:employeeId')
-  @Roles('ADMIN', 'MANAGER')
-  @ApiOperation({ summary: 'Remove working-time override for an employee (ADMIN/MANAGER)' })
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Remove working-time override for an employee (ADMIN)' })
   @ApiParam({ name: 'employeeId', description: 'Employee UUID' })
   async deleteOverride(@Param('employeeId') employeeId: string, @GetAuthContext() auth: AuthenticatedContext) {
+    if (!auth.roles?.includes('ADMIN')) {
+      throw new ForbiddenException('Only admins can delete working-time overrides');
+    }
     return this.workingTimesService.deleteOverride(employeeId, auth);
   }
 }

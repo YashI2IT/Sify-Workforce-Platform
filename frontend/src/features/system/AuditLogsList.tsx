@@ -1,6 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useGetAuditLogsQuery } from '../../store/apiSlice';
+import {
+  useGetAuditLogsQuery,
+  useGetAuditLogFilterOptionsQuery,
+  useGetOrganizationSettingsQuery,
+  useGetEmployeesDirectoryQuery,
+  useGetProjectsQuery,
+  useGetTeamsQuery,
+} from '../../store/apiSlice';
 import {
   Search,
   Activity,
@@ -9,121 +16,293 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
-  Database,
   RefreshCw,
   X,
   Copy,
   Check,
-  ShieldCheck,
   AlertCircle,
-  FolderGit2,
   Calendar,
   Layers,
   ArrowRight,
   ArrowUp,
+  ArrowDownUp,
+  Download,
+  ShieldCheck,
+  FolderGit2,
+  CheckSquare,
+  Building,
+  Mail,
+  Filter,
 } from 'lucide-react';
-import { format } from 'date-fns';
 import { Select } from '../../components/ui/Select';
 import { useToast } from '../../context/ToastContext';
+import { authStorage } from '../../lib/authUtils';
+import {
+  formatAuditAction,
+  getActionBadgeStyle,
+  formatConfiguredDateTime,
+  parseEventChanges,
+} from './auditLogUtils';
 
-export interface AuditLog {
+export interface AuditLogItem {
   id: string;
   organizationId: string;
   actorId: string | null;
-  actorName?: string;
-  actorEmail?: string;
+  actorName: string;
+  actorEmail: string | null;
   action: string;
+  readableAction: string;
   resourceType: string;
   resourceId: string | null;
+  resourceName?: string | null;
   details: any;
+  detailsSummary: string;
   createdAt: string;
 }
 
 export const AuditLogsList: React.FC = () => {
+  // 1. Pagination & Sorting State
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
+  const [limit, setLimit] = useState(50);
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+
+  // Entity lookups for human-readable names (preventing hard-to-remember raw UUIDs)
+  const { data: directoryData } = useGetEmployeesDirectoryQuery();
+  const { data: projectsData } = useGetProjectsQuery(undefined);
+  const { data: teamsData } = useGetTeamsQuery({ limit: 100 });
+
+  const employeeNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    const list = Array.isArray(directoryData)
+      ? directoryData
+      : directoryData?.data || [];
+    for (const emp of list) {
+      if (emp?.id && emp?.name) map.set(emp.id, emp.name);
+    }
+    return map;
+  }, [directoryData]);
+
+  const projectNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    const list = Array.isArray(projectsData)
+      ? projectsData
+      : projectsData?.data || [];
+    for (const p of list) {
+      if (p?.id && p?.name) map.set(p.id, p.name);
+    }
+    return map;
+  }, [projectsData]);
+
+  const teamNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    const list = Array.isArray(teamsData)
+      ? teamsData
+      : teamsData?.data || [];
+    for (const t of list) {
+      if (t?.id && t?.name) map.set(t.id, t.name);
+    }
+    return map;
+  }, [teamsData]);
+
+  const entityLookup = useMemo(
+    () => ({
+      getEmployeeName: (id: string) => employeeNameMap.get(id),
+      getProjectName: (id: string) => projectNameMap.get(id),
+      getTeamName: (id: string) => teamNameMap.get(id),
+    }),
+    [employeeNameMap, projectNameMap, teamNameMap],
+  );
+
+  // 2. Search & Filter State
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [actionFilter, setActionFilter] = useState('ALL');
   const [resourceFilter, setResourceFilter] = useState('ALL');
-  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
+  // 3. Modals & UI State
+  const [selectedLog, setSelectedLog] = useState<AuditLogItem | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isCopiedId, setIsCopiedId] = useState<string | null>(null);
+  const [isCopiedJson, setIsCopiedJson] = useState(false);
+
+  const { showToast } = useToast();
+
+  // Debounce search input by 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Reset page to 1 whenever any filter, search, or sortOrder changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, actionFilter, resourceFilter, fromDate, toDate, sortOrder, limit]);
+
+  // Scroll to top on page change
   useEffect(() => {
     const container = document.getElementById('main-scroll-container');
     if (container) {
-      container.scrollTo({ top: 0, behavior: 'auto' });
+      container.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [page]);
-  const [isCopied, setIsCopied] = useState(false);
-  const limit = 50;
 
-  const { data: logsRes, isLoading, error, refetch, isFetching } = useGetAuditLogsQuery({ page, limit });
-  const { showToast } = useToast();
+  // Query Organization Settings for Timezone & Date Format
+  const { data: orgSettings } = useGetOrganizationSettingsQuery();
+  const configuredTimeZone = orgSettings?.timeZone || 'Asia/Kolkata';
+  const configuredDateFormat = orgSettings?.dateFormat || 'DD/MM/YYYY';
 
-  const logs: AuditLog[] = useMemo(() => logsRes?.data || [], [logsRes]);
+  // Query Backend Filter Options
+  const { data: filterOptionsRes } = useGetAuditLogFilterOptionsQuery();
+
+  // Query Server-Side Paginated Audit Logs
+  const {
+    data: logsRes,
+    isLoading,
+    error,
+    refetch,
+    isFetching,
+  } = useGetAuditLogsQuery({
+    page,
+    limit,
+    search: debouncedSearch || undefined,
+    action: actionFilter !== 'ALL' ? actionFilter : undefined,
+    resourceType: resourceFilter !== 'ALL' ? resourceFilter : undefined,
+    from: fromDate || undefined,
+    to: toDate || undefined,
+    sortOrder,
+  });
+
+  const logs: AuditLogItem[] = useMemo(() => logsRes?.data || [], [logsRes]);
   const meta = logsRes?.meta || { total: 0, page: 1, limit: 50, totalPages: 1 };
 
-  // Generate unique action options for the filter based on current data
+  // Action dropdown choices from backend metadata
   const actionOptions = useMemo(() => {
-    const actions = new Set(logs.map((log) => log.action).filter(Boolean));
-    return [
-      { value: 'ALL', label: 'All Actions' },
-      ...Array.from(actions)
-        .sort()
-        .map((a) => ({ value: a, label: a })),
-    ];
-  }, [logs]);
+    const defaultOption = { value: 'ALL', label: 'All Actions' };
+    if (!filterOptionsRes?.actions) return [defaultOption];
+    return [defaultOption, ...filterOptionsRes.actions];
+  }, [filterOptionsRes]);
 
-  // Generate unique resource type options for the filter
+  // Resource dropdown choices from backend metadata
   const resourceOptions = useMemo(() => {
-    const resources = new Set(logs.map((log) => log.resourceType).filter(Boolean));
-    return [
-      { value: 'ALL', label: 'All Resources' },
-      ...Array.from(resources)
-        .sort()
-        .map((r) => ({ value: r, label: r })),
-    ];
-  }, [logs]);
+    const defaultOption = { value: 'ALL', label: 'All Resources' };
+    if (!filterOptionsRes?.resourceTypes) return [defaultOption];
+    return [defaultOption, ...filterOptionsRes.resourceTypes];
+  }, [filterOptionsRes]);
 
-  // Client-side filtering for search, action, and resource
-  const filteredLogs = useMemo(() => {
-    return logs.filter((log) => {
-      const q = search.trim().toLowerCase();
-      const matchesSearch =
-        !q ||
-        log.action.toLowerCase().includes(q) ||
-        log.resourceType.toLowerCase().includes(q) ||
-        (log.actorName && log.actorName.toLowerCase().includes(q)) ||
-        (log.actorEmail && log.actorEmail.toLowerCase().includes(q)) ||
-        (log.actorId && log.actorId.toLowerCase().includes(q)) ||
-        (log.resourceId && log.resourceId.toLowerCase().includes(q));
-
-      const matchesAction = actionFilter === 'ALL' || log.action === actionFilter;
-      const matchesResource = resourceFilter === 'ALL' || log.resourceType === resourceFilter;
-
-      return matchesSearch && matchesAction && matchesResource;
-    });
-  }, [logs, search, actionFilter, resourceFilter]);
-
-  const hasActiveFilters = search.trim() !== '' || actionFilter !== 'ALL' || resourceFilter !== 'ALL';
+  // Check if any filter is active
+  const hasActiveFilters =
+    debouncedSearch !== '' ||
+    actionFilter !== 'ALL' ||
+    resourceFilter !== 'ALL' ||
+    fromDate !== '' ||
+    toDate !== '';
 
   const handleResetFilters = () => {
-    setSearch('');
+    setSearchInput('');
+    setDebouncedSearch('');
     setActionFilter('ALL');
     setResourceFilter('ALL');
+    setFromDate('');
+    setToDate('');
   };
 
   const handleRefresh = () => {
     refetch();
-    showToast('Audit trail logs refreshed', 'info');
+    showToast('Activity history refreshed', 'info');
   };
 
-  const handleCopyPayload = (details: any) => {
+  const handleCopyText = (text: string, id: string) => {
+    try {
+      navigator.clipboard.writeText(text);
+      setIsCopiedId(id);
+      showToast('Copied to clipboard', 'success');
+      setTimeout(() => setIsCopiedId(null), 2000);
+    } catch {
+      showToast('Failed to copy', 'error');
+    }
+  };
+
+  const handleCopyJson = (details: any) => {
     try {
       navigator.clipboard.writeText(JSON.stringify(details, null, 2));
-      setIsCopied(true);
-      showToast('Event payload JSON copied to clipboard', 'success');
-      setTimeout(() => setIsCopied(false), 2000);
+      setIsCopiedJson(true);
+      showToast('Event JSON copied to clipboard', 'success');
+      setTimeout(() => setIsCopiedJson(false), 2000);
     } catch {
-      showToast('Failed to copy payload', 'error');
+      showToast('Failed to copy JSON', 'error');
+    }
+  };
+
+  const handleDownloadSingleEventJson = (log: AuditLogItem) => {
+    try {
+      const jsonContent = JSON.stringify(log, null, 2);
+      const blob = new Blob([jsonContent], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit_event_${log.id}.json`;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      showToast('Downloaded event JSON', 'success');
+    } catch {
+      showToast('Failed to download event JSON', 'error');
+    }
+  };
+
+  // Perform CSV or JSON export through backend streaming endpoint
+  const handleDownloadExport = async (format: 'csv' | 'json') => {
+    setIsExporting(true);
+    try {
+      const token = authStorage.getAccessToken();
+      const params = new URLSearchParams();
+      params.set('format', format);
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (actionFilter !== 'ALL') params.set('action', actionFilter);
+      if (resourceFilter !== 'ALL') params.set('resourceType', resourceFilter);
+      if (fromDate) params.set('from', fromDate);
+      if (toDate) params.set('to', toDate);
+      params.set('sortOrder', sortOrder);
+      params.set('limit', '5000');
+
+      const res = await fetch(`/api/v1/audit-logs/export?${params.toString()}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Export failed with status: ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const disposition = res.headers.get('Content-Disposition');
+      let filename = `sify_audit_logs_${new Date().toISOString().slice(0, 10)}.${format}`;
+      if (disposition && disposition.includes('filename="')) {
+        const match = disposition.match(/filename="([^"]+)"/);
+        if (match) filename = match[1];
+      }
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      showToast(`Export complete (${format.toUpperCase()})`, 'success');
+      setShowExportModal(false);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to generate audit export', 'error');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -133,119 +312,34 @@ export const AuditLogsList: React.FC = () => {
     return `${id.substring(0, 8)}...${id.substring(id.length - 6)}`;
   };
 
-  const formatDetails = (details: any) => {
-    if (!details) return <span className="text-xs text-slate-400 font-sans">No additional payload</span>;
-
-    if (details.updatedFields && Array.isArray(details.updatedFields)) {
-      return (
-        <span className="text-xs text-slate-600 font-sans">
-          Updated: <span className="font-semibold text-slate-800">{details.updatedFields.join(', ')}</span>
-        </span>
-      );
-    }
-    if (details.invitedEmail) {
-      return (
-        <span className="text-xs text-slate-600 font-sans">
-          Invited: <span className="font-semibold text-slate-800">{details.invitedEmail}</span>
-        </span>
-      );
-    }
-    if (details.type && details.date) {
-      return (
-        <span className="text-xs text-slate-600 font-sans">
-          {details.type} • {details.date}
-        </span>
-      );
-    }
-    if (details.type && details.weekStart) {
-      return (
-        <span className="text-xs text-slate-600 font-sans">
-          {details.type} • Week of {details.weekStart}
-        </span>
-      );
-    }
-    if (details.timesheetId) {
-      return (
-        <span className="text-xs text-slate-600 font-sans">
-          Timesheet: <span className="font-semibold text-slate-800">{formatId(details.timesheetId)}</span>
-        </span>
-      );
-    }
-    if (details.assignedEmployeeId) {
-      return (
-        <span className="text-xs text-slate-600 font-sans">
-          Assigned: <span className="font-semibold text-slate-800">{formatId(details.assignedEmployeeId)}</span>
-        </span>
-      );
-    }
-    if (details.comment) {
-      return (
-        <span className="text-xs text-slate-600 font-sans truncate max-w-[240px]" title={details.comment}>
-          Comment: &ldquo;{details.comment}&rdquo;
-        </span>
-      );
-    }
-
-    const jsonStr = JSON.stringify(details);
-    if (jsonStr === '{}') return <span className="text-xs text-slate-400 font-sans">Empty payload</span>;
-    return (
-      <span className="text-xs text-slate-500 font-sans truncate max-w-[240px]" title={jsonStr}>
-        {jsonStr.length > 45 ? `${jsonStr.substring(0, 42)}...` : jsonStr}
-      </span>
-    );
-  };
-
-  const getActionBadgeStyle = (action: string) => {
-    const act = action.toUpperCase();
-    if (
-      act.includes('CREATE') ||
-      act.includes('ACTIVATE') ||
-      act.includes('ACCEPT') ||
-      act.includes('APPROVE')
-    ) {
-      return 'bg-emerald-50 text-emerald-800 border-emerald-200/80';
-    }
-    if (
-      act.includes('DELETE') ||
-      act.includes('REMOVE') ||
-      act.includes('DECLINE') ||
-      act.includes('REJECT') ||
-      act.includes('REVOKE') ||
-      act.includes('DEACTIVATE')
-    ) {
-      return 'bg-rose-50 text-rose-800 border-rose-200/80';
-    }
-    if (act.includes('UPDATE') || act.includes('EDIT') || act.includes('MODIFY') || act.includes('RESET')) {
-      return 'bg-blue-50 text-blue-800 border-blue-200/80';
-    }
-    if (act.includes('ASSIGN') || act.includes('SUBMIT') || act.includes('RESEND') || act.includes('INVITE')) {
-      return 'bg-amber-50 text-amber-800 border-amber-200/80';
-    }
-    return 'bg-slate-100 text-slate-700 border-slate-200/80';
-  };
-
   const getResourceIcon = (resourceType: string) => {
     switch (resourceType) {
-      case 'Employee':
-      case 'EmployeeInvitation':
-      case 'User':
-        return <User className="w-3.5 h-3.5 text-slate-500" />;
       case 'Project':
         return <FolderGit2 className="w-3.5 h-3.5 text-slate-500" />;
-      case 'Timesheet':
-      case 'TimeEntry':
-        return <Clock className="w-3.5 h-3.5 text-slate-500" />;
-      case 'PublicHoliday':
-        return <Calendar className="w-3.5 h-3.5 text-slate-500" />;
+      case 'Task':
+        return <CheckSquare className="w-3.5 h-3.5 text-slate-500" />;
+      case 'Employee':
+        return <User className="w-3.5 h-3.5 text-slate-500" />;
       case 'Team':
         return <Layers className="w-3.5 h-3.5 text-slate-500" />;
+      case 'Timesheet':
+      case 'TimeEntry':
+      case 'TimesheetSubmission':
+        return <Clock className="w-3.5 h-3.5 text-slate-500" />;
+      case 'Organization':
+      case 'OrganizationSettings':
+        return <Building className="w-3.5 h-3.5 text-slate-500" />;
+      case 'EmployeeInvitation':
+        return <Mail className="w-3.5 h-3.5 text-slate-500" />;
+      case 'PublicHoliday':
+        return <Calendar className="w-3.5 h-3.5 text-slate-500" />;
       default:
-        return <Database className="w-3.5 h-3.5 text-slate-500" />;
+        return <Activity className="w-3.5 h-3.5 text-slate-500" />;
     }
   };
 
-  const getActorInitials = (log: AuditLog) => {
-    const name = log.actorName || log.actorEmail || 'SY';
+  const getActorInitials = (actorName?: string, actorEmail?: string) => {
+    const name = actorName || actorEmail || 'SY';
     return name
       .split(' ')
       .filter(Boolean)
@@ -254,260 +348,475 @@ export const AuditLogsList: React.FC = () => {
       .join('');
   };
 
+  // Render Pagination Controls Bar (used both Top and Bottom)
+  const renderPaginationControls = (isTop: boolean) => (
+    <div
+      className={`px-5 py-3.5 flex items-center justify-between flex-wrap gap-3 ${
+        isTop ? 'border-b border-slate-200/80 bg-[#F7F8FA]' : 'border-t border-slate-200/80 bg-[#F7F8FA]'
+      }`}
+    >
+      <div className="text-[12.5px] sm:text-[13px] font-medium text-slate-600 font-sans">
+        Showing <span className="font-semibold text-slate-900">Page {meta.page}</span> of{' '}
+        <span className="font-semibold text-slate-900">{meta.totalPages}</span> ·{' '}
+        <span className="font-medium text-slate-600">{meta.limit} records per page</span> ·{' '}
+        <span className="font-semibold text-slate-900">{meta.total}</span> matching events
+      </div>
+
+      <div className="flex items-center gap-2">
+        {!isTop && (
+          <div className="flex items-center gap-1.5 mr-2">
+            <span className="text-xs text-slate-500 font-medium">Per page:</span>
+            <select
+              value={limit}
+              onChange={(e) => setLimit(Number(e.target.value))}
+              className="text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-slate-900"
+            >
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+        )}
+
+        {!isTop && (
+          <button
+            type="button"
+            onClick={() => {
+              const container = document.getElementById('main-scroll-container');
+              if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="inline-flex items-center justify-center gap-1.5 h-8 px-3 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold shadow-2xs transition-all active:scale-[0.98]"
+            title="Back to top"
+          >
+            <ArrowUp className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Top</span>
+          </button>
+        )}
+
+        <button
+          type="button"
+          disabled={page <= 1 || isFetching}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          className="inline-flex items-center justify-center gap-1.5 h-8 px-3 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold shadow-2xs transition-all active:scale-[0.98]"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+          <span>Previous</span>
+        </button>
+
+        <button
+          type="button"
+          disabled={page >= meta.totalPages || isFetching}
+          onClick={() => setPage((p) => p + 1)}
+          className="inline-flex items-center justify-center gap-1.5 h-8 px-3 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold shadow-2xs transition-all active:scale-[0.98]"
+        >
+          <span>Next</span>
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6">
-      {/* 1. Header with Slide-up Animation */}
-      <div className="animate-slideUpFade flex items-center justify-between flex-wrap gap-4 pb-3 border-b border-slate-200/80">
+      {/* 1. Page Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-slate-200/80">
         <div>
-          <h1 className="text-[28px] leading-[34px] font-bold text-slate-900 tracking-tight">
-            System Audit Logs
+          <h1 className="text-[28px] sm:text-[30px] leading-[36px] font-bold text-[#0B1738] tracking-tight">
+            Activity History
           </h1>
-          <p className="text-[14px] leading-[21px] text-slate-500 font-medium mt-1.5">
-            Immutable operational and administrative event history recorded across your organization.
+          <p className="text-[13px] sm:text-[14px] leading-[21px] text-slate-500 font-medium mt-1">
+            Review important actions and changes across your organization.
           </p>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-sans">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Live Activity
-          </span>
-
+          {/* Refresh Action */}
           <button
             onClick={handleRefresh}
             disabled={isFetching || isLoading}
-            className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
-            title="Refresh audit logs"
+            className="inline-flex items-center justify-center gap-2 h-9 px-3.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
+            title="Refresh activity logs"
           >
-            <RefreshCw className={`w-4 h-4 text-slate-500 transition-transform duration-500 group-hover:rotate-180 group-active:rotate-180 ${isFetching ? 'animate-spin text-slate-900' : ''}`} />
-            <span>Refresh Audit Logs</span>
+            <RefreshCw
+              className={`w-3.5 h-3.5 text-slate-500 ${isFetching ? 'animate-spin text-slate-900' : ''}`}
+            />
+            <span>Refresh</span>
+          </button>
+
+          {/* Export Action */}
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[#0B1738] hover:bg-[#12204a] text-white rounded-[10px] text-[13px] font-semibold shadow-xs transition-all active:scale-[0.98]"
+            title="Export filtered audit logs"
+          >
+            <Download className="w-3.5 h-3.5 text-[#C8DB00]" />
+            <span>Export</span>
           </button>
         </div>
       </div>
 
-      {/* 2. Filters & Controls Bar Card */}
-      <div className="animate-slideUpFade-d1 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] p-4 sm:p-5 transition-shadow duration-300 hover:shadow-md">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5">
-          {/* Left: Search input */}
-          <div className="relative flex-1 min-w-[240px]">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+      {/* 2. Compact Search & Filters Toolbar */}
+      <div className="bg-[#F7F8FA] border border-slate-200/80 shadow-xs rounded-[14px] p-4 sm:p-5 transition-shadow duration-200 space-y-3.5">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+          {/* Search Input */}
+          <div className="md:col-span-4 relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by actor, action, resource, or ID…"
-              className="w-full pl-9 pr-8 py-2 bg-slate-50/70 border border-slate-200 rounded-full text-xs font-sans text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-950/10 focus:border-slate-900 outline-none transition-all"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search person, action, resource, or ID…"
+              className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs font-sans text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[#0B1738]/10 focus:border-[#0B1738] outline-none transition-all shadow-2xs"
             />
-            {search && (
+            {searchInput && (
               <button
-                onClick={() => setSearch('')}
+                onClick={() => {
+                  setSearchInput('');
+                  setDebouncedSearch('');
+                }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                title="Clear search"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
-          {/* Right: Dropdowns and Reset */}
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <div className="w-44 sm:w-52">
-              <Select
-                value={actionFilter}
-                onChange={setActionFilter}
-                options={actionOptions}
-                className="w-full"
-                placeholder="Filter by Action"
+          {/* Action Filter */}
+          <div className="md:col-span-3">
+            <Select
+              value={actionFilter}
+              onChange={setActionFilter}
+              options={actionOptions}
+              className="w-full"
+              placeholder="Filter by Action"
+            />
+          </div>
+
+          {/* Resource Filter */}
+          <div className="md:col-span-3">
+            <Select
+              value={resourceFilter}
+              onChange={setResourceFilter}
+              options={resourceOptions}
+              className="w-full"
+              placeholder="Filter by Resource"
+            />
+          </div>
+
+          {/* Sort Order Toggle */}
+          <div className="md:col-span-2 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
+              className="w-full inline-flex items-center justify-center gap-1.5 h-9 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold shadow-2xs transition-all active:scale-[0.98]"
+              title="Toggle sort order"
+            >
+              <ArrowDownUp className="w-3.5 h-3.5 text-slate-500" />
+              <span>{sortOrder === 'desc' ? 'Newest first' : 'Oldest first'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Date Range Row */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200/60">
+          <div className="flex items-center gap-2 flex-wrap text-xs text-slate-600">
+            <span className="font-semibold text-slate-700 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+              Date Range:
+            </span>
+            <div className="flex items-center gap-1.5">
+              <label className="text-[11px] text-slate-500 font-medium">From</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900 shadow-2xs"
               />
             </div>
-
-            <div className="w-40 sm:w-48">
-              <Select
-                value={resourceFilter}
-                onChange={setResourceFilter}
-                options={resourceOptions}
-                className="w-full"
-                placeholder="Filter by Resource"
+            <div className="flex items-center gap-1.5">
+              <label className="text-[11px] text-slate-500 font-medium">To</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900 shadow-2xs"
               />
             </div>
+          </div>
 
+          {/* Active Filter Badges & Reset Button */}
+          <div className="flex items-center gap-2 flex-wrap">
             {hasActiveFilters && (
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="px-3.5 py-1.5 rounded-full text-xs font-semibold text-slate-600 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 transition-colors font-sans cursor-pointer"
+                className="px-3 py-1 rounded-full text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-200/60 border border-slate-200 transition-colors shadow-2xs cursor-pointer"
               >
-                Reset Filters
+                Clear all filters
               </button>
             )}
 
-            <span className="text-xs font-semibold text-slate-600 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200/80 font-sans shrink-0">
-              {filteredLogs.length} Events
+            <span className="text-xs font-semibold text-slate-600 px-3 py-1 rounded-full bg-white border border-slate-200/80 shadow-2xs shrink-0">
+              {meta.total} Matching Events
             </span>
           </div>
         </div>
+
+        {/* Active Filter Chips */}
+        {hasActiveFilters && (
+          <div className="flex items-center gap-2 flex-wrap pt-1">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Active:
+            </span>
+            {debouncedSearch && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-white text-slate-800 border border-slate-200 shadow-2xs">
+                Query: &ldquo;{debouncedSearch}&rdquo;
+                <button
+                  onClick={() => {
+                    setSearchInput('');
+                    setDebouncedSearch('');
+                  }}
+                  className="hover:text-slate-950 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {actionFilter !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-white text-slate-800 border border-slate-200 shadow-2xs">
+                Action: {formatAuditAction(actionFilter)}
+                <button onClick={() => setActionFilter('ALL')} className="hover:text-slate-950 cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {resourceFilter !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-white text-slate-800 border border-slate-200 shadow-2xs">
+                Resource: {resourceFilter}
+                <button onClick={() => setResourceFilter('ALL')} className="hover:text-slate-950 cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {fromDate && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-white text-slate-800 border border-slate-200 shadow-2xs">
+                From: {fromDate}
+                <button onClick={() => setFromDate('')} className="hover:text-slate-950 cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {toDate && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-white text-slate-800 border border-slate-200 shadow-2xs">
+                To: {toDate}
+                <button onClick={() => setToDate('')} className="hover:text-slate-950 cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* 3. Main Audit Trail Card */}
-      <div className="animate-slideUpFade-d2 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-xs rounded-[14px] overflow-hidden transition-shadow duration-300 hover:shadow-md">
-        {/* Card Top Strip */}
-        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs shrink-0">
-              <Activity className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-slate-900 font-sans tracking-tight">
-                Audit Trail Activity
-              </h2>
-              <p className="text-[11px] text-slate-500 font-medium font-sans">
-                Chronological record of actions captured by system interceptors
-              </p>
-            </div>
+      {/* 3. Main Audit Trail Card with DUAL PAGINATION (Top and Bottom) */}
+      <div className="bg-white border border-slate-200/80 shadow-xs rounded-[14px] overflow-hidden transition-shadow duration-300">
+        {/* Section Heading Bar */}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="text-[17px] font-bold text-[#0B1738] tracking-tight">
+              Activity History
+            </h2>
+            <p className="text-[12px] text-slate-500 font-medium">
+              Immutable operational and administrative event records.
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500 font-sans">
-              Page {meta.page} of {meta.totalPages || 1}
+            <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full border border-slate-200/80">
+              Timezone: <span className="font-bold text-slate-800">{configuredTimeZone}</span>
             </span>
           </div>
         </div>
 
-        {/* Content Body */}
+        {/* TOP PAGINATION CONTROLS */}
+        {renderPaginationControls(true)}
+
+        {/* Table Body */}
         {isLoading && !logs.length ? (
-          <div className="py-20 flex flex-col items-center justify-center gap-3">
-            <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin" />
-            <span className="text-sm text-slate-500 font-medium font-sans">Loading audit trail records…</span>
+          <div className="py-24 flex flex-col items-center justify-center gap-3">
+            <div className="w-8 h-8 border-2 border-slate-300 border-t-[#0B1738] rounded-full animate-spin" />
+            <span className="text-sm text-slate-500 font-medium font-sans">
+              Loading activity history…
+            </span>
           </div>
         ) : error ? (
-          <div className="p-8 text-center space-y-3">
-            <div className="w-12 h-9 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100">
+          <div className="p-10 text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100">
               <AlertCircle className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-bold text-slate-900 font-sans">Failed to load audit logs</h3>
+            <h3 className="text-base font-bold text-slate-900 font-sans">
+              Failed to load activity history
+            </h3>
             <p className="text-xs text-slate-500 max-w-md mx-auto font-sans">
-              There was a problem retrieving the system audit history. Please try refreshing the data.
+              There was a problem retrieving audit records. Please try refreshing or adjust filters.
             </p>
             <button
               onClick={handleRefresh}
-              className="mt-2 px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-full text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              className="mt-2 px-4 py-1.5 bg-[#0B1738] hover:bg-slate-800 text-white rounded-full text-xs font-bold shadow-xs transition-colors cursor-pointer"
             >
               Retry
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200/80">
-                  <th className="px-4 py-3 text-[12px] leading-[16px] font-semibold text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80 bg-slate-50/50">
-                    Timestamp
+                <tr className="bg-slate-50/80 border-b border-slate-200/80">
+                  <th className="px-4 py-3 text-[12px] sm:text-[13px] font-medium text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80">
+                    Date & Time
                   </th>
-                  <th className="px-4 py-3 text-[12px] leading-[16px] font-semibold text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80 bg-slate-50/50">
-                    Actor
+                  <th className="px-4 py-3 text-[12px] sm:text-[13px] font-medium text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80">
+                    Person
                   </th>
-                  <th className="px-4 py-3 text-[12px] leading-[16px] font-semibold text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80 bg-slate-50/50">
+                  <th className="px-4 py-3 text-[12px] sm:text-[13px] font-medium text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80">
+                    What Happened
+                  </th>
+                  <th className="px-4 py-3 text-[12px] sm:text-[13px] font-medium text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80">
+                    Related Item
+                  </th>
+                  <th className="px-4 py-3 text-[12px] sm:text-[13px] font-medium text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80">
+                    Details
+                  </th>
+                  <th className="px-4 py-3 text-[12px] sm:text-[13px] font-medium text-slate-500 uppercase tracking-wider text-right border-b border-slate-200/80">
                     Action
-                  </th>
-                  <th className="px-4 py-3 text-[12px] leading-[16px] font-semibold text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80 bg-slate-50/50">
-                    Target Resource
-                  </th>
-                  <th className="px-4 py-3 text-[12px] leading-[16px] font-semibold text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80 bg-slate-50/50">
-                    Event Summary
-                  </th>
-                  <th className="px-4 py-3 text-[12px] leading-[16px] font-semibold text-slate-500 uppercase tracking-wider text-left border-b border-slate-200/80 bg-slate-50/50">
-                    Inspect
                   </th>
                 </tr>
               </thead>
-              <tbody className={`divide-y divide-slate-100 transition-opacity duration-300 ${isFetching ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
-                {filteredLogs.map((log) => {
-                  const initials = getActorInitials(log);
-                  const actorDisplayName =
-                    log.actorName ||
-                    log.actorEmail ||
-                    (log.actorId ? `User (${log.actorId.substring(0, 8)}...)` : 'System');
+              <tbody
+                className={`divide-y divide-slate-100 transition-opacity duration-200 ${
+                  isFetching ? 'opacity-40 pointer-events-none' : 'opacity-100'
+                }`}
+              >
+                {logs.map((log) => {
+                  const dt = formatConfiguredDateTime(
+                    log.createdAt,
+                    configuredTimeZone,
+                    configuredDateFormat,
+                  );
+                  const initials = getActorInitials(log.actorName, log.actorEmail || undefined);
 
                   return (
                     <tr
                       key={log.id}
-                      className="hover:bg-slate-50/60 transition-colors duration-150 group"
+                      className="hover:bg-slate-50/70 transition-colors duration-150 group"
                     >
-                      {/* Timestamp */}
-                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
+                      {/* 1. Date & Time */}
+                      <td className="px-4 py-3.5 text-[14px] text-slate-800 border-b border-slate-100 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="text-xs font-semibold text-slate-900 font-sans">
-                            {format(new Date(log.createdAt), 'MMM d, yyyy • HH:mm:ss')}
-                          </span>
+                          <div>
+                            <span className="text-[13.5px] font-semibold text-slate-900 block font-sans">
+                              {dt.dateStr}
+                            </span>
+                            <span className="text-[11.5px] text-slate-500 font-medium font-sans">
+                              {dt.timeStr}
+                            </span>
+                          </div>
                         </div>
                       </td>
 
-                      {/* Actor */}
-                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
+                      {/* 2. Person (Actor) */}
+                      <td className="px-4 py-3.5 text-[14px] text-slate-800 border-b border-slate-100">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-[10px] flex items-center justify-center font-sans shrink-0 shadow-2xs">
+                          <div className="w-7 h-7 rounded-full bg-[#0B1738] text-white font-bold text-[10px] flex items-center justify-center font-sans shrink-0 shadow-2xs">
                             {initials || <User className="w-3 h-3 text-white" />}
                           </div>
-                          <div className="truncate max-w-[170px]">
-                            <div className="text-xs font-semibold text-slate-900 font-sans truncate" title={actorDisplayName}>
-                              {actorDisplayName}
+                          <div className="truncate max-w-[180px]">
+                            <div
+                              className="text-[13.5px] font-semibold text-slate-900 font-sans truncate"
+                              title={log.actorName}
+                            >
+                              {log.actorName}
                             </div>
-                            {log.actorEmail && log.actorName && (
-                              <div className="text-[11px] text-slate-500 font-sans truncate" title={log.actorEmail}>
+                            {log.actorEmail ? (
+                              <div
+                                className="text-[11.5px] text-slate-500 font-sans truncate"
+                                title={log.actorEmail}
+                              >
                                 {log.actorEmail}
+                              </div>
+                            ) : (
+                              <div className="text-[11px] text-slate-400 font-sans">
+                                {log.actorId ? 'Deactivated Account' : 'System Service'}
                               </div>
                             )}
                           </div>
                         </div>
                       </td>
 
-                      {/* Action */}
-                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border font-sans ${getActionBadgeStyle(
-                            log.action
-                          )}`}
-                        >
-                          {log.action}
-                        </span>
+                      {/* 3. What Happened */}
+                      <td className="px-4 py-3.5 text-[14px] text-slate-800 border-b border-slate-100">
+                        <div className="flex flex-col items-start gap-1">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border font-sans ${getActionBadgeStyle(
+                              log.action,
+                            )}`}
+                          >
+                            {log.readableAction || formatAuditAction(log.action)}
+                          </span>
+                          <span
+                            className="text-[10.5px] text-slate-400 font-mono"
+                            title={`Event Code: ${log.action}`}
+                          >
+                            {log.action}
+                          </span>
+                        </div>
                       </td>
 
-                      {/* Resource */}
-                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
+                      {/* 4. Related Item */}
+                      <td className="px-4 py-3.5 text-[14px] text-slate-800 border-b border-slate-100">
                         <div className="flex flex-col">
-                          <span className="text-xs font-semibold text-slate-800 font-sans flex items-center gap-1.5">
+                          <span className="text-[13px] font-semibold text-slate-800 font-sans flex items-center gap-1.5">
                             {getResourceIcon(log.resourceType)}
                             {log.resourceType}
                           </span>
-                          {log.resourceId && (
+                          {log.resourceId ? (
                             <span
-                              className="text-[11px] text-slate-400 font-sans truncate max-w-[150px] mt-0.5"
+                              className="text-[11.5px] text-slate-500 font-mono truncate max-w-[160px] mt-0.5"
                               title={log.resourceId}
                             >
-                              ID: {formatId(log.resourceId)}
+                              {formatId(log.resourceId)}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 font-sans italic mt-0.5">
+                              Organization-level
                             </span>
                           )}
                         </div>
                       </td>
 
-                      {/* Summary */}
-                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
-                        <div className="flex items-center gap-2 max-w-[300px]">
+                      {/* 5. Details */}
+                      <td className="px-4 py-3.5 text-[14px] text-slate-800 border-b border-slate-100">
+                        <div className="flex items-center gap-2 max-w-[340px]">
                           {log.details && Object.keys(log.details).length > 0 && (
                             <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           )}
-                          <div className="truncate min-w-0 flex-1">
-                            {formatDetails(log.details)}
-                          </div>
+                          <span
+                            className="text-[12.5px] text-slate-600 font-sans truncate"
+                            title={log.detailsSummary}
+                          >
+                            {log.detailsSummary || 'No details recorded'}
+                          </span>
                         </div>
                       </td>
 
-                      {/* Inspect */}
-                      <td className="px-4 py-3.5 text-[13px] leading-[20px] text-slate-700 border-b border-slate-100">
+                      {/* 6. Action (Inspect) */}
+                      <td className="px-4 py-3.5 text-right border-b border-slate-100 whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => setSelectedLog(log)}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 shadow-2xs transition-all active:scale-[0.97] cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 shadow-2xs transition-all active:scale-[0.97] cursor-pointer"
                         >
                           <span>Inspect</span>
                           <ArrowRight className="w-3 h-3 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
@@ -517,33 +826,36 @@ export const AuditLogsList: React.FC = () => {
                   );
                 })}
 
-                {!filteredLogs.length && (
+                {!logs.length && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center text-slate-400 text-sm font-sans">
+                    <td colSpan={6} className="px-6 py-20 text-center text-slate-400 text-sm font-sans">
                       {hasActiveFilters ? (
-                        <div className="space-y-2">
-                          <p className="font-semibold text-slate-700">No events matching current filters</p>
-                          <p className="text-xs text-slate-400">
-                            Adjust your search keyword, action filter, or resource category.
+                        <div className="space-y-2.5 max-w-sm mx-auto">
+                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                            <Filter className="w-5 h-5" />
+                          </div>
+                          <p className="font-semibold text-slate-800 text-sm">
+                            No matching events found
+                          </p>
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            Try adjusting your search query, clearing filters, or broadening the date range.
                           </p>
                           <button
                             onClick={handleResetFilters}
-                            className="mt-2 text-xs font-bold text-slate-900 underline cursor-pointer"
+                            className="mt-1 px-4 py-1.5 bg-[#0B1738] text-white rounded-full text-xs font-semibold shadow-2xs hover:bg-slate-800 cursor-pointer"
                           >
                             Clear all filters
                           </button>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center justify-center gap-3">
-                          <div className="w-12 h-9 rounded-[14px] bg-slate-100 flex items-center justify-center text-slate-400">
-                            <ShieldCheck className="w-6 h-6" />
+                        <div className="flex flex-col items-center justify-center gap-2.5 py-6">
+                          <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                            <ShieldCheck className="w-6 h-6 text-slate-500" />
                           </div>
-                          <div>
-                            <p className="font-semibold text-slate-700">No Audit Events Logged Yet</p>
-                            <p className="text-xs text-slate-400 mt-0.5">
-                              As actions and state transitions occur, immutable records will populate here.
-                            </p>
-                          </div>
+                          <p className="font-semibold text-slate-800 text-sm">No Activity Logged Yet</p>
+                          <p className="text-xs text-slate-500 max-w-sm">
+                            As actions and updates take place across your organization, an immutable history will be recorded here.
+                          </p>
                         </div>
                       )}
                     </td>
@@ -554,162 +866,305 @@ export const AuditLogsList: React.FC = () => {
           </div>
         )}
 
-        {/* Pagination Footer */}
-        {meta.totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between flex-wrap gap-3">
-            <div className="text-xs font-semibold text-slate-500 font-sans">
-              Showing page <span className="font-bold text-slate-900">{meta.page}</span> of{' '}
-              <span className="font-bold text-slate-900">{meta.totalPages}</span> ({meta.total} total records)
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const container = document.getElementById('main-scroll-container');
-                  if (container) {
-                    container.scrollTo({ top: 0, behavior: 'smooth' });
-                  }
-                }}
-                className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
-              >
-                <ArrowUp className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Back to Top</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-                <span>Previous</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={page >= meta.totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="inline-flex items-center justify-center gap-2 h-9 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-[10px] text-[13px] leading-[18px] font-semibold shadow-xs transition-all active:bg-slate-100 active:scale-[0.98]"
-              >
-                <span>Next</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
+        {/* BOTTOM PAGINATION CONTROLS */}
+        {renderPaginationControls(false)}
       </div>
 
-      {/* 4. Portaled Event Detail Inspection Modal */}
+      {/* 4. REBUILT INSPECT MODAL (Activity Details) */}
       {selectedLog &&
         createPortal(
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-slideUpFade">
-            <div className="animate-successPop bg-white rounded-[20px] shadow-2xl w-full max-w-2xl border border-slate-200/80 flex flex-col overflow-hidden max-h-[90vh]">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-slideUpFade">
+            <div className="bg-white rounded-[20px] shadow-2xl w-full max-w-2xl border border-slate-200/80 flex flex-col overflow-hidden max-h-[92vh]">
               {/* Modal Header */}
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center">
-                    <Activity className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h2 className="text-[17px] font-bold text-[#12161F] font-sans tracking-tight">
-                      Audit Event Inspection
-                    </h2>
-                    <p className="text-xs text-slate-500 font-sans">
-                      {selectedLog.action} on {selectedLog.resourceType}
-                    </p>
-                  </div>
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/60">
+                <div>
+                  <h2 className="text-[18px] font-bold text-[#0B1738] font-sans tracking-tight">
+                    Activity Details
+                  </h2>
+                  <p className="text-xs text-slate-500 font-sans mt-0.5">
+                    Review event details and recorded changes.
+                  </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSelectedLog(null)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
+                  title="Close modal"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               {/* Modal Body */}
-              <div className="overflow-y-auto p-6 space-y-6">
-                {/* Meta Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
-                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1 font-sans">
-                      Timestamp
-                    </span>
-                    <span className="text-xs font-bold text-slate-900 font-sans block">
-                      {format(new Date(selectedLog.createdAt), 'EEEE, MMMM d, yyyy • HH:mm:ss')}
-                    </span>
-                    <span className="text-[11px] text-slate-400 font-sans block mt-0.5">
-                      ISO: {selectedLog.createdAt}
-                    </span>
-                  </div>
+              <div className="overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden p-6 space-y-5">
+                {/* 1. Event Summary Card */}
+                <div className="bg-[#F7F8FA] border border-slate-200/80 rounded-[14px] p-4.5 space-y-3.5">
+                  <span className="text-[11.5px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Event Summary
+                  </span>
 
-                  <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
-                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1 font-sans">
-                      Action Performed
-                    </span>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border font-sans ${getActionBadgeStyle(
-                        selectedLog.action
-                      )}`}
-                    >
-                      {selectedLog.action}
-                    </span>
-                  </div>
-
-                  <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
-                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1 font-sans">
-                      Actor Details
-                    </span>
-                    <span className="text-xs font-bold text-slate-900 font-sans block">
-                      {selectedLog.actorName || 'System Service'}
-                    </span>
-                    <span className="text-[11px] text-slate-500 font-sans block mt-0.5">
-                      {selectedLog.actorEmail || 'Internal Agent'}
-                    </span>
-                    {selectedLog.actorId && (
-                      <span className="text-[10px] text-slate-400 font-sans block mt-0.5">
-                        UUID: {selectedLog.actorId}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {/* What Happened */}
+                    <div className="p-3 bg-white rounded-xl border border-slate-200/60 shadow-2xs">
+                      <span className="text-[11px] font-semibold text-slate-400 block mb-1">
+                        What Happened
                       </span>
-                    )}
-                  </div>
-
-                  <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
-                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1 font-sans">
-                      Target Resource
-                    </span>
-                    <span className="text-xs font-bold text-slate-900 font-sans block flex items-center gap-1.5">
-                      {getResourceIcon(selectedLog.resourceType)}
-                      {selectedLog.resourceType}
-                    </span>
-                    {selectedLog.resourceId && (
-                      <span className="text-[11px] text-slate-500 font-sans block mt-0.5">
-                        Resource ID: {selectedLog.resourceId}
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border ${getActionBadgeStyle(
+                          selectedLog.action,
+                        )}`}
+                      >
+                        {selectedLog.readableAction || formatAuditAction(selectedLog.action)}
                       </span>
-                    )}
+                    </div>
+
+                    {/* Who Performed Action */}
+                    <div className="p-3 bg-white rounded-xl border border-slate-200/60 shadow-2xs">
+                      <span className="text-[11px] font-semibold text-slate-400 block mb-1">
+                        Performed By
+                      </span>
+                      <div className="text-xs font-bold text-slate-900 truncate">
+                        {selectedLog.actorName}
+                      </div>
+                      {selectedLog.actorEmail && (
+                        <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                          {selectedLog.actorEmail}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* When It Happened */}
+                    <div className="p-3 bg-white rounded-xl border border-slate-200/60 shadow-2xs">
+                      <span className="text-[11px] font-semibold text-slate-400 block mb-1">
+                        Timestamp ({configuredTimeZone})
+                      </span>
+                      <div className="text-xs font-bold text-slate-900">
+                        {
+                          formatConfiguredDateTime(
+                            selectedLog.createdAt,
+                            configuredTimeZone,
+                            configuredDateFormat,
+                          ).full
+                        }
+                      </div>
+                      <div className="text-[10.5px] text-slate-400 font-mono mt-0.5">
+                        UTC: {new Date(selectedLog.createdAt).toISOString()}
+                      </div>
+                    </div>
+
+                    {/* Target Item */}
+                    <div className="p-3 bg-white rounded-xl border border-slate-200/60 shadow-2xs">
+                      <span className="text-[11px] font-semibold text-slate-400 block mb-1">
+                        Affected Item
+                      </span>
+                      <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        {getResourceIcon(selectedLog.resourceType)}
+                        {(() => {
+                          const name =
+                            selectedLog.resourceName ||
+                            (selectedLog.resourceType === 'Project' && selectedLog.resourceId
+                              ? projectNameMap.get(selectedLog.resourceId)
+                              : selectedLog.resourceType === 'Employee' && selectedLog.resourceId
+                              ? employeeNameMap.get(selectedLog.resourceId)
+                              : selectedLog.resourceType === 'Team' && selectedLog.resourceId
+                              ? teamNameMap.get(selectedLog.resourceId)
+                              : null);
+                          return (
+                            <span>
+                              {selectedLog.resourceType}
+                              {name ? `: ${name}` : ''}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                      {selectedLog.resourceId && (
+                        <div className="text-[10.5px] text-slate-500 font-mono truncate mt-0.5">
+                          ID: {selectedLog.resourceId}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Details Breakdown */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900 font-sans uppercase tracking-wider">
-                      Event Payload & Changes
+                {/* 2. Changes Made Card */}
+                <div className="bg-[#F7F8FA] border border-slate-200/80 rounded-[14px] p-4.5 space-y-3">
+                  <span className="text-[11.5px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Changes Made
+                  </span>
+
+                  {(() => {
+                    const parsed = parseEventChanges(selectedLog.details, entityLookup);
+
+                    if (parsed.type === 'diff' && parsed.diffRows) {
+                      return (
+                        <div className="bg-white rounded-xl border border-slate-200/70 overflow-hidden shadow-2xs">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50 border-b border-slate-200/70 text-slate-500 font-semibold">
+                              <tr>
+                                <th className="px-3.5 py-2">Field</th>
+                                <th className="px-3.5 py-2">Previous Value</th>
+                                <th className="px-3.5 py-2">New Value</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {parsed.diffRows.map((row, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50/50">
+                                  <td className="px-3.5 py-2 font-semibold text-slate-900">
+                                    {row.field}
+                                  </td>
+                                  <td className="px-3.5 py-2 text-rose-700 bg-rose-50/40 font-mono text-[11px]">
+                                    {row.from}
+                                  </td>
+                                  <td className="px-3.5 py-2 text-emerald-700 bg-emerald-50/40 font-mono text-[11px]">
+                                    {row.to}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    }
+
+                    if (parsed.type === 'fields' && parsed.fieldList) {
+                      return (
+                        <div className="bg-white rounded-xl border border-slate-200/70 p-3.5 space-y-2 shadow-2xs">
+                          <span className="text-xs text-slate-600 block">
+                            The following fields were modified during this update:
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {parsed.fieldList.map((f, i) => (
+                              <span
+                                key={i}
+                                className="px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200/70"
+                              >
+                                {f}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-[11px] text-slate-400 italic pt-1">
+                            Previous and new values were not recorded for this event.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    if (parsed.type === 'attributes' && parsed.attributeRows) {
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {parsed.attributeRows.map((attr, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-white rounded-xl border border-slate-200/70 p-3 shadow-2xs"
+                            >
+                              <span className="text-[11px] font-semibold text-slate-400 block mb-0.5">
+                                {attr.label}
+                              </span>
+                              <span className="text-xs font-semibold text-slate-800 break-words">
+                                {attr.value}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="p-4 bg-white rounded-xl border border-slate-200/70 text-center shadow-2xs">
+                        <p className="text-xs text-slate-500 font-medium">
+                          {parsed.emptyMessage || 'No additional change details were recorded for this event.'}
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* 3. Technical Details Card */}
+                <div className="bg-[#F7F8FA] border border-slate-200/80 rounded-[14px] p-4.5 space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-[11.5px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Technical Details & JSON Payload
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyPayload(selectedLog.details)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors font-sans cursor-pointer"
-                    >
-                      {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{isCopied ? 'Copied' : 'Copy JSON'}</span>
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyJson(selectedLog.details)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 shadow-2xs transition-colors cursor-pointer"
+                      >
+                        {isCopiedJson ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                        <span>{isCopiedJson ? 'Copied' : 'Copy JSON'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadSingleEventJson(selectedLog)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 shadow-2xs transition-colors cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Download JSON</span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="bg-slate-900 text-slate-100 rounded-xl p-4 overflow-x-auto text-xs font-sans leading-relaxed border border-slate-800">
-                    <pre className="font-sans whitespace-pre-wrap">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200/70 flex items-center justify-between">
+                      <span className="text-slate-500 font-medium">Event ID:</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-slate-800 text-[11px] truncate max-w-[160px]">
+                          {selectedLog.id}
+                        </span>
+                        <button
+                          onClick={() => handleCopyText(selectedLog.id, 'event-id')}
+                          className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                          title="Copy Event ID"
+                        >
+                          {isCopiedId === 'event-id' ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200/70 flex items-center justify-between">
+                      <span className="text-slate-500 font-medium">Event Code:</span>
+                      <span className="font-mono font-semibold text-slate-800 text-[11px]">
+                        {selectedLog.action}
+                      </span>
+                    </div>
+
+                    {selectedLog.resourceId && (
+                      <div className="bg-white p-2.5 rounded-lg border border-slate-200/70 flex items-center justify-between sm:col-span-2">
+                        <span className="text-slate-500 font-medium">Resource ID:</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-slate-800 text-[11px] truncate max-w-[280px]">
+                            {selectedLog.resourceId}
+                          </span>
+                          <button
+                            onClick={() => handleCopyText(selectedLog.resourceId!, 'resource-id')}
+                            className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                            title="Copy Resource ID"
+                          >
+                            {isCopiedId === 'resource-id' ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Raw JSON Code Block */}
+                  <div className="bg-[#0B1738] text-slate-200 rounded-xl p-3.5 overflow-x-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden text-xs font-mono border border-slate-800 max-h-52 leading-relaxed">
+                    <pre className="whitespace-pre-wrap">
                       {JSON.stringify(selectedLog.details, null, 2)}
                     </pre>
                   </div>
@@ -717,18 +1172,107 @@ export const AuditLogsList: React.FC = () => {
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0 bg-slate-50/50 rounded-b-[20px]">
+              <div className="px-6 py-3.5 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0 bg-slate-50/60 rounded-b-[20px]">
                 <button
                   type="button"
                   onClick={() => setSelectedLog(null)}
-                  className="px-6 py-2 bg-[#12161F] hover:bg-slate-800 text-white text-[13.5px] font-bold rounded-full shadow-xs transition-all active:scale-[0.97] cursor-pointer font-sans"
+                  className="px-6 py-2 bg-[#0B1738] hover:bg-slate-800 text-white text-[13px] font-bold rounded-full shadow-xs transition-all active:scale-[0.97] cursor-pointer font-sans"
                 >
                   Close
                 </button>
               </div>
             </div>
           </div>,
-          document.body
+          document.body,
+        )}
+
+      {/* 5. EXPORT MODAL */}
+      {showExportModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-slideUpFade">
+            <div className="bg-white rounded-[20px] shadow-2xl w-full max-w-md border border-slate-200/80 overflow-hidden flex flex-col">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-[#F7F8FA]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-[#0B1738] text-white flex items-center justify-center shadow-xs">
+                    <Download className="w-4 h-4 text-[#C8DB00]" />
+                  </div>
+                  <div>
+                    <h3 className="text-[17px] font-bold text-[#0B1738]">Export Activity History</h3>
+                    <p className="text-xs text-slate-500">Download filtered records safely</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="bg-[#F7F8FA] p-3.5 rounded-xl border border-slate-200/70 text-xs text-slate-600 space-y-1.5">
+                  <span className="font-semibold text-slate-800 block">Export Scope & Current Filters:</span>
+                  <p>
+                    • Matching records: <span className="font-bold text-slate-900">{meta.total}</span> events
+                  </p>
+                  {debouncedSearch && <p>• Search query: &ldquo;{debouncedSearch}&rdquo;</p>}
+                  {actionFilter !== 'ALL' && <p>• Action: {formatAuditAction(actionFilter)}</p>}
+                  {resourceFilter !== 'ALL' && <p>• Resource: {resourceFilter}</p>}
+                  {fromDate && <p>• From: {fromDate}</p>}
+                  {toDate && <p>• To: {toDate}</p>}
+                  <p className="text-[11px] text-slate-400 pt-1">
+                    Export batches are bounded to 5,000 events to ensure security and prevent memory exhaustion.
+                  </p>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                    Choose Export Format
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      disabled={isExporting}
+                      onClick={() => handleDownloadExport('csv')}
+                      className="flex flex-col items-center justify-center gap-2 p-4 bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-[#0B1738] rounded-xl text-center transition-all group cursor-pointer disabled:opacity-50"
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs">
+                        CSV
+                      </div>
+                      <span className="text-xs font-bold text-slate-800">Spreadsheet (CSV)</span>
+                      <span className="text-[11px] text-slate-400">Excel, Sheets, CSV tools</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isExporting}
+                      onClick={() => handleDownloadExport('json')}
+                      className="flex flex-col items-center justify-center gap-2 p-4 bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-[#0B1738] rounded-xl text-center transition-all group cursor-pointer disabled:opacity-50"
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-xs">
+                        JSON
+                      </div>
+                      <span className="text-xs font-bold text-slate-800">Raw Data (JSON)</span>
+                      <span className="text-[11px] text-slate-400">Developer & compliance</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-6 py-3.5 border-t border-slate-100 flex items-center justify-end bg-slate-50/60">
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(false)}
+                  className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold rounded-lg shadow-2xs transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
         )}
     </div>
   );

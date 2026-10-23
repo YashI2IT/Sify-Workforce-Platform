@@ -3,6 +3,40 @@ import { db } from '../prisma/db.js';
 import type { AuthenticatedContext } from '../auth/authenticated-context.js';
 import { formatUtcMondayDateString } from '../common/date.utils.js';
 
+function toSafeDate(val: any): Date | null {
+  if (!val) return null;
+  if (val instanceof Date) return val;
+  if (typeof val?.epochMilliseconds === 'number') return new Date(val.epochMilliseconds);
+  if (typeof val?.toString === 'function') {
+    const s = val.toString();
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d;
+  }
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) return d;
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function toSafeIsoString(val: any): string | null {
+  if (!val) return null;
+  if (typeof val?.toString === 'function' && typeof val?.epochMilliseconds === 'number') {
+    return val.toString();
+  }
+  const d = toSafeDate(val);
+  return d ? d.toISOString() : null;
+}
+
+function toSafeTimeMs(val: any): number | null {
+  if (!val) return null;
+  if (typeof val?.epochMilliseconds === 'number') return val.epochMilliseconds;
+  const d = toSafeDate(val);
+  return d ? d.getTime() : null;
+}
+
 @Injectable()
 export class ReportsService {
   async getEmployeeSummary(
@@ -1014,6 +1048,388 @@ export class ReportsService {
     });
 
     return result.sort((a, b) => b.utilizationPercentage - a.utilizationPercentage);
+  }
+
+  async getAdminReport(
+    startDate: string,
+    endDate: string,
+    filters: {
+      projectId?: string;
+      teamId?: string;
+      employeeId?: string;
+      status?: string;
+    },
+    auth: AuthenticatedContext
+  ) {
+    if (!auth.roles.includes('ADMIN')) {
+      throw new ForbiddenException('Only administrators can access the admin report');
+    }
+    const orgId = auth.organizationId;
+    const nowMs = Date.now();
+
+    // 1. Organization & Settings
+    const org = await db.orm.public.Organization.where({ id: orgId }).first();
+    const orgSettings = await db.orm.public.OrganizationSettings.where({ organizationId: orgId }).first();
+    const timeZone = orgSettings?.timeZone || 'UTC';
+    const dateFormat = orgSettings?.dateFormat || 'DD/MM/YYYY';
+
+    // 2. Organization Projects
+    const allProjects = await db.orm.public.Project.where({ organizationId: orgId }).all();
+    const orgProjectIds = allProjects.map((p: any) => p.id);
+
+    // 3. Organization Employees & Teams
+    const allEmployees = await db.orm.public.Employee.where({ organizationId: orgId }).all();
+    const employeeMap = new Map(allEmployees.map((e: any) => [e.id, e]));
+
+    const allTeams = await db.orm.public.Team.where({ organizationId: orgId }).all();
+    const teamMap = new Map(allTeams.map((t: any) => [t.id, t]));
+
+    // 4. Organization Tasks
+    const allTasks = orgProjectIds.length > 0
+      ? await db.orm.public.Task.where((t: any) => (t as any).projectId.in(orgProjectIds)).where({ isActive: true }).all()
+      : [];
+
+    // Map tasks to actual hours from TimeEntry
+    const taskIds = allTasks.map((t: any) => t.id);
+    const taskActualAgg = taskIds.length > 0
+      ? await db.orm.public.TimeEntry.where((e: any) => (e as any).taskId.in(taskIds)).groupBy('taskId').aggregate((a: any) => ({ total: a.sum('hours') }))
+      : [];
+    const taskActualMap = new Map<string, number>();
+    if (Array.isArray(taskActualAgg)) {
+      taskActualAgg.forEach((row: any) => taskActualMap.set(row.taskId, Number(row.total || 0)));
+    }
+
+    // 5. Organization Time Entries in Date Range
+    const orgEmployeeIds = allEmployees.map((e: any) => e.id);
+    const timeEntries = orgEmployeeIds.length > 0
+      ? await db.orm.public.TimeEntry
+          .where((e: any) => (e as any).employeeId.in(orgEmployeeIds))
+          .where((e: any) => (e as any).date.gte(startDate))
+          .where((e: any) => (e as any).date.lte(endDate))
+          .all()
+      : [];
+
+    // Helper: team member IDs
+    const getTeamMemberIds = (teamId: string) => {
+      return new Set(allEmployees.filter((e: any) => e.teamId === teamId).map((e: any) => e.id));
+    };
+
+    // Filtered Tasks
+    let filteredTasks = allTasks;
+    if (filters.projectId) {
+      filteredTasks = filteredTasks.filter((t: any) => t.projectId === filters.projectId);
+    }
+    if (filters.teamId) {
+      const memberIds = getTeamMemberIds(filters.teamId);
+      filteredTasks = filteredTasks.filter((t: any) => t.assigneeId && memberIds.has(t.assigneeId));
+    }
+    if (filters.employeeId) {
+      filteredTasks = filteredTasks.filter((t: any) => t.assigneeId === filters.employeeId);
+    }
+    if (filters.status) {
+      filteredTasks = filteredTasks.filter((t: any) => t.status === filters.status);
+    }
+
+    // Filtered Time Entries
+    let filteredEntries = timeEntries;
+    if (filters.projectId) {
+      filteredEntries = filteredEntries.filter((e: any) => e.projectId === filters.projectId);
+    }
+    if (filters.teamId) {
+      const memberIds = getTeamMemberIds(filters.teamId);
+      filteredEntries = filteredEntries.filter((e: any) => memberIds.has(e.employeeId));
+    }
+    if (filters.employeeId) {
+      filteredEntries = filteredEntries.filter((e: any) => e.employeeId === filters.employeeId);
+    }
+
+    // 6. Calculate Summary KPIs
+    const activeProjects = allProjects.filter((p: any) => p.isActive !== false && (p.status === 'ACTIVE' || p.status === 'IN_PROGRESS'));
+    const completedProjects = allProjects.filter((p: any) => p.status === 'COMPLETED');
+
+    // Tasks Completed in Period:
+    // status is DONE and updatedAt was within [startDate, endDate]
+    const tasksCompletedInPeriod = filteredTasks.filter((t: any) => {
+      if (t.status !== 'DONE') return false;
+      const d = toSafeDate(t.updatedAt);
+      if (!d) return false;
+      const updatedDate = d.toISOString().slice(0, 10);
+      return updatedDate >= startDate && updatedDate <= endDate;
+    }).length;
+
+    // Overdue Tasks:
+    // due date has passed and status is not DONE
+    const overdueTasks = filteredTasks.filter((t: any) => {
+      if (t.status === 'DONE') return false;
+      const dueMs = toSafeTimeMs(t.dueDate);
+      return dueMs !== null && dueMs < nowMs;
+    }).length;
+
+    // Distinct Active Team Members in Organization
+    const distinctActiveEmployees = allEmployees.filter((e: any) => e.isActive !== false);
+
+    // Work Hours Calculations
+    let totalLoggedHours = 0;
+    let approvedHours = 0;
+    let submittedHours = 0;
+    let draftHours = 0;
+    let rejectedHours = 0;
+
+    for (const entry of filteredEntries) {
+      const h = Number(entry.hours || 0);
+      totalLoggedHours += h;
+      const st = String(entry.approvalStatus || 'DRAFT').toUpperCase();
+      if (st === 'APPROVED') approvedHours += h;
+      else if (st === 'SUBMITTED') submittedHours += h;
+      else if (st === 'REJECTED') rejectedHours += h;
+      else draftHours += h;
+    }
+
+    totalLoggedHours = Math.round(totalLoggedHours * 10) / 10;
+    approvedHours = Math.round(approvedHours * 10) / 10;
+    submittedHours = Math.round(submittedHours * 10) / 10;
+    draftHours = Math.round(draftHours * 10) / 10;
+    rejectedHours = Math.round(rejectedHours * 10) / 10;
+    const approvalRate = totalLoggedHours > 0 ? Math.round((approvedHours / totalLoggedHours) * 100) : 0;
+
+    // 7. Section A: Project Performance
+    const projectStatusCounts = {
+      ACTIVE: allProjects.filter((p: any) => p.status === 'ACTIVE').length,
+      IN_PROGRESS: allProjects.filter((p: any) => p.status === 'IN_PROGRESS').length,
+      PLANNING: allProjects.filter((p: any) => p.status === 'PLANNING').length,
+      ON_HOLD: allProjects.filter((p: any) => p.status === 'ON_HOLD').length,
+      COMPLETED: allProjects.filter((p: any) => p.status === 'COMPLETED').length,
+    };
+
+    let overdueProjectsCount = 0;
+    const projectHoursByProject = new Map<string, number>();
+    for (const entry of filteredEntries) {
+      projectHoursByProject.set(entry.projectId, (projectHoursByProject.get(entry.projectId) || 0) + Number(entry.hours || 0));
+    }
+
+    const projectPerformanceList = allProjects.map((p: any) => {
+      const pTasks = allTasks.filter((t: any) => t.projectId === p.id);
+      const pTotal = pTasks.length;
+      const pCompleted = pTasks.filter((t: any) => t.status === 'DONE').length;
+      const pOpen = pTotal - pCompleted;
+      const pOverdue = pTasks.filter((t: any) => {
+        if (t.status === 'DONE') return false;
+        const dueMs = toSafeTimeMs(t.dueDate);
+        return dueMs !== null && dueMs < nowMs;
+      }).length;
+      const pProgress = pTotal > 0 ? Math.round((pCompleted / pTotal) * 100) : 0;
+      const endMs = toSafeTimeMs(p.endDate);
+      const isOverdue = p.status !== 'COMPLETED' && endMs !== null && endMs < nowMs;
+      if (isOverdue) overdueProjectsCount++;
+
+      return {
+        id: p.id,
+        name: p.name,
+        code: p.code,
+        status: p.status,
+        isActive: p.isActive,
+        startDate: toSafeIsoString(p.startDate),
+        endDate: toSafeIsoString(p.endDate),
+        totalTasks: pTotal,
+        completedTasks: pCompleted,
+        openTasks: pOpen,
+        overdueTasks: pOverdue,
+        progressPct: pProgress,
+        isOverdue: Boolean(isOverdue),
+        loggedHours: Math.round((projectHoursByProject.get(p.id) || 0) * 10) / 10,
+      };
+    }).sort((a: any, b: any) => b.totalTasks - a.totalTasks);
+
+    // 8. Section B: Task Progress
+    const totalOpenTasks = filteredTasks.filter((t: any) => t.status !== 'DONE').length;
+    const taskStatusCounts: Record<string, number> = {
+      TODO: 0,
+      IN_PROGRESS: 0,
+      REVIEW: 0,
+      DONE: 0,
+    };
+    for (const t of filteredTasks) {
+      const st = t.status || 'TODO';
+      if (taskStatusCounts[st] !== undefined) taskStatusCounts[st]++;
+      else taskStatusCounts.TODO++;
+    }
+
+    const taskCountTotal = filteredTasks.length;
+    const taskDistribution = {
+      TODO: { count: taskStatusCounts.TODO, pct: taskCountTotal > 0 ? Math.round((taskStatusCounts.TODO / taskCountTotal) * 100) : 0 },
+      IN_PROGRESS: { count: taskStatusCounts.IN_PROGRESS, pct: taskCountTotal > 0 ? Math.round((taskStatusCounts.IN_PROGRESS / taskCountTotal) * 100) : 0 },
+      REVIEW: { count: taskStatusCounts.REVIEW, pct: taskCountTotal > 0 ? Math.round((taskStatusCounts.REVIEW / taskCountTotal) * 100) : 0 },
+      DONE: { count: taskStatusCounts.DONE, pct: taskCountTotal > 0 ? Math.round((taskStatusCounts.DONE / taskCountTotal) * 100) : 0 },
+    };
+
+    const taskList = filteredTasks.map((t: any) => {
+      const assignee = t.assigneeId ? employeeMap.get(t.assigneeId) : null;
+      const team = assignee?.teamId ? teamMap.get(assignee.teamId) : null;
+      const project = allProjects.find((p: any) => p.id === t.projectId);
+      const taskDueMs = toSafeTimeMs(t.dueDate);
+      const isTaskOverdue = t.status !== 'DONE' && taskDueMs !== null && taskDueMs < nowMs;
+
+      return {
+        id: t.id,
+        ticketId: t.ticketId,
+        name: t.name,
+        status: t.status,
+        priority: t.priority,
+        projectId: t.projectId,
+        projectName: project?.name || 'Unknown Project',
+        projectCode: project?.code || '',
+        assigneeId: t.assigneeId,
+        assigneeName: assignee?.name || null,
+        teamId: team?.id || null,
+        teamName: team?.name || null,
+        dueDate: toSafeIsoString(t.dueDate),
+        isOverdue: Boolean(isTaskOverdue),
+        estimatedHours: Number(t.estimatedHours || 0),
+        actualHours: Math.round((taskActualMap.get(t.id) || 0) * 10) / 10,
+        completedAt: t.status === 'DONE' && t.updatedAt ? toSafeIsoString(t.updatedAt) : null,
+      };
+    }).sort((a: any, b: any) => {
+      if (a.isOverdue && !b.isOverdue) return -1;
+      if (!a.isOverdue && b.isOverdue) return 1;
+      return (b.actualHours || 0) - (a.actualHours || 0);
+    });
+
+    // 9. Section C: Team Overview
+    const teamHoursMap = new Map<string, number>();
+    for (const entry of filteredEntries) {
+      const emp = employeeMap.get(entry.employeeId);
+      if (emp?.teamId) {
+        teamHoursMap.set(emp.teamId, (teamHoursMap.get(emp.teamId) || 0) + Number(entry.hours || 0));
+      }
+    }
+
+    const teamOverviewList = allTeams.map((team: any) => {
+      const manager = team.managerId ? employeeMap.get(team.managerId) : null;
+      const members = allEmployees.filter((e: any) => e.teamId === team.id && e.isActive !== false);
+      const memberIds = new Set(members.map((e: any) => e.id));
+      const teamTasks = allTasks.filter((t: any) => t.assigneeId && memberIds.has(t.assigneeId));
+      const openCount = teamTasks.filter((t: any) => t.status !== 'DONE').length;
+      const overdueCount = teamTasks.filter((t: any) => {
+        if (t.status === 'DONE') return false;
+        const dueMs = toSafeTimeMs(t.dueDate);
+        return dueMs !== null && dueMs < nowMs;
+      }).length;
+      const loggedHours = Math.round((teamHoursMap.get(team.id) || 0) * 10) / 10;
+
+      return {
+        id: team.id,
+        name: team.name,
+        managerId: team.managerId,
+        managerName: manager?.name || null,
+        managerEmail: manager?.email || null,
+        activeMemberCount: members.length,
+        openTaskCount: openCount,
+        overdueTaskCount: overdueCount,
+        totalLoggedHours: loggedHours,
+      };
+    }).sort((a: any, b: any) => b.activeMemberCount - a.activeMemberCount);
+
+    // 10. Section D: Work Hours Summary Breakdowns
+    const projectHoursSummary: any[] = [];
+    projectHoursByProject.forEach((hrs, pId) => {
+      const p = allProjects.find((x: any) => x.id === pId);
+      const rounded = Math.round(hrs * 10) / 10;
+      projectHoursSummary.push({
+        projectId: pId,
+        projectName: p?.name || 'Unknown',
+        projectCode: p?.code || '',
+        hours: rounded,
+        pct: totalLoggedHours > 0 ? Math.round((rounded / totalLoggedHours) * 100) : 0,
+      });
+    });
+    projectHoursSummary.sort((a: any, b: any) => b.hours - a.hours);
+
+    const teamHoursSummary: any[] = [];
+    teamHoursMap.forEach((hrs, tId) => {
+      const t = teamMap.get(tId);
+      const rounded = Math.round(hrs * 10) / 10;
+      teamHoursSummary.push({
+        teamId: tId,
+        teamName: t?.name || 'Unknown Team',
+        hours: rounded,
+        pct: totalLoggedHours > 0 ? Math.round((rounded / totalLoggedHours) * 100) : 0,
+      });
+    });
+    teamHoursSummary.sort((a: any, b: any) => b.hours - a.hours);
+
+    // 11. Available Filter Options
+    const filterOptions = {
+      projects: allProjects.map((p: any) => ({ id: p.id, name: p.name, code: p.code })),
+      teams: allTeams.map((t: any) => ({ id: t.id, name: t.name })),
+      employees: allEmployees.filter((e: any) => e.isActive !== false).map((e: any) => ({ id: e.id, name: e.name, email: e.email })),
+      statuses: [
+        { value: 'TODO', label: 'To Do' },
+        { value: 'IN_PROGRESS', label: 'In Progress' },
+        { value: 'REVIEW', label: 'Review' },
+        { value: 'DONE', label: 'Done' },
+      ],
+    };
+
+    return {
+      organization: {
+        id: orgId,
+        name: org?.name || 'Organization',
+        timeZone,
+        dateFormat,
+      },
+      period: {
+        startDate,
+        endDate,
+      },
+      filters: {
+        projectId: filters.projectId || undefined,
+        teamId: filters.teamId || undefined,
+        employeeId: filters.employeeId || undefined,
+        status: filters.status || undefined,
+      },
+      summary: {
+        activeProjects: activeProjects.length,
+        completedProjects: completedProjects.length,
+        totalProjects: allProjects.length,
+        tasksCompletedInPeriod,
+        totalTasks: filteredTasks.length,
+        openTasks: totalOpenTasks,
+        overdueTasks,
+        teamMembers: distinctActiveEmployees.length,
+        totalLoggedHours,
+        approvedHours,
+        submittedHours,
+        draftHours,
+        rejectedHours,
+        approvalRate,
+      },
+      projectPerformance: {
+        statusBreakdown: projectStatusCounts,
+        overdueProjectsCount,
+        projects: projectPerformanceList,
+      },
+      taskProgress: {
+        totalOpenTasks,
+        completedInPeriod: tasksCompletedInPeriod,
+        overdueTasksCount: overdueTasks,
+        distribution: taskDistribution,
+        tasks: taskList,
+      },
+      teamOverview: {
+        totalTeams: allTeams.length,
+        teams: teamOverviewList,
+      },
+      workHoursSummary: {
+        totalLoggedHours,
+        approvedHours,
+        submittedHours,
+        draftHours,
+        rejectedHours,
+        byProject: projectHoursSummary,
+        byTeam: teamHoursSummary,
+      },
+      filterOptions,
+    };
   }
 }
 

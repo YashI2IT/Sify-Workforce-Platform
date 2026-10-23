@@ -15,8 +15,20 @@ import {
 import { useGetAdvancedAnalyticsReportQuery } from '../../store/apiSlice';
 import { useCurrentEmployee } from '../../hooks/useCurrentEmployee';
 import { DatePicker } from '../../components/ui/DatePicker';
+import { AdminReportsView } from './AdminReportsView';
 
 export function ReportsAndAnalytics() {
+  const { employee } = useCurrentEmployee();
+  const isAdmin = employee?.roles?.includes('ADMIN') || employee?.role === 'ADMIN';
+
+  if (isAdmin) {
+    return <AdminReportsView />;
+  }
+
+  return <NonAdminReportsView />;
+}
+
+function NonAdminReportsView() {
   const { employee } = useCurrentEmployee();
 
   // Helper to format Date to YYYY-MM-DD
