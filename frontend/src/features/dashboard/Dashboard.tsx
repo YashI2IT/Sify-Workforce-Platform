@@ -206,14 +206,14 @@ export interface AdminDashboardViewProps {
   loading: boolean;
   fetchDashboardData: () => void;
   activeEmployees: number;
-  inactiveEmployees: number;
-  totalEmployees: number;
-  auditLogs: any[];
+  inactiveEmployees?: number;
+  totalEmployees?: number;
+  auditLogs?: any[];
   totalTeams: number;
   teamsWithoutManager: number;
   activeProjectsCount: number;
-  projectsData: any[];
-  projectStatusCounts: {
+  projectsData?: any[];
+  projectStatusCounts?: {
     ACTIVE: number;
     IN_PROGRESS: number;
     PLANNING: number;
@@ -222,7 +222,7 @@ export interface AdminDashboardViewProps {
   };
   pendingInvitationsCount: number;
   overdueTasksCount: number;
-  pendingActionsCount: number;
+  pendingActionsCount?: number;
   getGreeting: () => string;
   dashboardError?: string | null;
 }
@@ -233,21 +233,52 @@ export const AdminDashboardView = ({
   loading,
   fetchDashboardData,
   activeEmployees,
-  inactiveEmployees,
-  totalEmployees,
-  auditLogs,
   totalTeams,
   teamsWithoutManager,
   activeProjectsCount,
-  projectsData,
-  projectStatusCounts,
   pendingInvitationsCount,
   overdueTasksCount,
-  pendingActionsCount,
   getGreeting,
   dashboardError,
 }: AdminDashboardViewProps) => {
-  const totalProjects = projectsData.length;
+  const attentionItems = [
+    {
+      id: 'overdue-tasks',
+      label: 'Overdue Tasks',
+      count: overdueTasksCount,
+      unit: overdueTasksCount === 1 ? 'task' : 'tasks',
+      description: 'Tasks past their due date and not completed',
+      link: '/admin/projects',
+      actionText: 'View overdue tasks',
+      icon: AlertCircle,
+      isUrgent: true,
+    },
+    {
+      id: 'teams-without-lead',
+      label: 'Teams Without a Lead',
+      count: teamsWithoutManager,
+      unit: teamsWithoutManager === 1 ? 'team' : 'teams',
+      description: 'Teams without an assigned manager',
+      link: '/teams',
+      actionText: 'Assign lead',
+      icon: UsersRound,
+      isUrgent: false,
+    },
+    {
+      id: 'pending-invitations',
+      label: 'Pending Invitations',
+      count: pendingInvitationsCount,
+      unit: pendingInvitationsCount === 1 ? 'invite' : 'invites',
+      description: 'Invitations awaiting response',
+      link: '/employees',
+      actionText: 'Manage invitations',
+      icon: Mail,
+      isUrgent: false,
+    },
+  ];
+
+  const activeAttentionItems = attentionItems.filter((item) => item.count > 0);
+  const totalAttentionIssues = overdueTasksCount + teamsWithoutManager + pendingInvitationsCount;
 
   return (
     <div className="space-y-6">
@@ -287,7 +318,7 @@ export const AdminDashboardView = ({
           <p className="text-xs sm:text-[13px] text-slate-500 font-medium">
             <span>{getGreeting()}, <span className="font-semibold text-slate-700">{employee?.name?.split(' ')[0] || employee?.name}</span></span>
             <span className="mx-2 text-slate-300">•</span>
-            <span>Enterprise workforce operations, governance, and organizational metrics.</span>
+            <span>Your company at a glance.</span>
           </p>
         </div>
 
@@ -312,12 +343,12 @@ export const AdminDashboardView = ({
         </div>
       </div>
 
-      {/* ── 2. Summary Metrics (Level 1: Compact Ribbon) ───────────────────── */}
+      {/* ── 2. Summary Metrics (Level 1: Three Essential Cards) ────────────── */}
       <div className="space-y-2">
         <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
           Overview
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
           {/* Active Employees */}
           <Link
             to="/employees"
@@ -330,48 +361,12 @@ export const AdminDashboardView = ({
               </div>
             </div>
             <div className="my-2.5">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-bold text-slate-900 tracking-tight leading-none">
-                  {loading ? <StatSkeleton /> : activeEmployees}
-                </span>
-                <span className="text-xs text-slate-400 font-medium">active</span>
-              </div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                {inactiveEmployees > 0 ? `${inactiveEmployees} inactive` : `Total: ${totalEmployees} employees`}
-              </p>
+              <span className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-none">
+                {loading ? <StatSkeleton /> : activeEmployees}
+              </span>
             </div>
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-medium text-slate-500 group-hover:text-slate-900">
               <span>Directory</span>
-              <span className="font-semibold text-slate-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                View <ArrowRight className="w-3 h-3" />
-              </span>
-            </div>
-          </Link>
-
-          {/* Active Teams */}
-          <Link
-            to="/teams"
-            className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">Active Teams</span>
-              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-[#0B1738] group-hover:text-white transition-colors">
-                <UsersRound className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className="my-2.5">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-bold text-slate-900 tracking-tight leading-none">
-                  {loading ? <StatSkeleton /> : totalTeams}
-                </span>
-                <span className="text-xs text-slate-400 font-medium">teams</span>
-              </div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                {teamsWithoutManager > 0 ? `${teamsWithoutManager} without manager` : 'All teams assigned'}
-              </p>
-            </div>
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-medium text-slate-500 group-hover:text-slate-900">
-              <span>Teams</span>
               <span className="font-semibold text-slate-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
                 View <ArrowRight className="w-3 h-3" />
               </span>
@@ -390,15 +385,9 @@ export const AdminDashboardView = ({
               </div>
             </div>
             <div className="my-2.5">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-bold text-slate-900 tracking-tight leading-none">
-                  {loading ? <StatSkeleton /> : activeProjectsCount}
-                </span>
-                <span className="text-xs text-slate-400 font-medium">active</span>
-              </div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                {projectStatusCounts.COMPLETED > 0 ? `${projectStatusCounts.COMPLETED} completed` : `Total: ${totalProjects} projects`}
-              </p>
+              <span className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-none">
+                {loading ? <StatSkeleton /> : activeProjectsCount}
+              </span>
             </div>
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-medium text-slate-500 group-hover:text-slate-900">
               <span>Projects</span>
@@ -408,319 +397,131 @@ export const AdminDashboardView = ({
             </div>
           </Link>
 
-          {/* Pending Actions */}
-          <div
-            className={`p-4 rounded-xl border shadow-2xs transition-all flex flex-col justify-between ${
-              !loading && pendingActionsCount > 0
-                ? 'bg-amber-50/40 border-amber-200/80'
-                : 'bg-white border-slate-200/80'
-            }`}
+          {/* Total Teams */}
+          <Link
+            to="/teams"
+            className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between group"
           >
             <div className="flex items-center justify-between">
-              <span className={`text-xs font-semibold ${!loading && pendingActionsCount > 0 ? 'text-amber-800' : 'text-slate-500'}`}>
-                Pending Actions
-              </span>
-              <div
-                className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs ${
-                  !loading && pendingActionsCount > 0
-                    ? 'bg-amber-100 text-amber-900 border border-amber-200/80'
-                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
-                }`}
-              >
-                {!loading && pendingActionsCount > 0 ? (
-                  <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                ) : (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                )}
+              <span className="text-xs font-semibold text-slate-500">Total Teams</span>
+              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-[#0B1738] group-hover:text-white transition-colors">
+                <UsersRound className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="my-2.5">
-              <div className="flex items-baseline gap-1.5">
-                <span className={`text-2xl font-bold tracking-tight leading-none ${!loading && pendingActionsCount > 0 ? 'text-amber-950' : 'text-slate-900'}`}>
-                  {loading ? <StatSkeleton /> : pendingActionsCount}
-                </span>
-                <span className="text-xs text-slate-400 font-medium">pending</span>
-              </div>
-              <p className={`text-[11px] mt-1 ${!loading && pendingActionsCount > 0 ? 'text-amber-800' : 'text-slate-500'}`}>
-                {!loading && pendingActionsCount > 0 ? 'Items requiring attention' : 'All workflows up to date'}
-              </p>
-            </div>
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-medium">
-              <span className="text-slate-500">Status</span>
-              <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  !loading && pendingActionsCount > 0
-                    ? 'bg-amber-100 text-amber-800 border border-amber-200/60'
-                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
-                }`}
-              >
-                {!loading && pendingActionsCount > 0 ? 'Review below ↓' : 'All Clear'}
+              <span className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-none">
+                {loading ? <StatSkeleton /> : totalTeams}
               </span>
             </div>
-          </div>
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-medium text-slate-500 group-hover:text-slate-900">
+              <span>Teams</span>
+              <span className="font-semibold text-slate-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                View <ArrowRight className="w-3 h-3" />
+              </span>
+            </div>
+          </Link>
         </div>
       </div>
 
       {/* ── 3. Needs Attention (Level 2: Action Tray) ─────────────────────── */}
-      <div className="bg-white border border-slate-200/80 shadow-2xs rounded-xl overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${pendingActionsCount > 0 ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+            <span
+              className={`w-2 h-2 rounded-full ${
+                !loading && totalAttentionIssues === 0 ? 'bg-emerald-500' : 'bg-amber-500'
+              }`}
+            />
             <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
               Needs Attention
             </h2>
           </div>
-          <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-              pendingActionsCount > 0
-                ? 'bg-amber-50 text-amber-800 border border-amber-200/80'
-                : 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
-            }`}
-          >
-            {pendingActionsCount} {pendingActionsCount === 1 ? 'Action Item' : 'Action Items'}
-          </span>
+          {!loading && totalAttentionIssues > 0 && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/80">
+              {totalAttentionIssues} {totalAttentionIssues === 1 ? 'Action Item' : 'Action Items'}
+            </span>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
-          {/* Pending Invitations */}
-          <Link
-            to="/employees"
-            className="p-4 hover:bg-slate-50/70 transition-colors flex flex-col justify-between group"
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs animate-pulse">
+                <div className="h-4 bg-slate-100 rounded w-1/3 mb-3" />
+                <div className="h-7 bg-slate-100 rounded w-1/4 mb-2" />
+                <div className="h-3 bg-slate-100 rounded w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : totalAttentionIssues === 0 ? (
+          <div className="bg-white border border-slate-200/80 rounded-xl p-8 text-center flex flex-col items-center justify-center shadow-2xs">
+            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3 border border-emerald-100">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            </div>
+            <p className="text-sm font-semibold text-slate-900">
+              Nothing needs your attention.
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              All tasks, team leadership assignments, and pending invitations are up to date.
+            </p>
+          </div>
+        ) : (
+          <div
+            className={`grid grid-cols-1 ${
+              activeAttentionItems.length === 1
+                ? 'sm:grid-cols-1 max-w-md'
+                : activeAttentionItems.length === 2
+                ? 'sm:grid-cols-2'
+                : 'sm:grid-cols-3'
+            } gap-3.5 sm:gap-4`}
           >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500">Pending Invitations</span>
-                <Mail className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-900 transition-colors" />
-              </div>
-              <div className="mt-2.5 flex items-baseline gap-1.5">
-                <span className={`text-xl font-bold ${pendingInvitationsCount > 0 ? 'text-amber-700' : 'text-slate-900'}`}>
-                  {loading ? <StatSkeleton /> : pendingInvitationsCount}
-                </span>
-                <span className="text-[11px] text-slate-400">invites</span>
-              </div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                {pendingInvitationsCount > 0 ? 'Awaiting employee acceptance' : 'No pending invitations'}
-              </p>
-            </div>
-            <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-600 group-hover:text-slate-900">
-              <span>Invitations</span>
-              <span className="font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                View <ArrowRight className="w-3 h-3" />
-              </span>
-            </div>
-          </Link>
-
-          {/* Teams Without Manager */}
-          <Link
-            to="/teams"
-            className="p-4 hover:bg-slate-50/70 transition-colors flex flex-col justify-between group"
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500">Teams Without Manager</span>
-                <UsersRound className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-900 transition-colors" />
-              </div>
-              <div className="mt-2.5 flex items-baseline gap-1.5">
-                <span className={`text-xl font-bold ${teamsWithoutManager > 0 ? 'text-rose-600' : 'text-slate-900'}`}>
-                  {loading ? <StatSkeleton /> : teamsWithoutManager}
-                </span>
-                <span className="text-[11px] text-slate-400">teams</span>
-              </div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                {teamsWithoutManager > 0 ? 'Unassigned team managers' : 'All teams have managers'}
-              </p>
-            </div>
-            <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-600 group-hover:text-slate-900">
-              <span>Teams</span>
-              <span className="font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                Assign <ArrowRight className="w-3 h-3" />
-              </span>
-            </div>
-          </Link>
-
-          {/* Overdue Project Work */}
-          <Link
-            to="/admin/projects"
-            className="p-4 hover:bg-slate-50/70 transition-colors flex flex-col justify-between group"
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500">Overdue Project Work</span>
-                <AlertCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-900 transition-colors" />
-              </div>
-              <div className="mt-2.5 flex items-baseline gap-1.5">
-                <span className={`text-xl font-bold ${overdueTasksCount > 0 ? 'text-rose-600' : 'text-slate-900'}`}>
-                  {loading ? <StatSkeleton /> : overdueTasksCount}
-                </span>
-                <span className="text-[11px] text-slate-400">tasks</span>
-              </div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                {overdueTasksCount > 0 ? 'Tasks past their due date' : 'No tasks overdue'}
-              </p>
-            </div>
-            <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-600 group-hover:text-slate-900">
-              <span>Projects</span>
-              <span className="font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                View <ArrowRight className="w-3 h-3" />
-              </span>
-            </div>
-          </Link>
-        </div>
-      </div>
-
-      {/* ── 4. Main 2-Column Work Canvas ──────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
-        {/* Left Column: Projects & Teams (2 columns) */}
-        <div className="lg:col-span-2 space-y-5">
-          {/* Projects Portfolio */}
-          <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-slate-500" />
-                <h3 className="text-sm font-bold text-slate-900">Projects Portfolio</h3>
-                <span className="text-xs text-slate-400 font-medium">({projectsData.length})</span>
-              </div>
+            {activeAttentionItems.map((item) => (
               <Link
-                to="/admin/projects"
-                className="text-xs font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1 group"
+                key={item.id}
+                to={item.link}
+                className={`bg-white p-4 rounded-xl border shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group ${
+                  item.isUrgent
+                    ? 'border-rose-200/90 hover:border-rose-300'
+                    : 'border-slate-200/80 hover:border-slate-300'
+                }`}
               >
-                <span>View all projects</span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-            </div>
-
-            {projectsData.length > 0 ? (
-              <div className="divide-y divide-slate-100">
-                {projectsData.slice(0, 5).map((project) => (
-                  <div
-                    key={project.id}
-                    className="p-3.5 sm:px-5 flex items-center justify-between gap-4 hover:bg-slate-50/60 transition-colors"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Link
-                          to={`/projects/${project.id}`}
-                          className="text-xs font-bold text-slate-900 hover:text-blue-600 transition-colors truncate"
-                        >
-                          {project.name}
-                        </Link>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${getStatusBadgeClass(project.status || 'ACTIVE')}`}>
-                          {project.status || 'ACTIVE'}
-                        </span>
-                      </div>
-                      <div className="mt-1 flex items-center gap-3 text-[11px] text-slate-400 flex-wrap">
-                        {project.startDate && project.endDate && (
-                          <span>{formatDateRange(project.startDate, project.endDate)}</span>
-                        )}
-                        {project.description && (
-                          <span className="text-slate-500 truncate max-w-sm">{project.description}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    <Link
-                      to={`/projects/${project.id}`}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
-                      title="View project details"
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-600">{item.label}</span>
+                    <div
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                        item.isUrgent
+                          ? 'bg-rose-50 text-rose-600 border border-rose-100'
+                          : 'bg-amber-50 text-amber-700 border border-amber-100'
+                      }`}
                     >
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-8 px-4 text-center text-xs text-slate-400">
-                No active projects in organization.
-              </div>
-            )}
-          </div>
-
-          {/* Teams Overview */}
-          <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <UsersRound className="w-4 h-4 text-slate-500" />
-                <h3 className="text-sm font-bold text-slate-900">Organization Teams</h3>
-                <span className="text-xs text-slate-400 font-medium">({totalTeams})</span>
-              </div>
-              <Link
-                to="/teams"
-                className="text-xs font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1 group"
-              >
-                <span>View all teams</span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-            </div>
-
-            {totalTeams > 0 ? (
-              <div className="divide-y divide-slate-100">
-                {projectsData.length > 0 && (
-                  <div className="p-3.5 sm:px-5 flex items-center justify-between text-xs text-slate-600">
-                    <span className="font-semibold text-slate-800">Operational Workforce Teams</span>
-                    <Link to="/teams" className="text-slate-700 hover:text-slate-950 font-semibold inline-flex items-center gap-1">
-                      Manage Structure <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="py-8 px-4 text-center text-xs text-slate-400">
-                No teams configured yet.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column: Governance Stream / Recent Activity (1 column) */}
-        <div className="lg:col-span-1 space-y-5">
-          <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-slate-500" />
-                <h3 className="text-sm font-bold text-slate-900">Recent Activity</h3>
-              </div>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                Audit Stream
-              </span>
-            </div>
-
-            {auditLogs && auditLogs.length > 0 ? (
-              <div className="divide-y divide-slate-100">
-                {auditLogs.slice(0, 6).map((log) => {
-                  const activity = formatAuditActivity(log);
-                  return (
-                    <div key={log.id} className="p-3 sm:px-4 flex items-start gap-3 hover:bg-slate-50/60 transition-colors">
-                      <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 shrink-0 mt-0.5">
-                        {activity.iconType === 'project' && <Briefcase className="w-3.5 h-3.5" />}
-                        {activity.iconType === 'time' && <Clock className="w-3.5 h-3.5" />}
-                        {activity.iconType === 'user' && <Users className="w-3.5 h-3.5" />}
-                        {activity.iconType === 'team' && <UsersRound className="w-3.5 h-3.5" />}
-                        {activity.iconType === 'org' && <Building className="w-3.5 h-3.5" />}
-                        {activity.iconType === 'default' && <Clock className="w-3.5 h-3.5" />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-bold text-slate-900 truncate">{activity.title}</p>
-                          <span className="text-[10px] text-slate-400 shrink-0">
-                            {new Date(log.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 truncate mt-0.5">{activity.description}</p>
-                        <p className="text-[10px] text-slate-400 mt-1">
-                          By <span className="font-semibold text-slate-600">{log.actorName || log.actorEmail || 'System'}</span>
-                        </p>
-                      </div>
+                      <item.icon className="w-3.5 h-3.5" />
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="py-8 px-5 text-center text-xs text-slate-400">
-                No recent activity logged.
-              </div>
-            )}
+                  </div>
+                  <div className="my-2.5 flex items-baseline gap-1.5">
+                    <span
+                      className={`text-2xl font-bold tracking-tight leading-none ${
+                        item.isUrgent ? 'text-rose-600' : 'text-slate-900'
+                      }`}
+                    >
+                      {item.count}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">{item.unit}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    {item.description}
+                  </p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-600 group-hover:text-slate-900">
+                  <span className="text-[11px] text-slate-400">Action</span>
+                  <span className="font-semibold text-slate-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                    {item.actionText} <ArrowRight className="w-3 h-3" />
+                  </span>
+                </div>
+              </Link>
+            ))}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
