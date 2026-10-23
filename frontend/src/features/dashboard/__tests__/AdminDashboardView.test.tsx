@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AdminDashboardView, type AdminDashboardViewProps } from '../Dashboard';
 
-describe('AdminDashboardView UI Refinements & Selective Layout', () => {
+describe('AdminDashboardView UI Alignment & Recent Company Activity', () => {
   const defaultProps: AdminDashboardViewProps = {
     employee: { id: 'admin-1', name: 'Yash Bhosale', role: 'ADMIN', roles: ['ADMIN'] },
     orgSummary: { name: 'Sify Technologies', domain: 'sify.com' },
@@ -13,7 +13,22 @@ describe('AdminDashboardView UI Refinements & Selective Layout', () => {
     activeEmployees: 42,
     inactiveEmployees: 3,
     totalEmployees: 45,
-    auditLogs: [],
+    auditLogs: [
+      {
+        id: 'log-1',
+        action: 'PROJECT_UPDATED',
+        actorName: 'Priya Sharma',
+        details: { updatedFields: ['budget', 'timeline'] },
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'log-2',
+        action: 'TEAM_CREATED',
+        actorName: 'Yash Bhosale',
+        details: { name: 'Cloud Engineering' },
+        createdAt: new Date().toISOString(),
+      },
+    ],
     totalTeams: 6,
     teamsWithoutManager: 1,
     activeProjectsCount: 8,
@@ -46,7 +61,7 @@ describe('AdminDashboardView UI Refinements & Selective Layout', () => {
   it('renders the personalized greeting with user\'s first name and excludes redundant Admin Dashboard title and OVERVIEW heading', () => {
     renderAdminView();
 
-    // Main page heading: Good morning, Yash
+    // Main page heading: Good morning, Yash (matching Employee header style)
     expect(screen.getByRole('heading', { level: 1, name: /good morning, yash/i })).toBeInTheDocument();
 
     // Redundant Admin Dashboard title and OVERVIEW must NOT exist
@@ -70,9 +85,9 @@ describe('AdminDashboardView UI Refinements & Selective Layout', () => {
     expect(screen.getByText('6')).toBeInTheDocument();
 
     // Actions
-    expect(screen.getByText('View employees')).toBeInTheDocument();
-    expect(screen.getByText('View projects')).toBeInTheDocument();
-    expect(screen.getByText('View teams')).toBeInTheDocument();
+    expect(screen.getByText(/view employees/i)).toBeInTheDocument();
+    expect(screen.getByText(/view projects/i)).toBeInTheDocument();
+    expect(screen.getByText(/view teams/i)).toBeInTheDocument();
 
     // 4th card removed from summary ribbon
     expect(screen.queryByText('Pending Actions')).not.toBeInTheDocument();
@@ -83,19 +98,20 @@ describe('AdminDashboardView UI Refinements & Selective Layout', () => {
     expect(screen.getByRole('link', { name: /total teams/i })).toHaveAttribute('href', '/teams');
   });
 
-  it('renders a full-width horizontal panel when only one category has outstanding items', () => {
+  it('renders a full-width attention row without redundant category badges when only one category has outstanding items', () => {
     renderAdminView({
       overdueTasksCount: 10,
       teamsWithoutManager: 0,
       pendingInvitationsCount: 0,
     });
 
-    // Badge indicates exact category count: 1 Category
-    expect(screen.getByText('1 Category')).toBeInTheDocument();
+    // No redundant category count badges
+    expect(screen.queryByText('1 Category')).not.toBeInTheDocument();
+    expect(screen.queryByText(/action item/i)).not.toBeInTheDocument();
 
     // Overdue Tasks category content
-    expect(screen.getByText('Overdue Tasks')).toBeInTheDocument();
-    expect(screen.getByText('10 tasks')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: /overdue tasks/i })).toBeInTheDocument();
+    expect(screen.getByText(/10 tasks/i)).toBeInTheDocument();
     expect(screen.getByText('Tasks past their due date.')).toBeInTheDocument();
 
     // Clear call to action button
@@ -104,11 +120,11 @@ describe('AdminDashboardView UI Refinements & Selective Layout', () => {
     expect(actionLink).toHaveAttribute('href', '/admin/projects');
 
     // Other categories must not appear
-    expect(screen.queryByText('Teams Without a Lead')).not.toBeInTheDocument();
-    expect(screen.queryByText('Pending Invitations')).not.toBeInTheDocument();
+    expect(screen.queryByText(/teams without a lead/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/pending invitations/i)).not.toBeInTheDocument();
   });
 
-  it('renders balanced multi-category layout when multiple categories have outstanding items', () => {
+  it('renders consistent compact rows when multiple categories have outstanding items', () => {
     renderAdminView({
       overdueTasksCount: 3,
       teamsWithoutManager: 1,
@@ -116,12 +132,11 @@ describe('AdminDashboardView UI Refinements & Selective Layout', () => {
     });
 
     expect(screen.getByText('Needs Attention')).toBeInTheDocument();
-    expect(screen.getByText('3 Categories')).toBeInTheDocument();
 
     // 3 attention categories
-    expect(screen.getByText('Overdue Tasks')).toBeInTheDocument();
-    expect(screen.getByText('Teams Without a Lead')).toBeInTheDocument();
-    expect(screen.getByText('Pending Invitations')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: /overdue tasks/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: /teams without a lead/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: /pending invitations/i })).toBeInTheDocument();
 
     // Links for next actions
     expect(screen.getByRole('link', { name: /view overdue tasks/i })).toHaveAttribute('href', '/admin/projects');
@@ -140,17 +155,25 @@ describe('AdminDashboardView UI Refinements & Selective Layout', () => {
     expect(screen.queryByText('Overdue Tasks')).not.toBeInTheDocument();
     expect(screen.queryByText('Teams Without a Lead')).not.toBeInTheDocument();
     expect(screen.queryByText('Pending Invitations')).not.toBeInTheDocument();
-    expect(screen.queryByText(/category/i)).not.toBeInTheDocument();
   });
 
-  it('removes Projects Portfolio, Organization Teams list, and Recent Activity feed from dashboard', () => {
+  it('renders Recent Company Activity with view activity history link and real audit records', () => {
     renderAdminView();
 
-    // Secondary duplicate feeds must NOT be in the admin dashboard
-    expect(screen.queryByText('Projects Portfolio')).not.toBeInTheDocument();
-    expect(screen.queryByText('Organization Teams')).not.toBeInTheDocument();
-    expect(screen.queryByText('Recent Activity')).not.toBeInTheDocument();
-    expect(screen.queryByText('Audit Stream')).not.toBeInTheDocument();
+    expect(screen.getByText('Recent Company Activity')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /view activity history/i })).toHaveAttribute('href', '/activity-history');
+
+    // Renders real activity entries from auditLogs
+    expect(screen.getByText('Project Updated')).toBeInTheDocument();
+    expect(screen.getByText('Priya Sharma')).toBeInTheDocument();
+    expect(screen.getByText('Team Created')).toBeInTheDocument();
+  });
+
+  it('renders empty state for Recent Company Activity when no logs are available', () => {
+    renderAdminView({ auditLogs: [] });
+
+    expect(screen.getByText('Recent Company Activity')).toBeInTheDocument();
+    expect(screen.getByText('No recent activity recorded.')).toBeInTheDocument();
   });
 
   it('does NOT render Pending Approvals or any timesheet review links for Admin', () => {
